@@ -361,8 +361,8 @@ if test "x$with_rdkafka" = "xyes" ; then
   if test "x$rdkafka_h" = "xno"; then
      AC_MSG_ERROR([Could not find rdkafka.h and was specifically asked to use rdkafka support])
   fi
-  RDKAFKA_LIBS=`-lrdkafka`
-  RDKAFKA_INCLUDES=``
+  RDKAFKA_LIBS="-lrdkafka"
+  RDKAFKA_INCLUDES=""
   AC_MSG_CACHE_ADD(Kafka Trap Logging:         enabled)
 else
   AC_MSG_CACHE_ADD(Kafka Trap Logging:         unavailable)

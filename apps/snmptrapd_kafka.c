@@ -53,12 +53,16 @@ typedef struct netsnmp_kafka_globals_t {
     char        *brokers;       /* broker address (def=localhost) */
     char        *topic;         /* kafka topic to write to */
     uint16_t     port_num;      /* port number (built-in value) */
+
+    rd_kafka_t *rk;
 } netsnmp_kafka_globals;
 
 static netsnmp_kafka_globals _kafka = {
     .brokers = NULL,
     .topic = NULL,
-    .port_num = 9092
+    .port_num = 9092,
+
+    .rk = NULL,
 };
 
 /* FW */
@@ -103,8 +107,31 @@ netsnmp_kafka_error(const char *message)
 static void
 netsnmp_kafka_cleanup(void)
 {
+    DEBUGMSGTL(("kafka:handler", "called\n"));
+
     free(_kafka.brokers);
     free(_kafka.topic);
+
+    /* Wait for messages to be delivered */
+    rd_kafka_poll(_kafka.rk, 100);
+
+    rd_kafka_destroy(_kafka.rk);
+}
+
+/**
+ * Magnus Edenhill's message delivery report callback.
+ * Called once for each message.
+ */
+static void msg_delivered (rd_kafka_t *rk,
+void *payload, size_t len,
+int error_code,
+void *opaque, void *msg_opaque) {
+
+    if (error_code){
+        snmp_log(LOG_ERR, "kafka: Message delivery failed: %s\n", rd_kafka_err2str(error_code));
+    }else if(snmp_get_do_debugging()){
+        snmp_log(LOG_DEBUG, "kafka: Message delivered (%zd bytes): %*.*s\n", len,(int)len,(int)len,(char *)payload);
+    }
 }
 
 /** one-time initialization for mysql */
@@ -112,6 +139,9 @@ int
 netsnmp_kafka_init(void)
 {
     netsnmp_trapd_handler *traph = NULL;
+    rd_kafka_conf_t *conf = NULL;
+    rd_kafka_topic_conf_t *topic_conf = NULL;
+    char errstr[512];
 
     DEBUGMSGTL(("kafka:init","called\n"));
 
@@ -129,19 +159,30 @@ netsnmp_kafka_init(void)
         return -1;
     }
 
-    #if 0
-    // @TODO
-    _sql.conn = mysql_init (NULL);
-    if (_sql.conn == NULL) {
-        netsnmp_kafka_error("mysql_init() failed (out of memory?)");
+    conf = rd_kafka_conf_new();
+    if(NULL==conf){
+        snmp_log(LOG_ERR,"rd_kafka_conf_new() failed (out of memory?)\n");
         return -1;
     }
-    #endif
+
+    rd_kafka_conf_set_dr_cb(conf, msg_delivered);
+
+    topic_conf = rd_kafka_topic_conf_new();
+    if(NULL==topic_conf){
+        snmp_log(LOG_ERR,"rd_kafka_topic_conf_new() failed (out of memory?)\n");
+        return -1;
+    }
+
+    _kafka.rk = rd_kafka_new (RD_KAFKA_PRODUCER,conf,errstr,sizeof(errstr));
+    if (_kafka.rk == NULL) {
+        snmp_log(LOG_ERR,"rd_kafka_new() failed: %s\n",errstr);
+        return -1;
+    }
 
     /** add handler */
     // @TODO search about PRE_HANDLER and alternatives
     traph = netsnmp_add_global_traphandler(NETSNMPTRAPD_PRE_HANDLER,kafka_handler);
-    if (1 || NULL == traph) {
+    if (NULL == traph) {
         snmp_log(LOG_ERR, "Could not allocate kafka trap handler\n");
         return -1;
     }
