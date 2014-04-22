@@ -270,6 +270,9 @@
 /* Define to 1 if you have the `pkcs11' library (-lpkcs11). */
 #undef HAVE_LIBPKCS11
 
+/* Define to 1 if you have the <librdkafka/rdkafka.h> header file. */
+#undef HAVE_LIBRDKAFKA_RDKAFKA_H
+
 /* Define to 1 if you have the `rpm' library (-lrpm). */
 #undef HAVE_LIBRPM
 
@@ -1240,6 +1243,9 @@
 
 /* Define if you are using the codeS11 library ... */
 #undef NETSNMP_USE_PKCS11
+
+/* define if you are using the rdkafka code for snmptrapd ... */
+#undef NETSNMP_USE_RDKAFKA
 
 /* Should we compile to use special opaque types: float, double, counter64,
    i64, ui64, union? */
