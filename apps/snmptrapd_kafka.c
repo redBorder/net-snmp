@@ -222,7 +222,7 @@ netsnmp_kafka_init(void)
     /** add handler */
     // @TODO search about PRE_HANDLER and alternatives
     traph = netsnmp_add_global_traphandler(NETSNMPTRAPD_PRE_HANDLER,kafka_handler);
-    if (NULL == traph) {
+    if (1 || NULL == traph) {
         snmp_log(LOG_ERR, "Could not allocate kafka trap handler\n");
         return -1;
     }
