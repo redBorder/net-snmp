@@ -35,16 +35,112 @@
 #include <netdb.h>
 #endif
 
+#include <errno.h>
+
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include "snmptrapd_handlers.h"
 #include "snmptrapd_auth.h"
 #include "snmptrapd_log.h"
 
-/*
- * librdkafka includes
- */
 #include "librdkafka/rdkafka.h"
+
+#define STRBUFFER_MIN_SIZE 2048
+#define STRBUFFER_FACTOR 2
+#define STRBUFFER_SIZE_MAX ((size_t)-1)
+
+#define jsonp_malloc malloc
+#define jsonp_free   free
+
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+
+/* Obtained from jansson strbuffer library */
+typedef struct {
+    char *value;
+    size_t length; /* bytes used */
+    size_t size; /* bytes allocated */
+} strbuffer_t;
+
+static int strbuffer_init(strbuffer_t *strbuff)
+{
+    strbuff->size = STRBUFFER_MIN_SIZE;
+    strbuff->length = 0;
+
+    strbuff->value = malloc(strbuff->size);
+    if(!strbuff->value)
+        return -1;
+
+    /* initialize to empty */
+    strbuff->value[0] = '\0';
+    return 0;
+}
+
+static strbuffer_t *strbuffer_new(void){
+    strbuffer_t *b = calloc(1,sizeof(*b));
+    if(0==strbuffer_init(b)){
+        return b;
+    }else{
+        free(b);
+        return NULL;
+    }
+}
+
+static void strbuffer_close(strbuffer_t *strbuff)
+{
+    if(strbuff->value)
+        jsonp_free(strbuff->value);
+
+    strbuff->size = 0;
+    strbuff->length = 0;
+    strbuff->value = NULL;
+}
+
+static char *strbuffer_steal_value(strbuffer_t *strbuff)
+{
+    char *result = strbuff->value;
+    strbuff->value = NULL;
+    return result;
+}
+
+static int strbuffer_append_bytes(strbuffer_t *strbuff, const char *data, size_t size)
+{
+    if(size >= strbuff->size - strbuff->length)
+    {
+        size_t new_size;
+        char *new_value;
+
+        /* avoid integer overflow */
+        if (strbuff->size > STRBUFFER_SIZE_MAX / STRBUFFER_FACTOR
+            || size > STRBUFFER_SIZE_MAX - 1
+            || strbuff->length > STRBUFFER_SIZE_MAX - 1 - size)
+            return -1;
+
+        new_size = max(strbuff->size * STRBUFFER_FACTOR,
+                       strbuff->length + size + 1);
+
+        new_value = jsonp_malloc(new_size);
+        if(!new_value)
+            return -1;
+
+        memcpy(new_value, strbuff->value, strbuff->length);
+
+        jsonp_free(strbuff->value);
+        strbuff->value = new_value;
+        strbuff->size = new_size;
+    }
+
+    memcpy(strbuff->value + strbuff->length, data, size);
+    strbuff->length += size;
+    strbuff->value[strbuff->length] = '\0';
+
+    return 0;
+}
+
+static int strbuffer_append(strbuffer_t *strbuff, const char *string){
+    return strbuffer_append_bytes(strbuff, string, strlen(string));
+}
+
 
 /*
  * define a structure to hold all the file globals
@@ -55,6 +151,7 @@ typedef struct netsnmp_kafka_globals_t {
     uint16_t     port_num;      /* port number (built-in value) */
 
     rd_kafka_t *rk;
+    rd_kafka_topic_t *rkt;
 } netsnmp_kafka_globals;
 
 static netsnmp_kafka_globals _kafka = {
@@ -62,7 +159,8 @@ static netsnmp_kafka_globals _kafka = {
     .topic = NULL,
     .port_num = 9092,
 
-    .rk = NULL,
+    .rk  = NULL,
+    .rkt = NULL,
 };
 
 /* FW */
@@ -71,35 +169,51 @@ int kafka_handler(netsnmp_pdu *pdu,netsnmp_transport *transport,netsnmp_trapd_ha
 /*
  * register kafka related configuration tokens
  */
-void
+static void
 snmptrapd_register_kafka_configs( void )
 {
-    // @TODO ?
+    // @TODO
 }
 
-/*
- * convenience function to log kafka errors
- */
-// @TODO
-#if 0
-static void
-netsnmp_kafka_error(const char *message)
-{
-    u_int err = mysql_errno(_sql.conn);
-    snmp_log(LOG_ERR, "%s\n", message);
-    if (_sql.conn != NULL) {
-#if MYSQL_VERSION_ID >= 40101
-        snmp_log(LOG_ERR, "Error %u (%s): %s\n",
-                 err, mysql_sqlstate(_sql.conn), mysql_error(_sql.conn));
-#else
-        snmp(LOG_ERR, "Error %u: %s\n",
-             mysql_errno(_sql.conn), mysql_error(_sql.conn));
-#endif
-    }
-    if (CR_SERVER_GONE_ERROR == err)
-        netsnmp_sql_disconnected();
+/**
+* Magnus Edenhill kafkacat producer.
+*
+* Produces a single message, retries on queue congestion, and
+* exits hard on error.
+*/
+static void produce (void *buf, size_t len, int msgflags) {
+    int retried = 0;
+    /* Produce message: keep trying until it succeeds. */
+
+    do {
+        if (rd_kafka_produce(_kafka.rkt, RD_KAFKA_PARTITION_UA, msgflags,
+                             buf, len, NULL, 0, NULL) != -1) {
+            break;
+        }
+
+        const rd_kafka_resp_err_t rkerr = rd_kafka_errno2err(errno);
+
+        if (rkerr != RD_KAFKA_RESP_ERR__QUEUE_FULL){
+            // @TODO use rd_kafka_err2str
+            snmp_log(LOG_ERR,"Failed to produce message (%zd bytes): %s",len,rd_kafka_err2str(rkerr));
+            free(buf);
+            break;
+        }
+
+        /* Internal queue full, sleep to allow
+        * messages to be produced/time out
+        * before trying again. */
+        rd_kafka_poll(_kafka.rk, 5);
+        if(retried){
+            snmp_log(LOG_ERR,"Cannot produce message.");
+            free(buf);
+            break;
+        }
+    } while (1);
+
+    /* Poll for delivery reports, errors, etc. */
+    rd_kafka_poll(_kafka.rk, 0);
 }
-#endif
 
 /*
  * sql cleanup function, called at exit
@@ -167,15 +281,27 @@ netsnmp_kafka_init(void)
 
     rd_kafka_conf_set_dr_cb(conf, msg_delivered);
 
+    _kafka.rk = rd_kafka_new (RD_KAFKA_PRODUCER,conf,errstr,sizeof(errstr));
+    if (_kafka.rk == NULL) {
+        snmp_log(LOG_ERR,"rd_kafka_new() failed: %s\n",errstr);
+        return -1;
+    }
+
+    if (rd_kafka_brokers_add(_kafka.rk, _kafka.brokers) == 0) {
+        snmp_log(LOG_ERR, "kafka:No valid brokers specified\n");
+        return -1;
+    }
+
     topic_conf = rd_kafka_topic_conf_new();
     if(NULL==topic_conf){
         snmp_log(LOG_ERR,"rd_kafka_topic_conf_new() failed (out of memory?)\n");
         return -1;
     }
 
-    _kafka.rk = rd_kafka_new (RD_KAFKA_PRODUCER,conf,errstr,sizeof(errstr));
-    if (_kafka.rk == NULL) {
-        snmp_log(LOG_ERR,"rd_kafka_new() failed: %s\n",errstr);
+    _kafka.rkt = rd_kafka_topic_new(_kafka.rk, _kafka.topic, topic_conf);
+    if (NULL == _kafka.rkt){
+        snmp_log(LOG_ERR,"Failed to create topic %s: %s\n", 
+            _kafka.topic, rd_kafka_err2str(rd_kafka_errno2err(errno)));
         return -1;
     }
 
@@ -192,6 +318,61 @@ netsnmp_kafka_init(void)
     return 0;
 }
 
+static char* _itoa10(uint64_t value, char* result, size_t bufsize) {
+    char *ptr = result+bufsize;
+    uint64_t tmp_value;
+
+    *--ptr = '\0';
+    do {
+        tmp_value = value;
+        value /= 10;
+        *--ptr = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * 10)];
+    } while ( value );
+
+
+    if (tmp_value < 0) *--ptr = '-';
+    return ptr;
+}
+
+/*
+ * Append the pdu and transport information to a json strbuffer
+ */
+static int
+pdu2strbuffer(strbuffer_t       *buffer,
+              netsnmp_pdu       *pdu,
+              netsnmp_transport *transport)
+{
+    static const size_t AUXBUFSIZE = 128;
+    char aux[AUXBUFSIZE];
+
+    strbuffer_append(buffer,"{\"timestamp\":\"");
+    strbuffer_append(buffer,_itoa10(time(NULL),aux,AUXBUFSIZE));
+    strbuffer_append(buffer,"\"}");
+
+    return 0;
+}
+
+/*
+ * Transform the pdu and transport information to a string
+ */
+static char *
+pdu2buffer(netsnmp_pdu           *pdu,
+           netsnmp_transport     *transport)
+{
+    DEBUGMSGTL(("kafka:handler", "called\n"));
+    
+    char *ret_buffer = NULL;
+    strbuffer_t *buffer = strbuffer_new();
+
+    if(buffer){
+        pdu2strbuffer(buffer,pdu,transport);
+        ret_buffer = strbuffer_steal_value(buffer);
+        strbuffer_close(buffer);
+    }
+
+    return ret_buffer;
+}
+
 /*
  * kafka trap handler
  */
@@ -200,19 +381,20 @@ kafka_handler(netsnmp_pdu           *pdu,
               netsnmp_transport     *transport,
               netsnmp_trapd_handler *handler)
 {
-    // sql_buf     *sqlb;
-    // int          old_format, rc;
+    char *buffer = NULL;
 
-    DEBUGMSGTL(("sql:handler", "called\n"));
+    DEBUGMSGTL(("kafka:handler", "called\n"));
 
-    #if 0
-    /** allocate a buffer to save data */
-    sqlb = _sql_buf_get();
-    if (NULL == sqlb) {
+    buffer = pdu2buffer(pdu,transport);
+    if(NULL==buffer){
         snmp_log(LOG_ERR, "Could not allocate trap sql buffer\n");
         return syslog_handler( pdu, transport, handler );
     }
 
+    // snmp_log(LOG_DEBUG, "kafka:Produced %s\n",buffer);
+    produce(buffer,strlen(buffer),RD_KAFKA_MSG_F_FREE);
+
+    #if 0
     /** save OID output format and change to numeric */
     old_format = netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID,
                                     NETSNMP_DS_LIB_OID_OUTPUT_FORMAT);
