@@ -334,6 +334,29 @@ static char* _itoa10(uint64_t value, char* result, size_t bufsize) {
     return ptr;
 }
 
+static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    const size_t start_buffer_length = buffer->length;
+
+    char *str_buf = calloc(1024,sizeof(u_char));
+    size_t tmp_size = 1024;
+
+    size_t copied = 0;
+    strbuffer_append(buffer,"\"host\":\"");
+    const int rc = realloc_format_trap((u_char **)&str_buf,&tmp_size,&copied,1,"%B",pdu,transport);
+
+    if(rc == 1){
+        // all ok
+        strbuffer_append(buffer,str_buf);
+        // strbuffer_append(buffer,"\"");
+        
+    }else{
+        buffer->length = start_buffer_length;
+        buffer->value[buffer->length] = '\0';
+    }
+    free(str_buf);
+    return rc;
+}
+
 /*
  * Append the pdu and transport information to a json strbuffer
  */
@@ -345,8 +368,15 @@ pdu2strbuffer(strbuffer_t       *buffer,
     static const size_t AUXBUFSIZE = 128;
     char aux[AUXBUFSIZE];
 
-    strbuffer_append(buffer,"{\"timestamp\":\"");
+    strbuffer_append(buffer,"{");
+
+    strbuffer_append(buffer,"\"timestamp\":\"");
     strbuffer_append(buffer,_itoa10(time(NULL),aux,AUXBUFSIZE));
+    strbuffer_append(buffer,"\",");
+
+    host2strbuffer(buffer,"host",pdu,transport);
+    strbuffer_append(buffer,",");
+
     strbuffer_append(buffer,"\"}");
 
     return 0;
