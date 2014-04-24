@@ -55,6 +55,8 @@
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
+#define DONT_SEND_EMPTY_MESSAGES
+
 /* Obtained from jansson strbuffer library */
 typedef struct {
     char *value;
@@ -292,9 +294,15 @@ static int set_netsnmp_quick_print(void){
     return rc;
 }
 
-/* Avoid print TYPE: value format. Instead, it prints directly the value */
 static int set_netsnmp_escape_quotes(void){
     const int rc = netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_ESCAPE_QUOTES,1);
+    if(rc != SNMPERR_SUCCESS)
+        snmp_log(LOG_ERR,"quotes will not be escaped\n");
+    return rc;
+}
+
+static int set_infty_hex_output_length(void){
+    const int rc = netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_HEX_OUTPUT_LENGTH, 2048);
     if(rc != SNMPERR_SUCCESS)
         snmp_log(LOG_ERR,"quotes will not be escaped\n");
     return rc;
@@ -368,6 +376,7 @@ netsnmp_kafka_init(void)
 
     set_netsnmp_quick_print();
     set_netsnmp_escape_quotes();
+    set_infty_hex_output_length();
 
     atexit(netsnmp_kafka_cleanup);
     return 0;
@@ -565,12 +574,12 @@ static int trapinfo2strbuffer(strbuffer_t *buffer,
     strbuffer_append(buffer,_itoa10(time(NULL),aux,AUXBUFSIZE));
     strbuffer_append(buffer,"\",");
 
+
     host2strbuffer(buffer,"host",pdu,transport);
     strbuffer_append(buffer,",");
-
     oid2strbuffer(buffer,"oid",pdu);
-    strbuffer_append(buffer,",");
 
+    strbuffer_append(buffer,",");
     reqid2buffer(buffer,"reqid",pdu);
     strbuffer_append(buffer,",");
     version2buffer(buffer,"version",pdu);
@@ -583,7 +592,6 @@ static int trapinfo2strbuffer(strbuffer_t *buffer,
 
     strbuffer_append(buffer,",");
     security_model2buffer(buffer,"security_model",pdu);
-    strbuffer_append(buffer,",");
 
     return 0;
 }
@@ -600,10 +608,10 @@ static int have_to_add_quotes(const int type){
 }
 
 static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
-    size_t tmp_size = 0,buf_oid_len=0;
+    size_t oid_tmp_size = 0,buf_oid_len=0;
     int overflow = 0;
     char *buf_oid = calloc(1024,sizeof(char));
-    netsnmp_sprint_realloc_objid_tree((u_char**)&buf_oid, &tmp_size,
+    netsnmp_sprint_realloc_objid_tree((u_char**)&buf_oid, &oid_tmp_size,
                                           &buf_oid_len,
                                           1, &overflow, var->name,
                                           var->name_length);
@@ -616,11 +624,11 @@ static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
         return -1;
     }
 
-    tmp_size = overflow = 0;
+    size_t value_tmp_size = overflow = 0;
     size_t  buf_val_len = 0;
     char   *buf_val     = NULL;
 
-    const int value_rc = sprint_realloc_by_type((u_char**)&buf_val, &tmp_size,
+    const int value_rc = sprint_realloc_by_type((u_char**)&buf_val, &value_tmp_size,
                                &buf_val_len, 1, var, NULL, NULL, NULL);
     if(NULL == buf_val){
         snmp_log(LOG_ERR,"Cannot allocate for a variable buffer. Returning.");
@@ -633,26 +641,41 @@ static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
         return value_rc;
     }
 
+#ifdef DONT_SEND_EMPTY_MESSAGES
+    if(strlen(buf_val) == 0 || strcmp(buf_val,"\"\"") == 0){
+        snmp_log(LOG_DEBUG,"Discarding empty line.\n");
+        return 0;        
+    }
+#endif
+
     /* Here, all must be ok */
+    const int _have_to_add_quotes = have_to_add_quotes(var->type);
     print_attr_name(buffer,buf_oid);
-    if(have_to_add_quotes(var->type))
+    if(_have_to_add_quotes)
         strbuffer_append(buffer,"\"");
     strbuffer_append_escape_newlines(buffer,buf_val);
-    if(have_to_add_quotes(var->type))
+    if(_have_to_add_quotes)
         strbuffer_append(buffer,"\"");
 
     SNMP_FREE(buf_oid);
     SNMP_FREE(buf_val);
 
-    return 0;
+    return oid_tmp_size + value_tmp_size + (_have_to_add_quotes ? 2 : 0);
 }
 
 static int varbind2strbuffer(strbuffer_t *buffer,netsnmp_pdu *pdu){
     netsnmp_variable_list *var = pdu->variables;
     while(var){
-        var2strbuffer(buffer,var);
-        if(var->next_variable)
-            strbuffer_append(buffer,",");
+        const size_t initial_length = buffer->length;
+        strbuffer_append(buffer,",");
+        
+        const int bytes_writted = var2strbuffer(buffer,var);
+        if(bytes_writted <= 0){
+            buffer->length = initial_length;
+            buffer->value[buffer->length] = '\0';
+        }
+
+
         var = var->next_variable;
     }
 
@@ -668,6 +691,7 @@ pdu2strbuffer(strbuffer_t       *buffer,
               netsnmp_transport *transport)
 {
     strbuffer_append(buffer,"{");
+
     trapinfo2strbuffer(buffer,pdu,transport);
     varbind2strbuffer(buffer,pdu);
 
