@@ -380,6 +380,7 @@ struct oid_s{
     int trap_oid_len;
 };
 
+// @TODO not thread safe. Pass tmp_oid in a parameter, and use it instead of trapoids
 struct oid_s extract_oid(const netsnmp_pdu *pdu){
     oid         *trap_oid;
     int          trap_oid_len;
@@ -390,7 +391,7 @@ struct oid_s extract_oid(const netsnmp_pdu *pdu){
          * convert a v1 trap to a v2 varbind
          */
         if (pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
-            oid tmp_oid[MAX_OID_LEN];
+            static oid tmp_oid[MAX_OID_LEN];
             trap_oid_len = pdu->enterprise_length;
             memcpy(tmp_oid, pdu->enterprise, sizeof(oid) * trap_oid_len);
             if (tmp_oid[trap_oid_len - 1] != 0)
@@ -448,6 +449,15 @@ static void oid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsn
     strbuffer_append(buffer,"\"");
 }
 
+static void reqid2buffer(strbuffer_t *buffer,const char *attribute_name, const netsnmp_pdu *pdu){
+    char buf[128];
+    print_attr_name(buffer,attribute_name);
+
+    strbuffer_append(buffer,"\"");
+    strbuffer_append(buffer,_itoa10(pdu->reqid,buf,128));
+    strbuffer_append(buffer,"\"");
+}
+
 /*
  * Append the pdu and transport information to a json strbuffer
  */
@@ -469,6 +479,9 @@ pdu2strbuffer(strbuffer_t       *buffer,
     strbuffer_append(buffer,",");
 
     oid2strbuffer(buffer,"oid",pdu);
+    strbuffer_append(buffer,",");
+
+    reqid2buffer(buffer,"reqid",pdu);
 
     strbuffer_append(buffer,"}");
 
