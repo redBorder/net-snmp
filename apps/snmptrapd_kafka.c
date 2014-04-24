@@ -345,7 +345,7 @@ static void print_attr_name(strbuffer_t *buffer,const char *attr_name){
     strbuffer_append(buffer,":");
 }
 
-static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+static int strbuffer_format_trap(strbuffer_t *buffer,const char *attribute_name,const char *format, netsnmp_pdu *pdu,netsnmp_transport *transport){
     const size_t start_buffer_length = buffer->length;
 
     char *str_buf = calloc(2048,sizeof(char));
@@ -358,7 +358,7 @@ static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp
     size_t copied = 0;
     print_attr_name(buffer,attribute_name);
     strbuffer_append(buffer,str_buf);
-    const int rc = realloc_format_trap((u_char **)&str_buf,&tmp_size,&copied,1,"%B",pdu,transport);
+    const int rc = realloc_format_trap((u_char **)&str_buf,&tmp_size,&copied,1,format,pdu,transport);
 
     if(rc == 1 && str_buf){
         // all ok
@@ -373,6 +373,10 @@ static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp
 
     free(str_buf);
     return rc;
+}
+
+static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    return strbuffer_format_trap(buffer,attribute_name,"%B", pdu,transport);
 }
 
 struct oid_s{
@@ -472,6 +476,10 @@ static void command2buffer(strbuffer_t *buffer,const char *attr_name,const netsn
     number2buffer(buffer,pdu->command-159);
 }
 
+static void community2buffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    strbuffer_format_trap(buffer,attribute_name,"%u", pdu,transport);
+}
+
 /*
  * Append the pdu and transport information to a json strbuffer
  */
@@ -500,6 +508,8 @@ pdu2strbuffer(strbuffer_t       *buffer,
     version2buffer(buffer,"version",pdu);
     strbuffer_append(buffer,",");
     command2buffer(buffer,"command",pdu);
+    strbuffer_append(buffer,",");
+    community2buffer(buffer,"community",pdu,transport);
 
     strbuffer_append(buffer,"}");
 
