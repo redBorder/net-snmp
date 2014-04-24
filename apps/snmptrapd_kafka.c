@@ -460,19 +460,21 @@ static void number2buffer(strbuffer_t *buffer,const int number){
 
 static void reqid2buffer(strbuffer_t *buffer,const char *attribute_name, const netsnmp_pdu *pdu){
     print_attr_name(buffer,attribute_name);
-
     number2buffer(buffer,pdu->reqid);
 }
 
 static void version2buffer(strbuffer_t *buffer,const char *attr_name,const netsnmp_pdu *pdu){
     print_attr_name(buffer,attr_name);
-
     number2buffer(buffer,pdu->version+1);
+}
+
+static void security_model2buffer(strbuffer_t *buffer,const char *attr_name,const netsnmp_pdu *pdu){
+    print_attr_name(buffer,attr_name);
+    number2buffer(buffer,pdu->securityModel);
 }
 
 static void command2buffer(strbuffer_t *buffer,const char *attr_name,const netsnmp_pdu *pdu){
     print_attr_name(buffer,attr_name);
-
     number2buffer(buffer,pdu->command-159);
 }
 
@@ -529,6 +531,9 @@ pdu2strbuffer(strbuffer_t       *buffer,
     community2buffer(buffer,"community",pdu,transport);
     strbuffer_append(buffer,",");
     transport2buffer(buffer,"transport",pdu,transport);
+
+    strbuffer_append(buffer,",");
+    security_model2buffer(buffer,"security_model",pdu);
 
     strbuffer_append(buffer,"}");
 
