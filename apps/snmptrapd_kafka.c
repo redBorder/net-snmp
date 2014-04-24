@@ -480,6 +480,23 @@ static void community2buffer(strbuffer_t *buffer,const char *attribute_name,nets
     strbuffer_format_trap(buffer,attribute_name,"%u", pdu,transport);
 }
 
+static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    print_attr_name(buffer,attr_name);
+    const size_t initial_length = buffer->length;
+
+    char * str_transport = transport->f_fmtaddr(transport, pdu->transport_data,pdu->transport_data_length);
+    if(transport){
+        strbuffer_append(buffer,"\"");
+        strbuffer_append(buffer,str_transport);
+        strbuffer_append(buffer,"\"");
+    }else{
+        snmp_log(LOG_ERR,"Cannot get transport\n");
+        buffer->length = initial_length;
+        buffer->value[buffer->length] = '\0';
+    }
+    SNMP_FREE(str_transport);
+}
+
 /*
  * Append the pdu and transport information to a json strbuffer
  */
@@ -510,6 +527,8 @@ pdu2strbuffer(strbuffer_t       *buffer,
     command2buffer(buffer,"command",pdu);
     strbuffer_append(buffer,",");
     community2buffer(buffer,"community",pdu,transport);
+    strbuffer_append(buffer,",");
+    transport2buffer(buffer,"transport",pdu,transport);
 
     strbuffer_append(buffer,"}");
 
