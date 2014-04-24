@@ -449,13 +449,27 @@ static void oid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsn
     strbuffer_append(buffer,"\"");
 }
 
-static void reqid2buffer(strbuffer_t *buffer,const char *attribute_name, const netsnmp_pdu *pdu){
+static void number2buffer(strbuffer_t *buffer,const int number){
     char buf[128];
+    strbuffer_append(buffer,_itoa10(number,buf,128));
+}
+
+static void reqid2buffer(strbuffer_t *buffer,const char *attribute_name, const netsnmp_pdu *pdu){
     print_attr_name(buffer,attribute_name);
 
-    strbuffer_append(buffer,"\"");
-    strbuffer_append(buffer,_itoa10(pdu->reqid,buf,128));
-    strbuffer_append(buffer,"\"");
+    number2buffer(buffer,pdu->reqid);
+}
+
+static void version2buffer(strbuffer_t *buffer,const char *attr_name,const netsnmp_pdu *pdu){
+    print_attr_name(buffer,attr_name);
+
+    number2buffer(buffer,pdu->version+1);
+}
+
+static void command2buffer(strbuffer_t *buffer,const char *attr_name,const netsnmp_pdu *pdu){
+    print_attr_name(buffer,attr_name);
+
+    number2buffer(buffer,pdu->command-159);
 }
 
 /*
@@ -482,6 +496,10 @@ pdu2strbuffer(strbuffer_t       *buffer,
     strbuffer_append(buffer,",");
 
     reqid2buffer(buffer,"reqid",pdu);
+    strbuffer_append(buffer,",");
+    version2buffer(buffer,"version",pdu);
+    strbuffer_append(buffer,",");
+    command2buffer(buffer,"command",pdu);
 
     strbuffer_append(buffer,"}");
 
