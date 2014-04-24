@@ -334,27 +334,118 @@ static char* _itoa10(uint64_t value, char* result, size_t bufsize) {
     return ptr;
 }
 
+static void print_string(strbuffer_t *buffer,const char *str){
+    strbuffer_append(buffer,"\"");
+    strbuffer_append(buffer,str);
+    strbuffer_append(buffer,"\"");
+}
+
+static void print_attr_name(strbuffer_t *buffer,const char *attr_name){
+    print_string(buffer,attr_name);
+    strbuffer_append(buffer,":");
+}
+
 static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
     const size_t start_buffer_length = buffer->length;
 
-    char *str_buf = calloc(1024,sizeof(u_char));
-    size_t tmp_size = 1024;
+    char *str_buf = calloc(2048,sizeof(char));
+    if(NULL==str_buf){
+        snmp_log(LOG_ERR,"kafka: Cannot allocate buffer memory memory");
+        return 0;
+    }
+    size_t tmp_size = 0;
 
     size_t copied = 0;
-    strbuffer_append(buffer,"\"host\":\"");
+    print_attr_name(buffer,attribute_name);
+    strbuffer_append(buffer,str_buf);
     const int rc = realloc_format_trap((u_char **)&str_buf,&tmp_size,&copied,1,"%B",pdu,transport);
 
-    if(rc == 1){
+    if(rc == 1 && str_buf){
         // all ok
-        strbuffer_append(buffer,str_buf);
-        // strbuffer_append(buffer,"\"");
-        
+        strbuffer_append(buffer,"\"");
+        strbuffer_append_bytes(buffer,str_buf,copied);
+        strbuffer_append(buffer,"\"");
     }else{
+        snmp_log(LOG_ERR,"kafka:Cannot print host: buffer=%p,str_buf=%p,rc=%d",buffer,str_buf,rc);
         buffer->length = start_buffer_length;
         buffer->value[buffer->length] = '\0';
     }
+
     free(str_buf);
     return rc;
+}
+
+struct oid_s{
+    oid *trap_oid;
+    int trap_oid_len;
+};
+
+struct oid_s extract_oid(const netsnmp_pdu *pdu){
+    oid         *trap_oid;
+    int          trap_oid_len;
+    struct oid_s ret_oid = {NULL, 0};
+
+    if (pdu->command == SNMP_MSG_TRAP) {
+        /*
+         * convert a v1 trap to a v2 varbind
+         */
+        if (pdu->trap_type == SNMP_TRAP_ENTERPRISESPECIFIC) {
+            oid tmp_oid[MAX_OID_LEN];
+            trap_oid_len = pdu->enterprise_length;
+            memcpy(tmp_oid, pdu->enterprise, sizeof(oid) * trap_oid_len);
+            if (tmp_oid[trap_oid_len - 1] != 0)
+                tmp_oid[trap_oid_len++] = 0;
+            tmp_oid[trap_oid_len++] = pdu->specific_type;
+            trap_oid = tmp_oid;
+        } else {
+            static oid trapoids[] = { 1, 3, 6, 1, 6, 3, 1, 1, 5, 0 };
+            trapoids[9] = pdu->trap_type + 1;
+            trap_oid = trapoids;
+            trap_oid_len = OID_LENGTH(trapoids);
+        }
+    } else {
+        netsnmp_variable_list *vars = pdu->variables;
+        if (vars && vars->next_variable) {
+            trap_oid_len = vars->next_variable->val_len / sizeof(oid);
+            trap_oid = vars->next_variable->val.objid;
+        } else {
+            static oid null_oid[] = { 0, 0 };
+            trap_oid_len = OID_LENGTH(null_oid);
+            trap_oid = null_oid;
+        }
+    }
+
+    ret_oid.trap_oid = trap_oid;
+    ret_oid.trap_oid_len = trap_oid_len;
+    return ret_oid;
+}
+
+static void oid2strbuffer0(strbuffer_t *buffer,oid *trap_oid,const size_t trap_oid_len){
+    char *strbuffer = NULL;
+
+    size_t tmp_size = 0;
+    size_t buf_oid_len_t = 0;
+    int    oid_overflow = 0;
+    
+    netsnmp_sprint_realloc_objid_tree((u_char**)&strbuffer,&tmp_size,
+                                      &buf_oid_len_t, 1, &oid_overflow,
+                                      trap_oid, trap_oid_len);
+    
+    strbuffer_append_bytes(buffer,strbuffer,buf_oid_len_t);
+
+    if (oid_overflow)
+        snmp_log(LOG_WARNING,"OID truncated in sql buffer\n");
+
+    free(strbuffer);
+}
+
+static void oid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsnmp_pdu *pdu){
+    print_attr_name(buffer,attribute_name);
+
+    const struct oid_s soid = extract_oid(pdu);
+    strbuffer_append(buffer,"\"");
+    oid2strbuffer0(buffer,soid.trap_oid,soid.trap_oid_len);
+    strbuffer_append(buffer,"\"");
 }
 
 /*
@@ -377,7 +468,9 @@ pdu2strbuffer(strbuffer_t       *buffer,
     host2strbuffer(buffer,"host",pdu,transport);
     strbuffer_append(buffer,",");
 
-    strbuffer_append(buffer,"\"}");
+    oid2strbuffer(buffer,"oid",pdu);
+
+    strbuffer_append(buffer,"}");
 
     return 0;
 }
