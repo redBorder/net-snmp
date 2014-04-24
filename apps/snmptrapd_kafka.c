@@ -141,6 +141,42 @@ static int strbuffer_append(strbuffer_t *strbuff, const char *string){
     return strbuffer_append_bytes(strbuff, string, strlen(string));
 }
 
+static void strbuffer_append_escape_newlines(strbuffer_t *buffer,const char *data){
+    const char *newline = "\n";
+    const char *cursor = data;
+    char *nlchar = strpbrk(cursor,newline);
+    while(cursor){
+        if(nlchar){
+            strbuffer_append_bytes(buffer,cursor,nlchar - cursor);
+            strbuffer_append_bytes(buffer,"\\n",strlen("\\n"));
+            cursor = nlchar+1;
+            if(*cursor != '\0')
+                nlchar = strpbrk(cursor,newline);
+            else
+                cursor = NULL;
+        }else if(*cursor != '\0'){
+            strbuffer_append(buffer,cursor);
+            cursor = NULL;
+        }
+    }
+}
+
+#if 0
+void test_strbuffer_append_escape_newlines(){
+    strbuffer_t *str1 = strbuffer_new();
+    strbuffer_append_escape_newlines(str1,"NOLINEBREAKS");
+    puts(strbuffer_steal_value(str1));
+
+    strbuffer_t *str2 = strbuffer_new();
+    strbuffer_append_escape_newlines(str2,"MANY\nLINE\nBREAKS");
+    puts(strbuffer_steal_value(str2));
+
+    strbuffer_t *str3 = strbuffer_new();
+    strbuffer_append_escape_newlines(str3,"ENDING\nWITH\nLINE\nBREAKS\n");
+    puts(strbuffer_steal_value(str3));
+
+}
+#endif
 
 /*
  * define a structure to hold all the file globals
@@ -248,6 +284,22 @@ void *opaque, void *msg_opaque) {
     }
 }
 
+/* Avoid print TYPE: value format. Instead, it prints directly the value */
+static int set_netsnmp_quick_print(void){
+    const int rc = netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICK_PRINT,1);
+    if(rc != SNMPERR_SUCCESS)
+        snmp_log(LOG_ERR,"snmp values will not be printed in quick format\n");
+    return rc;
+}
+
+/* Avoid print TYPE: value format. Instead, it prints directly the value */
+static int set_netsnmp_escape_quotes(void){
+    const int rc = netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_ESCAPE_QUOTES,1);
+    if(rc != SNMPERR_SUCCESS)
+        snmp_log(LOG_ERR,"quotes will not be escaped\n");
+    return rc;
+}
+
 /** one-time initialization for mysql */
 int
 netsnmp_kafka_init(void)
@@ -313,6 +365,9 @@ netsnmp_kafka_init(void)
         return -1;
     }
     traph->authtypes = TRAP_AUTH_LOG;
+
+    set_netsnmp_quick_print();
+    set_netsnmp_escape_quotes();
 
     atexit(netsnmp_kafka_cleanup);
     return 0;
@@ -499,18 +554,12 @@ static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_p
     SNMP_FREE(str_transport);
 }
 
-/*
- * Append the pdu and transport information to a json strbuffer
- */
-static int
-pdu2strbuffer(strbuffer_t       *buffer,
-              netsnmp_pdu       *pdu,
-              netsnmp_transport *transport)
+static int trapinfo2strbuffer(strbuffer_t *buffer,
+                              netsnmp_pdu       *pdu,
+                              netsnmp_transport *transport)
 {
     static const size_t AUXBUFSIZE = 128;
     char aux[AUXBUFSIZE];
-
-    strbuffer_append(buffer,"{");
 
     strbuffer_append(buffer,"\"timestamp\":\"");
     strbuffer_append(buffer,_itoa10(time(NULL),aux,AUXBUFSIZE));
@@ -534,6 +583,93 @@ pdu2strbuffer(strbuffer_t       *buffer,
 
     strbuffer_append(buffer,",");
     security_model2buffer(buffer,"security_model",pdu);
+    strbuffer_append(buffer,",");
+
+    return 0;
+}
+
+static int have_to_add_quotes(const int type){
+    switch(type){
+    case ASN_IPADDRESS:
+    case ASN_OBJECT_ID:
+    case ASN_TIMETICKS:
+        return 1;
+    default:
+        return 0;
+    };
+}
+
+static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
+    size_t tmp_size = 0,buf_oid_len=0;
+    int overflow = 0;
+    char *buf_oid = calloc(1024,sizeof(char));
+    netsnmp_sprint_realloc_objid_tree((u_char**)&buf_oid, &tmp_size,
+                                          &buf_oid_len,
+                                          1, &overflow, var->name,
+                                          var->name_length);
+
+    if(overflow)
+        snmp_log(LOG_WARNING,"OID truncated in var2strbuffer");
+
+    if(NULL==buf_oid){
+        snmp_log(LOG_ERR,"Cannot allocate for a variable buffer. Returning.");
+        return -1;
+    }
+
+    tmp_size = overflow = 0;
+    size_t  buf_val_len = 0;
+    char   *buf_val     = NULL;
+
+    const int value_rc = sprint_realloc_by_type((u_char**)&buf_val, &tmp_size,
+                               &buf_val_len, 1, var, NULL, NULL, NULL);
+    if(NULL == buf_val){
+        snmp_log(LOG_ERR,"Cannot allocate for a variable buffer. Returning.");
+        return -1;
+    }
+
+    if(value_rc!=1){
+        snmp_log(LOG_ERR,"Something went wrong with sprintf_by_tipe (out of memory?).");
+        SNMP_FREE(buf_val);
+        return value_rc;
+    }
+
+    /* Here, all must be ok */
+    print_attr_name(buffer,buf_oid);
+    if(have_to_add_quotes(var->type))
+        strbuffer_append(buffer,"\"");
+    strbuffer_append_escape_newlines(buffer,buf_val);
+    if(have_to_add_quotes(var->type))
+        strbuffer_append(buffer,"\"");
+
+    SNMP_FREE(buf_oid);
+    SNMP_FREE(buf_val);
+
+    return 0;
+}
+
+static int varbind2strbuffer(strbuffer_t *buffer,netsnmp_pdu *pdu){
+    netsnmp_variable_list *var = pdu->variables;
+    while(var){
+        var2strbuffer(buffer,var);
+        if(var->next_variable)
+            strbuffer_append(buffer,",");
+        var = var->next_variable;
+    }
+
+    return 0;
+}
+
+/*
+ * Append the pdu and transport information to a json strbuffer
+ */
+static int
+pdu2strbuffer(strbuffer_t       *buffer,
+              netsnmp_pdu       *pdu,
+              netsnmp_transport *transport)
+{
+    strbuffer_append(buffer,"{");
+    trapinfo2strbuffer(buffer,pdu,transport);
+    varbind2strbuffer(buffer,pdu);
 
     strbuffer_append(buffer,"}");
 
