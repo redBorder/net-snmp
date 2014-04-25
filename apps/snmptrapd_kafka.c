@@ -259,7 +259,7 @@ static void produce (void *buf, size_t len, int msgflags) {
 }
 
 /*
- * sql cleanup function, called at exit
+ * kafka cleanup function, called at exit
  */
 static void
 netsnmp_kafka_cleanup(void)
@@ -413,30 +413,19 @@ static void print_attr_name(strbuffer_t *buffer,const char *attr_name){
 static int strbuffer_format_trap(strbuffer_t *buffer,const char *attribute_name,const char *format, netsnmp_pdu *pdu,netsnmp_transport *transport){
     const size_t start_buffer_length = buffer->buf_out;
 
-    char *str_buf = calloc(2048,sizeof(char));
-    if(NULL==str_buf){
-        snmp_log(LOG_ERR,"kafka: Cannot allocate buffer memory memory");
-        return 0;
-    }
-    size_t tmp_size = 0;
-
-    size_t copied = 0;
     print_attr_name(buffer,attribute_name);
-    strbuffer_append(buffer,str_buf);
-    const int rc = realloc_format_trap((u_char **)&str_buf,&tmp_size,&copied,1,format,pdu,transport);
+    strbuffer_append(buffer,"\"");
+    const int rc = realloc_format_trap((u_char **)&buffer->value,&buffer->buf_len,&buffer->buf_out,1,format,pdu,transport);
 
-    if(rc == 1 && str_buf){
+    if(rc == 1){
         // all ok
         strbuffer_append(buffer,"\"");
-        strbuffer_append_bytes(buffer,str_buf,copied);
-        strbuffer_append(buffer,"\"");
     }else{
-        snmp_log(LOG_ERR,"kafka:Cannot print host: buffer=%p,str_buf=%p,rc=%d",buffer,str_buf,rc);
+        snmp_log(LOG_ERR,"kafka:Cannot print host: buffer=%p,rc=%d",buffer,rc);
         buffer->buf_out = start_buffer_length;
         buffer->value[buffer->buf_out] = '\0';
     }
 
-    free(str_buf);
     return rc;
 }
 
