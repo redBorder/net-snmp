@@ -46,30 +46,22 @@
 #include "librdkafka/rdkafka.h"
 
 #define STRBUFFER_MIN_SIZE 2048
-#define STRBUFFER_FACTOR 2
-#define STRBUFFER_SIZE_MAX ((size_t)-1)
-
-#define jsonp_malloc malloc
-#define jsonp_free   free
-
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 #define DONT_SEND_EMPTY_MESSAGES
 
-/* Obtained from jansson strbuffer library */
+/* Inspired jansson strbuffer library */
 typedef struct {
     char *value;
-    size_t length; /* bytes used */
-    size_t size; /* bytes allocated */
+    size_t buf_out; /* bytes used */
+    size_t buf_len; /* bytes allocated */
 } strbuffer_t;
 
 static int strbuffer_init(strbuffer_t *strbuff)
 {
-    strbuff->size = STRBUFFER_MIN_SIZE;
-    strbuff->length = 0;
+    strbuff->buf_len = STRBUFFER_MIN_SIZE;
+    strbuff->buf_out = 0;
 
-    strbuff->value = malloc(strbuff->size);
+    strbuff->value = calloc(STRBUFFER_MIN_SIZE,strbuff->buf_len);
     if(!strbuff->value)
         return -1;
 
@@ -91,10 +83,10 @@ static strbuffer_t *strbuffer_new(void){
 static void strbuffer_close(strbuffer_t *strbuff)
 {
     if(strbuff->value)
-        jsonp_free(strbuff->value);
+        free(strbuff->value);
 
-    strbuff->size = 0;
-    strbuff->length = 0;
+    strbuff->buf_len = 0;
+    strbuff->buf_out = 0;
     strbuff->value = NULL;
 }
 
@@ -105,43 +97,17 @@ static char *strbuffer_steal_value(strbuffer_t *strbuff)
     return result;
 }
 
-static int strbuffer_append_bytes(strbuffer_t *strbuff, const char *data, size_t size)
+static int strbuffer_append(strbuffer_t *strbuff, const char *data){
+    return snmp_strcat((u_char **)&strbuff->value, &strbuff->buf_len, &strbuff->buf_out, 1/*allow_realloc*/, (const u_char *)data);
+}
+
+static int 
+strbuffer_append_bytes(strbuffer_t *strbuff, const char *data, size_t size)
 {
-    if(size >= strbuff->size - strbuff->length)
-    {
-        size_t new_size;
-        char *new_value;
-
-        /* avoid integer overflow */
-        if (strbuff->size > STRBUFFER_SIZE_MAX / STRBUFFER_FACTOR
-            || size > STRBUFFER_SIZE_MAX - 1
-            || strbuff->length > STRBUFFER_SIZE_MAX - 1 - size)
-            return -1;
-
-        new_size = max(strbuff->size * STRBUFFER_FACTOR,
-                       strbuff->length + size + 1);
-
-        new_value = jsonp_malloc(new_size);
-        if(!new_value)
-            return -1;
-
-        memcpy(new_value, strbuff->value, strbuff->length);
-
-        jsonp_free(strbuff->value);
-        strbuff->value = new_value;
-        strbuff->size = new_size;
-    }
-
-    memcpy(strbuff->value + strbuff->length, data, size);
-    strbuff->length += size;
-    strbuff->value[strbuff->length] = '\0';
-
-    return 0;
+    (void)size;
+    return strbuffer_append(strbuff,data);
 }
 
-static int strbuffer_append(strbuffer_t *strbuff, const char *string){
-    return strbuffer_append_bytes(strbuff, string, strlen(string));
-}
 
 static void strbuffer_append_escape_newlines(strbuffer_t *buffer,const char *data){
     const char *newline = "\n";
@@ -176,6 +142,30 @@ void test_strbuffer_append_escape_newlines(){
     strbuffer_t *str3 = strbuffer_new();
     strbuffer_append_escape_newlines(str3,"ENDING\nWITH\nLINE\nBREAKS\n");
     puts(strbuffer_steal_value(str3));
+
+}
+#endif
+
+#if 0
+void test_format_functions(void){
+    char *buf = NULL;
+    size_t buf_len = 0;
+    size_t out_len = 0;
+    const int allow_realloc = 1;
+
+    snmp_strcat((u_char **)&buf,&buf_len,&out_len,allow_realloc,(const u_char *)"Hello");
+    printf("After add hello:\n");
+    printf("buf:\t%p\n",buf);
+    printf("buf_len:\t%lu\n",buf_len);
+    printf("out_len:\t%lu\n",out_len);
+    printf("allow_realloc:\t%d\n\n",allow_realloc);
+
+    snmp_strcat((u_char **)&buf,&buf_len,&out_len,allow_realloc,(const u_char *)" world");
+    printf("After add world:\n");
+    printf("buf:\t%p\n",buf);
+    printf("buf_len:\t%lu\n",buf_len);
+    printf("out_len:\t%lu\n",out_len);
+    printf("allow_realloc:\t%d\n\n",allow_realloc);
 
 }
 #endif
@@ -421,7 +411,7 @@ static void print_attr_name(strbuffer_t *buffer,const char *attr_name){
 }
 
 static int strbuffer_format_trap(strbuffer_t *buffer,const char *attribute_name,const char *format, netsnmp_pdu *pdu,netsnmp_transport *transport){
-    const size_t start_buffer_length = buffer->length;
+    const size_t start_buffer_length = buffer->buf_out;
 
     char *str_buf = calloc(2048,sizeof(char));
     if(NULL==str_buf){
@@ -442,8 +432,8 @@ static int strbuffer_format_trap(strbuffer_t *buffer,const char *attribute_name,
         strbuffer_append(buffer,"\"");
     }else{
         snmp_log(LOG_ERR,"kafka:Cannot print host: buffer=%p,str_buf=%p,rc=%d",buffer,str_buf,rc);
-        buffer->length = start_buffer_length;
-        buffer->value[buffer->length] = '\0';
+        buffer->buf_out = start_buffer_length;
+        buffer->value[buffer->buf_out] = '\0';
     }
 
     free(str_buf);
@@ -559,7 +549,7 @@ static void community2buffer(strbuffer_t *buffer,const char *attribute_name,nets
 
 static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
     print_attr_name(buffer,attr_name);
-    const size_t initial_length = buffer->length;
+    const size_t initial_length = buffer->buf_out;
 
     char * str_transport = transport->f_fmtaddr(transport, pdu->transport_data,pdu->transport_data_length);
     if(transport){
@@ -568,8 +558,8 @@ static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_p
         strbuffer_append(buffer,"\"");
     }else{
         snmp_log(LOG_ERR,"Cannot get transport\n");
-        buffer->length = initial_length;
-        buffer->value[buffer->length] = '\0';
+        buffer->buf_out = initial_length;
+        buffer->value[buffer->buf_out] = '\0';
     }
     SNMP_FREE(str_transport);
 }
@@ -677,13 +667,13 @@ static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
 static int varbind2strbuffer(strbuffer_t *buffer,netsnmp_pdu *pdu){
     netsnmp_variable_list *var = pdu->variables;
     while(var){
-        const size_t initial_length = buffer->length;
+        const size_t initial_length = buffer->buf_out;
         strbuffer_append(buffer,",");
         
         const int bytes_writted = var2strbuffer(buffer,var);
         if(bytes_writted <= 0){
-            buffer->length = initial_length;
-            buffer->value[buffer->length] = '\0';
+            buffer->buf_out = initial_length;
+            buffer->value[buffer->buf_out] = '\0';
         }
 
 
