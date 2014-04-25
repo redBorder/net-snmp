@@ -589,60 +589,59 @@ static int have_to_add_quotes(const int type){
     };
 }
 
-static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
-    size_t oid_tmp_size = 0,buf_oid_len=0;
+static size_t print_var_oid_as_json_key(strbuffer_t *buffer,netsnmp_variable_list *var){
+    const size_t initial_size = buffer->buf_out;
+    
     int overflow = 0;
-    char *buf_oid = calloc(1024,sizeof(char));
-    netsnmp_sprint_realloc_objid_tree((u_char**)&buf_oid, &oid_tmp_size,
-                                          &buf_oid_len,
+    strbuffer_append(buffer,"\"");
+    netsnmp_sprint_realloc_objid_tree((u_char**)&buffer->value, &buffer->buf_len,
+                                          &buffer->buf_out,
                                           1, &overflow, var->name,
                                           var->name_length);
+    strbuffer_append(buffer,"\":");
 
     if(overflow)
         snmp_log(LOG_WARNING,"OID truncated in var2strbuffer");
 
-    if(NULL==buf_oid){
-        snmp_log(LOG_ERR,"Cannot allocate for a variable buffer. Returning.");
-        return -1;
-    }
+    return buffer->buf_out - initial_size;
+}
 
-    size_t value_tmp_size = overflow = 0;
-    size_t  buf_val_len = 0;
-    char   *buf_val     = NULL;
+static size_t print_var_value_as_json_value(strbuffer_t *buffer,netsnmp_variable_list *var){
+    const size_t initial_size = buffer->buf_out;
+    const int _have_to_add_quotes = have_to_add_quotes(var->type);
 
-    const int value_rc = sprint_realloc_by_type((u_char**)&buf_val, &value_tmp_size,
-                               &buf_val_len, 1, var, NULL, NULL, NULL);
-    if(NULL == buf_val){
-        snmp_log(LOG_ERR,"Cannot allocate for a variable buffer. Returning.");
-        return -1;
-    }
+    if(_have_to_add_quotes)
+        strbuffer_append(buffer,"\"");
+    const int value_rc = sprint_realloc_by_type((u_char**)&buffer->value, &buffer->buf_len,
+                               &buffer->buf_out, 1, var, NULL, NULL, NULL);
+    if(_have_to_add_quotes)
+        strbuffer_append(buffer,"\"");
 
     if(value_rc!=1){
         snmp_log(LOG_ERR,"Something went wrong with sprintf_by_tipe (out of memory?).");
-        SNMP_FREE(buf_val);
         return value_rc;
     }
 
 #ifdef DONT_SEND_EMPTY_MESSAGES
-    if(strlen(buf_val) == 0 || strcmp(buf_val,"\"\"") == 0){
+    if(buffer->value[initial_size] == '\0' || strcmp(&buffer->value[initial_size],"\"\"") == 0){
         snmp_log(LOG_DEBUG,"Discarding empty line.\n");
-        return 0;        
+        return 0;
     }
 #endif
 
-    /* Here, all must be ok */
-    const int _have_to_add_quotes = have_to_add_quotes(var->type);
-    print_attr_name(buffer,buf_oid);
-    if(_have_to_add_quotes)
-        strbuffer_append(buffer,"\"");
-    strbuffer_append_escape_newlines(buffer,buf_val);
-    if(_have_to_add_quotes)
-        strbuffer_append(buffer,"\"");
+    return buffer->buf_out - initial_size;
+}
 
-    SNMP_FREE(buf_oid);
-    SNMP_FREE(buf_val);
+static int var2strbuffer(strbuffer_t *buffer,netsnmp_variable_list *var){
+    const size_t key_len   = print_var_oid_as_json_key(buffer,var);
+    const size_t value_len = print_var_value_as_json_value(buffer,var);
 
-    return oid_tmp_size + value_tmp_size + (_have_to_add_quotes ? 2 : 0);
+#ifdef DONT_SEND_EMPTY_MESSAGES
+    if(value_len == 0)
+        return 0;
+#endif
+
+    return key_len + value_len;
 }
 
 static int varbind2strbuffer(strbuffer_t *buffer,netsnmp_pdu *pdu){
