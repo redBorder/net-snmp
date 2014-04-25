@@ -480,22 +480,14 @@ struct oid_s extract_oid(const netsnmp_pdu *pdu){
 }
 
 static void oid2strbuffer0(strbuffer_t *buffer,oid *trap_oid,const size_t trap_oid_len){
-    char *strbuffer = NULL;
-
-    size_t tmp_size = 0;
-    size_t buf_oid_len_t = 0;
     int    oid_overflow = 0;
     
-    netsnmp_sprint_realloc_objid_tree((u_char**)&strbuffer,&tmp_size,
-                                      &buf_oid_len_t, 1, &oid_overflow,
+    netsnmp_sprint_realloc_objid_tree((u_char**)&buffer->value,&buffer->buf_len,
+                                      &buffer->buf_out, 1, &oid_overflow,
                                       trap_oid, trap_oid_len);
-    
-    strbuffer_append_bytes(buffer,strbuffer,buf_oid_len_t);
 
     if (oid_overflow)
         snmp_log(LOG_WARNING,"OID truncated in sql buffer\n");
-
-    free(strbuffer);
 }
 
 static void oid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsnmp_pdu *pdu){
