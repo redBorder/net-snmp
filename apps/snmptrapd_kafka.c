@@ -108,7 +108,7 @@ strbuffer_append_bytes(strbuffer_t *strbuff, const char *data, size_t size)
     return strbuffer_append(strbuff,data);
 }
 
-
+#if 0
 static void strbuffer_append_escape_newlines(strbuffer_t *buffer,const char *data){
     const char *newline = "\n";
     const char *cursor = data;
@@ -128,6 +128,7 @@ static void strbuffer_append_escape_newlines(strbuffer_t *buffer,const char *dat
         }
     }
 }
+#endif
 
 #if 0
 void test_strbuffer_append_escape_newlines(){
@@ -221,7 +222,7 @@ snmptrapd_register_kafka_configs( void )
 /**
 * Magnus Edenhill kafkacat producer.
 *
-* Produces a single message, retries on queue congestion, and
+* Produces a single message, retries 1 time on queue congestion, and
 * exits hard on error.
 */
 static void produce (void *buf, size_t len, int msgflags) {
@@ -237,7 +238,6 @@ static void produce (void *buf, size_t len, int msgflags) {
         const rd_kafka_resp_err_t rkerr = rd_kafka_errno2err(errno);
 
         if (rkerr != RD_KAFKA_RESP_ERR__QUEUE_FULL){
-            // @TODO use rd_kafka_err2str
             snmp_log(LOG_ERR,"Failed to produce message (%zd bytes): %s",len,rd_kafka_err2str(rkerr));
             free(buf);
             break;
@@ -313,7 +313,7 @@ static int set_infty_hex_output_length(void){
     return rc;
 }
 
-/** one-time initialization for mysql */
+/** one-time initialization for rdkafka */
 int
 netsnmp_kafka_init(void)
 {
@@ -479,7 +479,7 @@ struct oid_s extract_oid(const netsnmp_pdu *pdu){
     return ret_oid;
 }
 
-static void oid2strbuffer0(strbuffer_t *buffer,oid *trap_oid,const size_t trap_oid_len){
+static void oid2strbuffer(strbuffer_t *buffer,oid *trap_oid,const size_t trap_oid_len){
     int    oid_overflow = 0;
     
     netsnmp_sprint_realloc_objid_tree((u_char**)&buffer->value,&buffer->buf_len,
@@ -487,15 +487,15 @@ static void oid2strbuffer0(strbuffer_t *buffer,oid *trap_oid,const size_t trap_o
                                       trap_oid, trap_oid_len);
 
     if (oid_overflow)
-        snmp_log(LOG_WARNING,"OID truncated in sql buffer\n");
+        snmp_log(LOG_WARNING,"OID truncated in kafka buffer\n");
 }
 
-static void oid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsnmp_pdu *pdu){
+static void trapoid2strbuffer(strbuffer_t *buffer, const char *attribute_name, netsnmp_pdu *pdu){
     print_attr_name(buffer,attribute_name);
 
     const struct oid_s soid = extract_oid(pdu);
     strbuffer_append(buffer,"\"");
-    oid2strbuffer0(buffer,soid.trap_oid,soid.trap_oid_len);
+    oid2strbuffer(buffer,soid.trap_oid,soid.trap_oid_len);
     strbuffer_append(buffer,"\"");
 }
 
@@ -559,7 +559,7 @@ static int trapinfo2strbuffer(strbuffer_t *buffer,
 
     host2strbuffer(buffer,"host",pdu,transport);
     strbuffer_append(buffer,",");
-    oid2strbuffer(buffer,"oid",pdu);
+    trapoid2strbuffer(buffer,"oid",pdu);
 
     strbuffer_append(buffer,",");
     reqid2buffer(buffer,"reqid",pdu);
@@ -594,10 +594,7 @@ static size_t print_var_oid_as_json_key(strbuffer_t *buffer,netsnmp_variable_lis
     
     int overflow = 0;
     strbuffer_append(buffer,"\"");
-    netsnmp_sprint_realloc_objid_tree((u_char**)&buffer->value, &buffer->buf_len,
-                                          &buffer->buf_out,
-                                          1, &overflow, var->name,
-                                          var->name_length);
+    oid2strbuffer(buffer,var->name,var->name_length);
     strbuffer_append(buffer,"\":");
 
     if(overflow)
@@ -716,7 +713,7 @@ kafka_handler(netsnmp_pdu           *pdu,
 
     buffer = pdu2buffer(pdu,transport);
     if(NULL==buffer){
-        snmp_log(LOG_ERR, "Could not allocate trap sql buffer\n");
+        snmp_log(LOG_ERR, "Could not allocate trap kafka buffer\n");
         return syslog_handler( pdu, transport, handler );
     }
 
