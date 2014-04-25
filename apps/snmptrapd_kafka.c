@@ -204,13 +204,28 @@ static netsnmp_kafka_globals _kafka = {
 /* FW */
 int kafka_handler(netsnmp_pdu *pdu,netsnmp_transport *transport,netsnmp_trapd_handler *handler);
 
+static void
+_parse_kafka_topic(const char *token,char *cptr){
+    _kafka.topic = strdup(cptr);
+    snmp_log(LOG_DEBUG,"kafka: topic now %s\n",_kafka.topic);
+}
+
+static void
+_parse_kafka_brokers(const char *token,char *cptr){
+    _kafka.brokers = strdup(cptr);
+    snmp_log(LOG_DEBUG,"kafka:brokers: the brokers will be requested to %s\n",_kafka.topic);
+}
+
 /*
  * register kafka related configuration tokens
  */
-static void
+void
 snmptrapd_register_kafka_configs( void )
 {
-    // @TODO
+    register_config_handler("snmptrapd", "kafkaTopic",
+                            _parse_kafka_topic, NULL, "string");
+    register_config_handler("snmptrapd", "kafkaBrokers",
+                            _parse_kafka_brokers, NULL, "string");
 }
 
 /**
@@ -318,10 +333,6 @@ netsnmp_kafka_init(void)
     char errstr[512];
 
     DEBUGMSGTL(("kafka:init","called\n"));
-
-    /** load .my.cnf values */
-    _kafka.brokers = strdup("pablo03");
-    _kafka.topic = strdup("eugenio");
 
     if(_kafka.brokers == NULL){
         snmp_log(LOG_ERR, "kafka:No brokers defined\n");
@@ -741,36 +752,6 @@ kafka_handler(netsnmp_pdu           *pdu,
 
     // snmp_log(LOG_DEBUG, "kafka:Produced %s\n",buffer);
     produce(buffer,strlen(buffer),RD_KAFKA_MSG_F_FREE);
-
-    #if 0
-    /** save OID output format and change to numeric */
-    old_format = netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID,
-                                    NETSNMP_DS_LIB_OID_OUTPUT_FORMAT);
-    netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT,
-                       NETSNMP_OID_OUTPUT_NUMERIC);
-
-
-    rc = _sql_save_trap_info(sqlb, pdu, transport);
-    rc = _sql_save_varbind_info(sqlb, pdu);
-
-    /** restore previous OID output format */
-    netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT,
-                       old_format);
-
-    // @TODO
-    /** insert into queue */
-    rc = CONTAINER_INSERT(_sql.queue, sqlb);
-    if(rc) {
-        snmp_log(LOG_ERR, "Could not log queue sql trap buffer\n");
-        _sql_log(sqlb, NULL);
-        _sql_buf_free(sqlb, 0);
-        return -1;
-    }
-
-    /** save queue if size is > max */
-    if (CONTAINER_SIZE(_sql.queue) >= _sql.queue_max)
-        _sql_process_queue(0,NULL);
-    #endif
 
     return 0;
 }

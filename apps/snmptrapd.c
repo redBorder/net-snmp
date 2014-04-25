@@ -159,7 +159,7 @@ extern void     snmptrapd_register_sql_configs( void );
 
 #ifdef NETSNMP_USE_RDKAFKA
 extern int      netsnmp_kafka_init(void);
-// extern void     snmptrapd_register_kafka_configs( void );
+extern void     snmptrapd_register_kafka_configs( void );
 #endif
 
 /*
@@ -638,7 +638,7 @@ main(int argc, char *argv[])
     snmptrapd_register_sql_configs( );
 #endif
 #ifdef NETSNMP_USE_RDKAFKA
-//    snmptrapd_register_kafka_configs( );
+    snmptrapd_register_kafka_configs( );
 #endif
 
     init_usm_conf( "snmptrapd" );
