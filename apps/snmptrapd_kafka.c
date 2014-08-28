@@ -307,7 +307,7 @@ static int set_netsnmp_escape_quotes(void){
 }
 
 static int set_infty_hex_output_length(void){
-    const int rc = netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_HEX_OUTPUT_LENGTH, 2048);
+    const int rc = netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_HEX_OUTPUT_LENGTH, 0);
     if(rc != SNMPERR_SUCCESS)
         snmp_log(LOG_ERR,"quotes will not be escaped\n");
     return rc;
