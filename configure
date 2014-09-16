@@ -1031,6 +1031,8 @@ with_mnttab
 enable_mnttab
 with_mysql
 enable_mysql
+with_rdkafka
+enable_rdkafka
 enable_shared
 enable_static
 with_pic
@@ -1990,6 +1992,7 @@ Network Buffers:
                           Mount table location. The default is to autodetect
                           this.
   --with-mysql            Include support for MySQL.
+  --with-rdkafka          Include support for RDKAFKA.
   --with-pic              try to use only PIC/non-PIC objects [default=use
                           both]
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
@@ -5211,6 +5214,27 @@ fi
 if test "x$with_mysql" = "xyes"; then
 
 $as_echo "#define NETSNMP_USE_MYSQL 1" >>confdefs.h
+
+fi
+
+##
+#   Project: rdkafka
+##
+
+
+# Check whether --with-rdkafka was given.
+if test "${with_rdkafka+set}" = set; then :
+  withval=$with_rdkafka;
+fi
+
+   # Check whether --enable-rdkafka was given.
+if test "${enable_rdkafka+set}" = set; then :
+  enableval=$enable_rdkafka; as_fn_error $? "Invalid option. Use --with-rdkafka/--without-rdkafka instead" "$LINENO" 5
+fi
+
+if test "x$with_rdkafka" = "xyes"; then
+
+$as_echo "#define NETSNMP_USE_RDKAFKA 1" >>confdefs.h
 
 fi
 

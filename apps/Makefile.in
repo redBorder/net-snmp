@@ -83,6 +83,8 @@ MIBLIB          = ../agent/libnetsnmpmibs.$(LIB_EXTENSION)$(LIB_VERSION)
 USEAGENTLIBS	= $(MIBLIB) $(AGENTLIB) $(USELIBS)
 MYSQL_LIBS	= @MYSQL_LIBS@
 MYSQL_INCLUDES	= @MYSQL_INCLUDES@
+RDKAFKA_LIBS	= @RDKAFKA_LIBS@
+RDKAFKA_INCLUDES	= @RDKAFKA_INCLUDES@
 
 VAL_LIBS	= @VAL_LIBS@
 LIBS		= $(USELIBS) $(VAL_LIBS) @LIBS@
@@ -91,9 +93,9 @@ PERLLDOPTS_FOR_LIBS = @PERLLDOPTS_FOR_LIBS@
 
 #
 # hack for compiling trapd when agent is disabled
-TRAPDWITHAGENT  = $(USETRAPLIBS) $(MYSQL_LIBS) $(VAL_LIBS) @AGENTLIBS@
-TRAPDWITHOUTAGENT = $(LIBS) $(MYSQL_LIBS) $(VAL_LIBS)
-
+TRAPDWITHAGENT  = $(USETRAPLIBS) $(MYSQL_LIBS) $(VAL_LIBS) $(RDKAFKA_LIBS) @AGENTLIBS@
+TRAPDWITHOUTAGENT = $(LIBS) $(MYSQL_LIBS) $(VAL_LIBS) $(RDKAFKA_LIBS)
+$(RDKAFKA_LIBS)
 # these will be set by configure to one of the above 2 lines
 TRAPLIBS	= @TRAPLIBS@ $(PERLLDOPTS_FOR_APPS)
 USETRAPLIBS	= @USETRAPLIBS@
@@ -105,11 +107,11 @@ CPPFLAGS	= $(TOP_INCLUDES) -I. $(AGENT_INCLUDES) $(HELPER_INCLUDES) \
 OSUFFIX		= lo
 TRAPD_OBJECTS   = snmptrapd.$(OSUFFIX) @other_trapd_objects@
 LIBTRAPD_OBJS   = snmptrapd_handlers.o  snmptrapd_log.o \
-		  snmptrapd_auth.o snmptrapd_sql.o
+		  snmptrapd_auth.o snmptrapd_sql.o snmptrapd_kafka.o
 LLIBTRAPD_OBJS  = snmptrapd_handlers.lo snmptrapd_log.lo \
-		  snmptrapd_auth.lo snmptrapd_sql.lo
+		  snmptrapd_auth.lo snmptrapd_sql.lo snmptrapd_kafka.lo
 LIBTRAPD_FTS    = snmptrapd_handlers.ft snmptrapd_log.ft \
-		  snmptrapd_auth.ft snmptrapd_sql.ft
+		  snmptrapd_auth.ft snmptrapd_sql.ft snmptrapd_kafka.ft
 OBJS  = *.o
 LOBJS = *.lo
 FTOBJS=$(LIBTRAPD_FTS) \

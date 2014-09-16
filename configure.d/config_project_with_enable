@@ -1148,3 +1148,14 @@ if test "x$with_mysql" = "xyes"; then
   AC_DEFINE(NETSNMP_USE_MYSQL, 1,
     [define if you are using the mysql code for snmptrapd ...])
 fi
+
+##
+#   Project: rdkafka
+##
+
+NETSNMP_ARG_WITH(rdkafka,
+  [  --with-rdkafka          Include support for RDKAFKA.])
+if test "x$with_rdkafka" = "xyes"; then
+  AC_DEFINE(NETSNMP_USE_RDKAFKA, 1,
+    [define if you are using the rdkafka code for snmptrapd ...])
+fi

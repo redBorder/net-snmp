@@ -161,6 +161,11 @@ extern int      netsnmp_mysql_init(void);
 extern void     snmptrapd_register_sql_configs( void );
 #endif
 
+#ifdef NETSNMP_USE_RDKAFKA
+extern int      netsnmp_kafka_init(void);
+extern void     snmptrapd_register_kafka_configs( void );
+#endif
+
 /*
  * These definitions handle 4.2 systems without additional syslog facilities.
  */
@@ -688,6 +693,11 @@ main(int argc, char *argv[])
 #ifdef NETSNMP_USE_MYSQL
     snmptrapd_register_sql_configs( );
 #endif
+
+#ifdef NETSNMP_USE_RDKAFKA
+    snmptrapd_register_kafka_configs( );
+#endif
+
 #ifdef NETSNMP_SECMOD_USM
     init_usm_conf( "snmptrapd" );
 #endif /* NETSNMP_SECMOD_USM */
@@ -1219,6 +1229,13 @@ main(int argc, char *argv[])
 #ifdef NETSNMP_USE_MYSQL
     if( netsnmp_mysql_init() ) {
         fprintf(stderr, "MySQL initialization failed\n");
+        exit(1);
+    }
+#endif
+
+#ifdef NETSNMP_USE_RDKAFKA
+    if( netsnmp_kafka_init() ) {
+        fprintf(stderr, "rdkafka initialization failed\n");
         exit(1);
     }
 #endif

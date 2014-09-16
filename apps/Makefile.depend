@@ -1444,6 +1444,11 @@
 ./snmptrapd_sql.lo: ../include/net-snmp/net-snmp-features.h
 ./snmpusm.lo: ../include/net-snmp/net-snmp-config.h 
 ./snmpusm.lo:  ../include/net-snmp/net-snmp-includes.h
+./snmptrapd_kafka.lo: ../include/net-snmp/net-snmp-config.h
+./snmptrapd_kafka.lo: ../include/net-snmp/system/linux.h
+./snmptrapd_kafka.lo: ../include/net-snmp/system/sysv.h
+./snmptrapd_kafka.lo: ../include/net-snmp/system/generic.h
+./snmptrapd_kafka.lo: ../include/net-snmp/machine/generic.h
 ./snmpusm.lo: ../include/net-snmp/definitions.h ../include/net-snmp/types.h
 ./snmpusm.lo:  ../include/net-snmp/library/oid.h
 ./snmpusm.lo: ../include/net-snmp/library/types.h
