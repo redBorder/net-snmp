@@ -645,6 +645,8 @@ PERLLDOPTS_FOR_APPS
 PERLLDOPTS_FOR_LIBS
 EMBEDPERLUNINSTALL
 EMBEDPERLINSTALL
+RDKAFKA_INCLUDES
+RDKAFKA_LIBS
 MYSQL_INCLUDES
 MYSQL_LIBS
 MYSQLCONFIG
@@ -23233,6 +23235,50 @@ else
 EOF
 
 fi
+
+
+
+##
+##   rdkafka
+###
+if test "x$with_rdkafka" = "xyes" ; then
+   for ac_header in librdkafka/rdkafka.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "librdkafka/rdkafka.h" "ac_cv_header_librdkafka_rdkafka_h" "$ac_includes_default"
+if test "x$ac_cv_header_librdkafka_rdkafka_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBRDKAFKA_RDKAFKA_H 1
+_ACEOF
+
+fi
+
+done
+
+   ac_fn_c_check_header_mongrel "$LINENO" "librdkafka/rdkafka.h" "ac_cv_header_librdkafka_rdkafka_h" "$ac_includes_default"
+if test "x$ac_cv_header_librdkafka_rdkafka_h" = xyes; then :
+  rdkafka_h=yes
+else
+  rdkafka_h=no
+fi
+
+
+   if test "x$rdkafka_h" = "xno"; then
+      as_fn_error $? "Could not find rdkafka.h and was specifically asked to use rdkafka support" "$LINENO" 5
+   fi
+   RDKAFKA_LIBS="-lrdkafka"
+   RDKAFKA_INCLUDES=""
+
+  cat >> configure-summary << EOF
+  Kafka Trap Logging:         enabled
+EOF
+
+else
+
+  cat >> configure-summary << EOF
+  Kafka Trap Logging:         unavailable
+EOF
+
+   fi
 
 
 

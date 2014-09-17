@@ -476,6 +476,24 @@ else
 fi
 AC_SUBST(MYSQL_LIBS)
 AC_SUBST(MYSQL_INCLUDES)
+
+##
+##   rdkafka
+###
+if test "x$with_rdkafka" = "xyes" ; then
+   AC_CHECK_HEADERS(librdkafka/rdkafka.h)
+   AC_CHECK_HEADER(librdkafka/rdkafka.h,rdkafka_h=yes,rdkafka_h=no)
+   if test "x$rdkafka_h" = "xno"; then
+      AC_MSG_ERROR([Could not find rdkafka.h and was specifically asked to use rdkafka support])
+   fi
+   RDKAFKA_LIBS="-lrdkafka"
+   RDKAFKA_INCLUDES=""
+   AC_MSG_CACHE_ADD(Kafka Trap Logging:         enabled)
+else
+   AC_MSG_CACHE_ADD(Kafka Trap Logging:         unavailable)
+   fi
+AC_SUBST(RDKAFKA_LIBS)
+AC_SUBST(RDKAFKA_INCLUDES)
   
 
 ##
