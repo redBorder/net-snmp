@@ -39,7 +39,8 @@ script:
   - docker run -v $(pwd):/app anarey/net-snmp-test
 
   - docker run -v $(pwd):/app anarey/net-snmp-test ./configure --with-default-snmp-version=3 --with-rdkafka --with-sys-contact="@redborder.net" --with-sys-location="Unknown" --with-logfile=/var/log/snmpd.log --with-persistent-directory=/var/net-snmp --disable-agent --disable-manuals --disable-scripts --disable-mibs -with-mibdirs="/app/mibs"
-  - docker run -v $(pwd):/app anarey/net-snmp-test find . -name Makefile -exec sed -i 's/\-O2/\-O0/g' {} \;
+  # Uncomment this line if you want to run this test Without optimizations
+  #- docker run -v $(pwd):/app anarey/net-snmp-test find . -name Makefile -exec sed -i 's/\-O2/\-O0/g' {} \;
   - docker run -v $(pwd):/app anarey/net-snmp-test make
   - docker run -v $(pwd):/app anarey/net-snmp-test make install
 
