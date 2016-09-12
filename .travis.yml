@@ -1,0 +1,56 @@
+sudo: required
+
+language: c
+
+notifications:
+  email: false
+
+branches:
+  only:
+    - kafka
+    - /^[0-9]+\.[0-9]+\.[0-9]+/
+
+services:
+  - docker
+
+env:
+  DOCKER_COMPOSE_VERSION:  1.7.1
+
+before_install:
+# Use docker 1.11
+  - sudo sh -c 'echo "deb https://apt.dockerproject.org/repo ubuntu-precise main" > /etc/apt/sources.list.d/docker.list'
+  - sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+  - sudo apt-get update
+  - sudo apt-key update
+  #- sudo apt-get -qqy -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install docker-engine=1.11.1-0~precise
+  - sudo apt-get -qqy -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install docker-engine
+
+# Use docker-compose 1.7.1
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+
+install: true
+  - pip install --user cpp-coveralls
+
+script:
+  - docker-compose up --build -d
+
+  - docker run -v $(pwd):/app anarey/net-snmp-test
+
+  - docker run -v $(pwd):/app anarey/net-snmp-test ./configure --with-default-snmp-version=3 --with-rdkafka --with-sys-contact="@redborder.net" --with-sys-location="Unknown" --with-logfile=/var/log/snmpd.log --with-persistent-directory=/var/net-snmp --disable-agent --disable-manuals --disable-scripts --disable-mibs -with-mibdirs="/app/mibs"
+  # Uncomment this line if you want to run this test Without optimizations
+  #- docker run -v $(pwd):/app anarey/net-snmp-test find . -name Makefile -exec sed -i 's/\-O2/\-O0/g' {} \;
+  - docker run -v $(pwd):/app anarey/net-snmp-test make
+  - docker run -v $(pwd):/app anarey/net-snmp-test make install
+
+  - docker network ls
+
+  # Join net-snmp container into net-snmp_kafkanet
+  # use --security-opt seccomp=unconfined to use cgdb into docker container
+  - docker run -v $(pwd):/app --net netsnmp_kafkanet anarey/net-snmp-test /bin/sh /app/tests/test1.sh
+
+  # - docker network inspect net-snmp_kafkanet
+  # - docker-compose --verbose ps
+  # - docker-compose ps
+  # - docker network inspect net-snmp_kafkanet
