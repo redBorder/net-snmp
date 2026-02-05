@@ -40,6 +40,17 @@
  * Windows XP and higher.  */
 /* #undef NETSNMP_ENABLE_IPV6 */
 
+/* Only use Windows API functions available on Windows 2000 SP4 or later.  
+ * We need at least SP1 for some IPv6 defines in ws2ipdef.h
+ */
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x600 /*_WIN32_WINNT_WIN6*/
+#else
+#if _WIN32_WINNT < 0x501
+#error _WIN32_WINNT is too low - it should be set to at least 0x501.
+#endif
+#endif
+
 #define INSTALL_BASE "c:/usr"
 
 /* config.h:  a general config file */
@@ -484,6 +495,9 @@
 /* Define to 1 if you have the <mtab.h> header file. */
 /* #undef HAVE_MTAB_H */
 
+/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
+/* #undef HAVE_NDIR_H */
+
 /* Define to 1 if you have the <netdb.h> header file. */
 /* #undef HAVE_NETDB_H */
 
@@ -790,6 +804,10 @@
 /* Define to 1 if you have the <sys/mount.h> header file. */
 /* #undef HAVE_SYS_MOUNT_H */
 
+/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
+   */
+/* #undef HAVE_SYS_NDIR_H */
+
 /* Define to 1 if you have the <sys/param.h> header file. */
 /* #undef HAVE_SYS_PARAM_H */
 
@@ -986,6 +1004,29 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
+/* The size of a `int', as computed by sizeof. */
+#define SIZEOF_INT 4
+
+/* The size of a `long', as computed by sizeof. */
+#define SIZEOF_LONG 4
+
+/* The size of a `intmax_t', as computed by sizeof. */
+#define SIZEOF_INTMAX_T 8
+
+/* The size of a `short', as computed by sizeof. */
+#define SIZEOF_SHORT 2
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at run-time.
+        STACK_DIRECTION > 0 => grows toward higher addresses
+        STACK_DIRECTION < 0 => grows toward lower addresses
+        STACK_DIRECTION = 0 => direction of growth unknown */
+/* #undef STACK_DIRECTION */
+
+/* Define to 1 if you have the ANSI C header files. */
+#define STDC_HEADERS 1
+
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 /* #undef TIME_WITH_SYS_TIME */
 
@@ -1149,9 +1190,6 @@
 #  error Unknown byte order
 #endif
 
-#define NETSNMP_FALLTHROUGH do { } while (0)
-#define NETSNMP_NONNULL(...) /* nonnull */
-
 /* Mib-2 tree Info */
 /* These are the system information variables. */
 
@@ -1265,6 +1303,8 @@
 
 /* The assigned enterprise number for sysObjectID. */
 #define NETSNMP_SYSTEM_MIB		1,3,6,1,4,1,8072,3,2,OSTYPE
+#define NETSNMP_SYSTEM_DOT_MIB		1.3.6.1.4.1.8072.3.2.OSTYPE
+#define NETSNMP_SYSTEM_DOT_MIB_LENGTH	10
 
 /* The assigned enterprise number for notifications. */
 #define NETSNMP_NOTIFICATION_MIB		1,3,6,1,4,1,8072,4
@@ -1576,10 +1616,23 @@
 #endif
 
 /*
- * A user having problems with their compiler can turn off
+ * this must be before the system/machine includes, to allow them to
+ * override and turn off inlining. To do so, they should do the
+ * following:
+ *
+ *    #undef NETSNMP_ENABLE_INLINE
+ *    #define NETSNMP_ENABLE_INLINE 0
+ *
+ * A user having problems with their compiler can also turn off
  * the use of inline by defining NETSNMP_NO_INLINE via their cflags:
  *
  *    -DNETSNMP_NO_INLINE
+ *
+ * Header and source files should only test against NETSNMP_USE_INLINE:
+ *
+ *   #ifdef NETSNMP_USE_INLINE
+ *   NETSNMP_INLINE function(int parm) { return parm -1; }
+ *   #endif
  *
  * Functions which should be static, regardless of whether or not inline
  * is available or enabled should use the NETSNMP_STATIC_INLINE macro,
@@ -1592,10 +1645,6 @@
  *    static NETSNMP_INLINE function(int parm) { return parm -1; }
  *
  */
-#ifdef NETSNMP_NO_INLINE
-#define NETSNMP_INLINE
-#define NETSNMP_STATIC_INLINE static
-#else
 /*
  * Win32 needs extern for inline function declarations in headers.
  * See MS tech note Q123768:
@@ -1603,7 +1652,7 @@
  */
 #define NETSNMP_INLINE extern inline
 #define NETSNMP_STATIC_INLINE static inline
-#endif
+#define NETSNMP_ENABLE_INLINE 1
 
 #if notused
 #include NETSNMP_SYSTEM_INCLUDE_FILE
@@ -1612,6 +1661,15 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+#if NETSNMP_ENABLE_INLINE && !defined(NETSNMP_NO_INLINE)
+#   define NETSNMP_USE_INLINE 1
+#else
+#   undef  NETSNMP_INLINE
+#   define NETSNMP_INLINE 
+#   undef  NETSNMP_STATIC_INLINE
+#   define NETSNMP_STATIC_INLINE static
+#endif
 
 #ifdef WIN32
 

@@ -109,7 +109,7 @@ void
 init_ifTable(void)
 {
     snmp_register_callback(SNMP_CALLBACK_LIBRARY,
-                           SNMP_CALLBACK_POST_READ_CONFIG,
+                           SNMP_CALLBACK_PRE_READ_CONFIG,
                            _init_ifTable, NULL);
 }
 
@@ -301,7 +301,7 @@ ifTable_indexes_set(ifTable_rowreq_ctx * rowreq_ctx, long ifIndex_val)
     /*
      * convert mib index to oid index
      */
-    rowreq_ctx->oid_idx.len = OID_LENGTH(rowreq_ctx->oid_tmp);
+    rowreq_ctx->oid_idx.len = sizeof(rowreq_ctx->oid_tmp) / sizeof(oid);
     if (0 != ifTable_index_to_oid(&rowreq_ctx->oid_idx,
                                   &rowreq_ctx->tbl_idx)) {
         return MFD_ERROR;
@@ -591,17 +591,6 @@ ifSpeed_get(ifTable_rowreq_ctx * rowreq_ctx, u_long * ifSpeed_val_ptr)
     return MFD_SUCCESS;
 }                               /* ifSpeed_get */
 
-static int is_zero(const char *p, unsigned int len)
-{
-    unsigned int i;
-
-    for (i = 0; i < len; i++)
-        if (p[i])
-            return FALSE;
-
-    return TRUE;
-}
-
 /*---------------------------------------------------------------------
  * IF-MIB::ifEntry.ifPhysAddress
  * ifPhysAddress is subid 6 of ifEntry.
@@ -670,8 +659,12 @@ ifPhysAddress_get(ifTable_rowreq_ctx * rowreq_ctx,
 
     netsnmp_assert(NULL != rowreq_ctx);
 
-    if (is_zero(rowreq_ctx->data.ifPhysAddress,
-                rowreq_ctx->data.ifPhysAddress_len)) {
+    if ((rowreq_ctx->data.ifPhysAddress[0] == 0) &&
+        (rowreq_ctx->data.ifPhysAddress[1] == 0) &&
+        (rowreq_ctx->data.ifPhysAddress[2] == 0) &&
+        (rowreq_ctx->data.ifPhysAddress[3] == 0) &&
+        (rowreq_ctx->data.ifPhysAddress[4] == 0) &&
+        (rowreq_ctx->data.ifPhysAddress[5] == 0)) {
         /*
          * all 0s = empty string
          */
@@ -2098,7 +2091,7 @@ The desired state of the interface.  The testing(3) state
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transition from one value to another
+ * new value is legal (ie, the transistion from one value to another
  * is legal).
  *      
  *@note

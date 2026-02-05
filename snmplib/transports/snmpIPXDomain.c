@@ -238,7 +238,7 @@ netsnmp_ipx_transport(const struct sockaddr_ipx *addr, int local)
         }
 
         /*
-         * This session is intended as a server, so we must bind on to the
+         * This session is inteneded as a server, so we must bind on to the
          * given address (which may include a particular network and/or node
          * address, but definitely includes a port number).
          */
@@ -476,11 +476,7 @@ netsnmp_ipx_ctor(void)
 {
     ipxDomain.name = netsnmpIPXDomain;
     ipxDomain.name_length = netsnmpIPXDomain_len;
-    ipxDomain.prefix = calloc(2, sizeof(char *));
-    if (!ipxDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    ipxDomain.prefix = (const char**)calloc(2, sizeof(char *));
     ipxDomain.prefix[0] = "ipx";
 
     ipxDomain.f_create_from_tstring_new = netsnmp_ipx_create_tstring;

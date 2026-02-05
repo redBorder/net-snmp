@@ -583,7 +583,7 @@ The IP address to which this entry's addressing information
             ipAddressAddrType.
 
 
-            Implementers need to be aware that if the size of
+            Implementors need to be aware that if the size of
             ipAddressAddr exceeds 116 octets then OIDS of instances of
             columns in this row will have more than 128 sub-identifiers
             and cannot be accessed using SNMPv1, SNMPv2c or SNMPv3.

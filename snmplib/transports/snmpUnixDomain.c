@@ -28,8 +28,6 @@
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
 
-#include <net-snmp/library/snmp.h>
-#include <net-snmp/library/snmp_impl.h>
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/system.h> /* mkdirhier */
@@ -46,14 +44,15 @@ netsnmp_feature_child_of(unix_socket_paths, transport_unix_socket_all);
 #define NETSNMP_STREAM_QUEUE_LEN  5
 #endif
 
-#undef SUN_LEN
+#ifndef SUN_LEN
 /*
  * Evaluate to actual length of the `sockaddr_un' structure.
  */
-#define SUN_LEN(ptr) ((size_t)&(((struct sockaddr_un *)NULL)->sun_path)      \
+#define SUN_LEN(ptr) ((size_t) (((struct sockaddr_un *) 0)->sun_path)         \
                       + strlen ((ptr)->sun_path))
+#endif
 
-const oid netsnmp_UnixDomain[] = { TRANSPORT_DOMAIN_LOCAL };
+oid netsnmp_UnixDomain[] = { TRANSPORT_DOMAIN_LOCAL };
 static netsnmp_tdomain unixDomain;
 
 
@@ -269,7 +268,7 @@ static int create_path = 0;
 static mode_t create_mode;
 
 #ifndef NETSNMP_FEATURE_REMOVE_UNIX_SOCKET_PATHS
-/** If trying to create unix sockets in non-existing directories then
+/** If trying to create unix sockets in nonexisting directories then
  *  try to create the directory with mask mode.
  */
 void netsnmp_unix_create_path_with_mode(int mode)
@@ -278,7 +277,7 @@ void netsnmp_unix_create_path_with_mode(int mode)
     create_mode = mode;
 }
 
-/** If trying to create unix sockets in non-existing directories then
+/** If trying to create unix sockets in nonexisting directories then
  *  fail.
  */
 void netsnmp_unix_dont_create_path(void)
@@ -304,7 +303,7 @@ netsnmp_unix_transport(const struct sockaddr_un *addr, int local)
 
 #ifdef NETSNMP_NO_LISTEN_SUPPORT
     /* SPECIAL CIRCUMSTANCE: We still want AgentX to be able to operate,
-       so we allow for unix domain sockets to still listen when everything
+       so we allow for unix domain socktes to still listen when everything
        else isn't allowed to.  Thus, we ignore this define in this file.
     */
 #endif /* NETSNMP_NO_LISTEN_SUPPORT */
@@ -368,7 +367,7 @@ netsnmp_unix_transport(const struct sockaddr_un *addr, int local)
         }
 
         /*
-         * This session is intended as a server, so we must bind to the given
+         * This session is inteneded as a server, so we must bind to the given
          * path (unlinking it first, to avoid errors).
          */
 
@@ -519,12 +518,8 @@ void
 netsnmp_unix_ctor(void)
 {
     unixDomain.name = netsnmp_UnixDomain;
-    unixDomain.name_length = OID_LENGTH(netsnmp_UnixDomain);
-    unixDomain.prefix = calloc(2, sizeof(char *));
-    if (!unixDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    unixDomain.name_length = sizeof(netsnmp_UnixDomain) / sizeof(oid);
+    unixDomain.prefix = (const char**)calloc(2, sizeof(char *));
     unixDomain.prefix[0] = "unix";
 
     unixDomain.f_create_from_tstring_new = netsnmp_unix_create_tstring;
@@ -703,16 +698,14 @@ netsnmp_unix_parse_security(const char *token, char *param)
     }
 
     {
-        char *last;
-        com2SecUnixEntry* e = malloc(offsetof(com2SecUnixEntry, community) +
-                                     communityLen + sockpathLen + secNameLen +
-                                     contextNameLen);
-        if (!e) {
-            config_perror("memory allocation failed");
+        void* v = malloc(offsetof(com2SecUnixEntry, community) + communityLen +
+                         sockpathLen + secNameLen + contextNameLen);
+        com2SecUnixEntry* e = (com2SecUnixEntry*)v;
+        char* last = ((char*)v) + offsetof(com2SecUnixEntry, community);
+        if (e == NULL) {
+            config_perror("memory error");
             return;
         }
-
-        last = (char *)e + offsetof(com2SecUnixEntry, community);
 
         DEBUGMSGTL(("netsnmp_unix_parse_security",
                     "<\"%s\", \"%.*s\"> => \"%s\"\n",

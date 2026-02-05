@@ -35,7 +35,6 @@
 #include <net-snmp/types.h>
 #include <net-snmp/output_api.h>
 
-#include <net-snmp/library/snmp.h>
 #include <net-snmp/library/snmpIPv4BaseDomain.h>
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/snmpTCPBaseDomain.h>
@@ -51,7 +50,7 @@
  */
 typedef netsnmp_indexed_addr_pair netsnmp_udp_addr_pair;
 
-const oid netsnmp_snmpTCPDomain[] = { TRANSPORT_DOMAIN_TCP_IP };
+oid netsnmp_snmpTCPDomain[] = { TRANSPORT_DOMAIN_TCP_IP };
 static netsnmp_tdomain tcpDomain;
 
 /*
@@ -191,17 +190,6 @@ netsnmp_tcp_transport(const struct netsnmp_ep *ep, int local)
         goto err;
 
     t->flags = NETSNMP_TRANSPORT_FLAG_STREAM;
-
-    /* for Linux VRF Traps we try to bind the iface if clientaddr is not set */
-    if (local == 0 && ep) {
-        rc = netsnmp_bindtodevice(t->sock, ep->iface);
-        if (rc)
-            DEBUGMSGTL(("netsnmp_tcp", "VRF: Could not bind socket %d to %s\n",
-                t->sock, ep->iface));
-        else
-            DEBUGMSGTL(("netsnmp_tcp", "VRF: Bound socket %d to %s\n",
-                t->sock, ep->iface));
-    }
 
     if (local) {
 #ifndef NETSNMP_NO_LISTEN_SUPPORT
@@ -346,12 +334,8 @@ void
 netsnmp_tcp_ctor(void)
 {
     tcpDomain.name = netsnmp_snmpTCPDomain;
-    tcpDomain.name_length = OID_LENGTH(netsnmp_snmpTCPDomain);
-    tcpDomain.prefix = calloc(2, sizeof(char *));
-    if (!tcpDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    tcpDomain.name_length = sizeof(netsnmp_snmpTCPDomain) / sizeof(oid);
+    tcpDomain.prefix = (const char **)calloc(2, sizeof(char *));
     tcpDomain.prefix[0] = "tcp";
 
     tcpDomain.f_create_from_tstring_new = netsnmp_tcp_create_tstring;

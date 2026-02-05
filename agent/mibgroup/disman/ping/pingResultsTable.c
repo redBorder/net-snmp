@@ -230,6 +230,7 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
+    size_t          tmpint;
     struct pingResultsTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -259,12 +260,12 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->pingResultsOperStatus,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        pingResultsIpTargetAddressType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -275,28 +276,28 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsMinRtt,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsMaxRtt,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsAverageRtt,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
-                                       pingResultsProbeResponses, NULL);
+                                       pingResultsProbeResponses, &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsSendProbes,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        pingResultsRttSumOfSquares,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->

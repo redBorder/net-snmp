@@ -3,44 +3,32 @@ that have been applied in released versions.  Please see the NEWS file for
 a summary of the major changes, and the ChangeLog file for a comprehensive
 listing of all changes made to the code.
 
-*5.10*
-    snmplib:
-      - [PATCH 3183000]: Fix calculation of common OID prefix length
-	CHANGES: snmplib: BUGS: 3182985: Fix calculation of common OID
-	prefix length") Reported-by: Eldin Zenderink
-	<e.zenderink@gmail.com>
+*5.9.5.2*
 
-    snmpd:
-      - Invoke a callback upon authentication failure This allows detecting
-	failed authentication attempts in a custom SNMP agent. [
-	bvanassche: edited commit message ]
-      - Reworked hrStorageTable to support large filesystems.")
-      - Security vulnerabilty in the ping MIB reported by Christopher Ertl
-	from Microsoft fixed
+    building:
+      - Fix an issue with needing limits.h included.
+      - update to autoconf 2.72
+
+*5.9.5.1*:
+
+Only a version numbering fix.
+
+*5.9.5*:
 
     snmptrapd:
-      - Add support for the latest libmysqlclient version")
+      - fixed a critical vulnerability triggered by a specially crafted trap
 
-    <net-snmp/net-snmp-config.h>:
-      - Stop defining _POSIX_SOURCE, _GNU_SOURCE etc Remove the following
-	definitions from <net-snmp/net-snmp-config.h>: * _ALL_SOURCE *
-	_GNU_SOURCE * _POSIX_PTHREAD_SEMANTICS * _TANDEM_SOURCE *
-	__EXTENSIONS__ * _POSIX_1_SOURCE * _POSIX_SOURCE Instead, define
-	_GNU_SOURCE, _ALL_SOURCE, _THREAD_SAFE and __EXTENSIONS__ only
-	while building Net-SNMP source code.
+    snmpd:
+      - Make UCD-SNMP::dskTable dynamic if includeAllDisks is set.") added
+	a verification that drops all filesystems not present in other_fs[]
+	table. So add 'ubifs' in other_fs[] to fix it.
 
     configure:
       - Change the default OpenSSL path into /usr Change the default
 	OpenSSL path from /usr/local/ssl into /usr since that is the
 	default location for all current Linux distributions.
 
-    libsnmp:
-      - Remove netsnmp_openssl_err_log() Remove this function since it is
-	not used by the Net-SNMP project and since this function should not
-	be used in MIB implementations either.
-
     unspecified:
-      - Moved transport code into a separate subdirectory in snmplib")
       - Remove redundant declarations These changes aim to remove redundant
 	declarations from the Net-SNMP source code. They are most easily
 	exposed with adding -Wredundant-decls to CPPFLAGS for the gcc
@@ -66,7 +54,6 @@ listing of all changes made to the code.
 	mibgroup/winExtDLL.c:360:14: error: implicit declaration of
 	function 'should_init' [-Wimplicit-function-declaration] 360 |	   
 	   if (!should_init(dll_basename)) { |		    ^~~~~~~~~~~
-
 
 *5.9.4*:
 

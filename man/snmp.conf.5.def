@@ -275,8 +275,6 @@ through the \fBsshtosnmp\fR unix socket.  The socket needs to be read/write
 privileged for SSH users that are allowed to connect to the SNMP
 service (VACM access still needs to be granted as well, most likely
 through the TSM security model).
-.IP "sshagent yes"
-Should ssh attempt to obtain keys from an ssh agent in addition to local keys.
 .IP "sshusername NAME"
 Sets the SSH user name for logging into the remote system.
 .IP "sshpubkey FILE"
@@ -321,15 +319,15 @@ This directive will be ignored if the platforms does not support
 is similar to \fIserverRecvBuf\fR, but applies to the size
 of the buffer used when sending SNMP responses.
 .IP
-.IP "sourceFilterType none|whitelist|blacklist"
+.IP "sourceFilterType none|acceptlist|blocklist"
 specifies whether or not addresses added with \fIsourceFilterAddress\fR are
-whitelisted or blacklisted. The default is none, indicating that incoming
+accepted or blocked. The default is none, indicating that incoming
 packets will not be checked agains the filter list.
 .IP
 .IP "sourceFilterAddress ADDRESS"
 specifies an address to be added to the source address filter list.
 \fIsourceFilterType\fR configuration determines whether or not addresses are
-whitelisted or blacklisted.
+accepted or blocked.
 .IP
 .SH MIB HANDLING
 .IP "mibdirs DIRLIST"

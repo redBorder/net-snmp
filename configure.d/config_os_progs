@@ -86,6 +86,27 @@ AC_SUBST([PERL_SYSTEM_INVOKES_POSIX_SHELL])
 
 
 ##
+#   Compilation-related program checks:
+##
+
+AC_LANG([C])
+AC_PROG_CC
+AC_PROG_CPP
+LINKCC=${LINKCC-"$CC"}
+AC_SUBST(LINKCC)
+
+AC_C_CONST
+AC_C_INLINE
+
+#       libtool stuff for shared/static libraries.
+#
+LT_PREREQ([2.2.6])
+LT_INIT([win32-dll])
+LT_LANG([Windows Resource])
+AC_SUBST(LIBTOOL_DEPS)
+
+
+##
 #   Build environment:
 ##
 
@@ -96,13 +117,12 @@ if test "x$developer" != "xno" -a -f $srcdir/remove-files; then
     developer="yes"
 fi
 if test "x$developer" = "xyes" -a "x$GCC" = "xyes"; then
-
     AC_MSG_NOTICE([Checking for developer compiler flags])
     #       WWWXXX - strict type checking
     #
     netsnmp_save_CFLAGS="$CFLAGS"
     for opt in -Wall -Wextra -Wstrict-prototypes -Wwrite-strings -Wcast-qual \
-        -Wimplicit-fallthrough -Wlogical-op -Wundef                          \
+        -Wimplicit-fallthrough=2 -Wlogical-op -Wundef                        \
         -Wno-format-truncation -Wno-missing-field-initializers               \
         -Wno-sign-compare -Wno-unused-parameter -Wcast-function-type
     do
@@ -224,21 +244,10 @@ case x$target_os in
 		      LD_NO_UNDEFINED=-Wl,-no-undefined],
 		     [AC_MSG_RESULT([no])])
       LDFLAGS="$saved_LDFLAGS"
+      AC_SUBST(LD_NO_UNDEFINED)
     fi
     ;;
 esac
-
-# On Windows targets, due to limitations of the PE executable format, the
-# linker will always operate as if -Wl,-no-undefined was supplied. Supply the
-# libtool flag -no-undefined to authorize libtool to build shared libraries.
-# To do: enable the libtool flag -no-undefined on more platforms.
-case x$target_os in
-  xlinux*|xcygwin*)
-    LD_NO_UNDEFINED="-no-undefined $LD_NO_UNDEFINED"
-    ;;
-esac
-
-AC_SUBST(LD_NO_UNDEFINED)
 
 
 #
@@ -261,7 +270,7 @@ AC_MSG_CHECKING([whether to un-define target system token (before redefining)])
 OLD_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="-U$PARTIALTARGETOS -D$PARTIALTARGETOS=$PARTIALTARGETOS"
 
-AC_EGREP_CPP([^yes$],
+AC_EGREP_CPP(yes,
     [[
 #ifdef $PARTIALTARGETOS
 yes

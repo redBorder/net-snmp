@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -866,7 +866,7 @@ _agentx_realloc_build(u_char ** buf, size_t * buf_len, size_t * out_len,
         }
         DEBUGINDENTLESS();
 
-        NETSNMP_FALLTHROUGH;
+        /* FALL THROUGH */
 
     case AGENTX_MSG_GET:
     case AGENTX_MSG_GETNEXT:
@@ -921,7 +921,7 @@ _agentx_realloc_build(u_char ** buf, size_t * buf_len, size_t * out_len,
         DEBUGMSG(("dumpv_send", "  errindex:\t%ld\n", pdu->errindex));
         DEBUGINDENTLESS();
 
-        NETSNMP_FALLTHROUGH;
+        /* FALL THROUGH */
 
     case AGENTX_MSG_INDEX_ALLOCATE:
     case AGENTX_MSG_INDEX_DEALLOCATE:
@@ -1643,11 +1643,6 @@ agentx_parse(netsnmp_session * session, netsnmp_pdu *pdu, u_char * data,
          * expects to find the context in the PDU's context field.  Therefore we
          * need to copy the context into the PDU's context fields.  */
         if (pdu->community_len > 0 && pdu->contextName == NULL) {
-            /*
-             * strlen() is safe here because snmp_clone_mem() '\0'-terminates its output
-             */
-            if (strlen((const char *)pdu->community) != pdu->community_len)
-                goto parse_err;
             pdu->contextName    = strdup((char *) pdu->community);
             pdu->contextNameLen = pdu->community_len;
         }
@@ -1758,7 +1753,7 @@ agentx_parse(netsnmp_session * session, netsnmp_pdu *pdu, u_char * data,
         DEBUGINDENTLESS();
         bufp += 4;
         *length -= 4;
-        NETSNMP_FALLTHROUGH;
+        /* FALLTHROUGH */
 
     case AGENTX_MSG_GETNEXT:
     case AGENTX_MSG_GET:
@@ -1813,7 +1808,7 @@ agentx_parse(netsnmp_session * session, netsnmp_pdu *pdu, u_char * data,
                                pdu->flags & AGENTX_FLAGS_NETWORK_BYTE_ORDER);
         bufp += 4;
         *length -= 4;
-        NETSNMP_FALLTHROUGH;
+        /* FALL THROUGH */
 
     case AGENTX_MSG_INDEX_ALLOCATE:
     case AGENTX_MSG_INDEX_DEALLOCATE:
@@ -1996,13 +1991,13 @@ int main(void)
     pdu1.priority = 5;
     pdu1.range_subid = 0;
 
-    snmp_pdu_add_variable(&pdu1, oid_buf, OID_LENGTH(oid_buf),
+    snmp_pdu_add_variable(&pdu1, oid_buf, sizeof(oid_buf) / sizeof(oid),
                           ASN_OBJECT_ID, (char *) oid_buf2,
                           sizeof(oid_buf2));
-    snmp_pdu_add_variable(&pdu1, oid_buf, OID_LENGTH(oid_buf),
+    snmp_pdu_add_variable(&pdu1, oid_buf, sizeof(oid_buf) / sizeof(oid),
                           ASN_INTEGER, (char *) &pdu1.reqid,
                           sizeof(pdu1.reqid));
-    snmp_pdu_add_variable(&pdu1, oid_buf, OID_LENGTH(oid_buf),
+    snmp_pdu_add_variable(&pdu1, oid_buf, sizeof(oid_buf) / sizeof(oid),
                           ASN_OCTET_STR, (char *) string, strlen(string));
 
     printf("Test with non-network order.....\n");

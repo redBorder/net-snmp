@@ -25,8 +25,14 @@
 # include <sys/socketvar.h>
 #endif
 
+#ifdef STDC_HEADERS
 #include <string.h>
 #include <stdlib.h>
+#else
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -877,7 +883,7 @@ var_ifv6Entry(register struct variable * vp,
          * should check if type, this is a hard one... 
          */
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     case IPV6IFEFFECTMTU:
         {
 #if defined(SIOCGIFMTU) && !defined(__OpenBSD__)
@@ -2515,7 +2521,7 @@ var_ifv6Entry(register struct variable * vp,
          * should check if type, this is a hard one... 
          */
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     case IPV6IFEFFECTMTU:
         {
             p = if_getname(interface);

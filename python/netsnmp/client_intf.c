@@ -40,7 +40,7 @@ typedef int Py_ssize_t;
 
 #define NO_RETRY_NOSUCH 0
 
-#define STRLEN(x) (x ? (int)strlen(x) : 0)
+#define STRLEN(x) (x ? strlen(x) : 0)
 
 
 typedef netsnmp_session SnmpSession;
@@ -88,6 +88,7 @@ static const struct type_table_entry type_table[] = {
 
     { }
 };
+
 
 void
 __libraries_init(const char *appname)
@@ -262,10 +263,10 @@ __snprint_value(char **buf, size_t *buf_len, const netsnmp_variable_list *var,
 
         case ASN_OCTET_STR:
         case ASN_OPAQUE:
-           len = (int)var->val_len;
+           len = var->val_len;
            enlarge_buffer(buf, buf_len, len + 1);
            if (len > *buf_len - 1)
-              len = (int)(*buf_len - 1);
+               len = *buf_len - 1;
            memcpy(*buf, var->val.string, len);
            break;
 
@@ -280,7 +281,7 @@ __snprint_value(char **buf, size_t *buf_len, const netsnmp_variable_list *var,
 
         case ASN_OBJECT_ID:
           __sprint_num_objid(buf, buf_len, var->val.objid,
-                             (int)var->val_len / sizeof(oid));
+                             var->val_len / sizeof(oid));
           len = STRLEN(*buf);
           break;
 
@@ -365,7 +366,7 @@ __scan_num_objid(const char *buf, oid *objid, size_t *len)
 }
 
 /* does a destructive dissection of <label1>...<labeln>.<iid> returning
-   <labeln> and <iid> in separate strings (note: will destructively
+   <labeln> and <iid> in seperate strings (note: will destructively
    alter input string, 'name') */
 static int
 __get_label_iid(char *name, const char **last_label, const char **iid, int flag)
@@ -438,7 +439,7 @@ __get_label_iid(char *name, const char **last_label, const char **iid, int flag)
                         (flag & FAIL_ON_NULL_IID)))
       return FAILURE;
 
-   if (flag & NON_LEAF_NAME) { /* don't know where to start instance id */
+   if (flag & NON_LEAF_NAME) { /* dont know where to start instance id */
      /* put the whole thing in label */
      icp = &(name[len]);
      flag |= USE_LONG_NAMES;
@@ -604,7 +605,7 @@ __tag2oid(const char *tag, const char *iid, oid *oid_arr, size_t *oid_arr_len,
 	   if (tp == NULL)
 	      break;
          }
-         *oid_arr_len = (int)(newname + MAX_OID_LEN - op);
+         *oid_arr_len = newname + MAX_OID_LEN - op;
          memcpy(oid_arr, op, *oid_arr_len * sizeof(oid));
       } else {
          return(rtp);   /* HACK: otherwise, concat_oid_str confuses things */
@@ -629,13 +630,15 @@ __add_var_val_str(netsnmp_pdu *pdu, const oid *name, int name_length,
     int ret = SUCCESS;
 
     if (pdu->variables == NULL){
-	pdu->variables = vars = calloc(1,sizeof(netsnmp_variable_list));
+	pdu->variables = vars =
+           (netsnmp_variable_list *)calloc(1,sizeof(netsnmp_variable_list));
     } else {
 	for(vars = pdu->variables;
             vars->next_variable;
             vars = vars->next_variable)
 	    /*EXIT*/;
-	vars->next_variable = calloc(1,sizeof(netsnmp_variable_list));
+	vars->next_variable =
+           (netsnmp_variable_list *)calloc(1,sizeof(netsnmp_variable_list));
 	vars = vars->next_variable;
     }
 
@@ -748,7 +751,7 @@ __send_sync_pdu(struct session_list *ss, netsnmp_pdu *pdu,
                 char *err_str, int *err_num, int *err_ind)
 {
    int status = 0;
-   int command = pdu->command;
+   long command = pdu->command;
    char *tmp_err_str;
 
    *err_num = 0;
@@ -786,7 +789,7 @@ retry:
                      snmp_free_pdu(*response);
                   goto retry;
                }
-               NETSNMP_FALLTHROUGH;
+               /* fall through */
 
             /* Pv1, SNMPsec, Pv2p, v2c, v2u, v2*, and SNMPv3 PDUs */
             case SNMP_ERR_TOOBIG:
@@ -809,11 +812,11 @@ retry:
             /* in SNMPv2c, SNMPv2u, SNMPv2*, and SNMPv3 PDUs */
             case SNMP_ERR_INCONSISTENTNAME:
             default:
-               strlcpy(err_str, snmp_errstring((int)(*response)->errstat),
-                       STR_BUF_SIZE);
-               *err_num = (int)(*response)->errstat;
-               *err_ind = (int)(*response)->errindex;
-               status = (int)(*response)->errstat;
+               strlcpy(err_str, snmp_errstring((*response)->errstat),
+		       STR_BUF_SIZE);
+               *err_num = (*response)->errstat;
+	       *err_ind = (*response)->errindex;
+               status = (*response)->errstat;
                break;
 	 }
          break;
@@ -899,7 +902,7 @@ py_netsnmp_attr_long(PyObject *obj, const char *attr_name)
 }
 
 /*
- * Retrieve attribute @attr_name of @obj and return it as a void pointer.
+ * Retrieve attribute @attr_name of @obj and return it as a void ponter.
  * Returns NULL on error.
  */
 static void *
@@ -924,7 +927,7 @@ py_netsnmp_verbose(void)
   int verbose = 0;
   PyObject *pkg = PyImport_ImportModule("netsnmp");
   if (pkg) {
-    verbose = (int)py_netsnmp_attr_long(pkg, "verbose");
+    verbose = py_netsnmp_attr_long(pkg, "verbose");
     Py_DECREF(pkg);
   }
 
@@ -970,14 +973,14 @@ py_netsnmp_attr_set_string(PyObject *obj, const char *attr_name,
  *
  * Copy the error info which may have been returned from __send_sync_pdu(...)
  * into the python object. This will allow the python code to determine if
- * an error occurred during an snmp operation.
+ * an error occured during an snmp operation.
  *
  * Currently there are 3 attributes we care about
  *
  * ErrorNum - Copy of the value of netsnmp_session.s_errno. This is the system
  * errno that was generated during our last call into the net-snmp library.
  *
- * ErrorInd - Copy of the value of netsnmp_session.s_snmp_errno. These error
+ * ErrorInd - Copy of the value of netsmp_session.s_snmp_errno. These error
  * numbers are separate from the system errno's and describe SNMP errors.
  *
  * ErrorStr - A string describing the ErrorInd that was returned during our last
@@ -1153,7 +1156,7 @@ netsnmp_create_session_v3(PyObject *self, PyObject *args)
     if (STRLEN(auth_pass) > 0) {
       session.securityAuthKeyLen = USM_AUTH_KU_LEN;
       if (generate_Ku(session.securityAuthProto,
-		      (int)session.securityAuthProtoLen,
+		      session.securityAuthProtoLen,
 		      (u_char *)auth_pass, STRLEN(auth_pass),
 		      session.securityAuthKey,
 		      &session.securityAuthKeyLen) != SNMPERR_SUCCESS) {
@@ -1184,7 +1187,7 @@ netsnmp_create_session_v3(PyObject *self, PyObject *args)
   if (session.securityLevel >= SNMP_SEC_LEVEL_AUTHPRIV) {
     session.securityPrivKeyLen = USM_PRIV_KU_LEN;
     if (generate_Ku(session.securityAuthProto,
-		    (int)session.securityAuthProtoLen,
+		    session.securityAuthProtoLen,
 		    (u_char *)priv_pass, STRLEN(priv_pass),
 		    session.securityPrivKey,
 		    &session.securityPrivKeyLen) != SNMPERR_SUCCESS) {
@@ -1415,8 +1418,8 @@ netsnmp_get_or_getnext(PyObject *self, PyObject *args, int pdu_type,
     }
     if (pdu_type == SNMP_MSG_GETNEXT) {
         memcpy(&err_str, tmpstr, tmplen);
-        err_num = (int)py_netsnmp_attr_long(session, "ErrorNum");
-        err_ind = (int)py_netsnmp_attr_long(session, "ErrorInd");
+        err_num = py_netsnmp_attr_long(session, "ErrorNum");
+        err_ind = py_netsnmp_attr_long(session, "ErrorInd");
     }
 
     if (py_netsnmp_attr_long(session, "UseLongNames"))
@@ -1427,8 +1430,8 @@ netsnmp_get_or_getnext(PyObject *self, PyObject *args, int pdu_type,
       sprintval_flag = USE_ENUMS;
     if (py_netsnmp_attr_long(session, "UseSprintValue"))
       sprintval_flag = USE_SPRINT_VALUE;
-    best_guess = (int)py_netsnmp_attr_long(session, "BestGuess");
-    retry_nosuch = (int)py_netsnmp_attr_long(session, "RetryNoSuch");
+    best_guess = py_netsnmp_attr_long(session, "BestGuess");
+    retry_nosuch = py_netsnmp_attr_long(session, "RetryNoSuch");
 
     pdu = snmp_pdu_create(pdu_type);
 
@@ -1520,6 +1523,10 @@ netsnmp_get_or_getnext(PyObject *self, PyObject *args, int pdu_type,
           continue;
 
       varbind = PySequence_GetItem(varlist, varlist_ind);
+      if (varbind == NULL) {
+        /* PySequence_GetItem failed - break to avoid NULL deref in build_python_varbind */
+        break;
+      }
       type = build_python_varbind(varbind, vars, varlist_ind, sprintval_flag,
                                   &len, &str_buf, getlabel_flag);
       if (type != TYPE_OTHER) {
@@ -1629,8 +1636,8 @@ netsnmp_walk(PyObject *self, PyObject *args)
       goto done;
     }
     memcpy(&err_str, tmpstr, tmplen);
-    err_num = (int)py_netsnmp_attr_long(session, "ErrorNum");
-    err_ind = (int)py_netsnmp_attr_long(session, "ErrorInd");
+    err_num = py_netsnmp_attr_long(session, "ErrorNum");
+    err_ind = py_netsnmp_attr_long(session, "ErrorInd");
 
     if (py_netsnmp_attr_long(session, "UseLongNames"))
       getlabel_flag |= USE_LONG_NAMES;
@@ -1640,8 +1647,8 @@ netsnmp_walk(PyObject *self, PyObject *args)
       sprintval_flag = USE_ENUMS;
     if (py_netsnmp_attr_long(session, "UseSprintValue"))
       sprintval_flag = USE_SPRINT_VALUE;
-    best_guess = (int)py_netsnmp_attr_long(session, "BestGuess");
-    retry_nosuch = (int)py_netsnmp_attr_long(session, "RetryNoSuch");
+    best_guess = py_netsnmp_attr_long(session, "BestGuess");
+    retry_nosuch = py_netsnmp_attr_long(session, "RetryNoSuch");
 
     pdu = snmp_pdu_create(SNMP_MSG_GETNEXT);
 
@@ -1772,7 +1779,7 @@ netsnmp_walk(PyObject *self, PyObject *args)
 
         oid_arr_broken_check[varlist_ind] = calloc(MAX_OID_LEN, sizeof(oid));
 
-        oid_arr_broken_check_len[varlist_ind] = (int)vars->name_length;
+        oid_arr_broken_check_len[varlist_ind] = vars->name_length;
         memcpy(oid_arr_broken_check[varlist_ind],
                vars->name, vars->name_length * sizeof(oid));
     }
@@ -1816,7 +1823,7 @@ netsnmp_walk(PyObject *self, PyObject *args)
                   /* The agent responded with an illegal response
                      as the returning OID was lexogragically less
                      then or equal to the requested OID...
-                     We need to give up here because an infinite
+                     We need to give up here because an infite
                      loop will result otherwise.
 
                      XXX: this really should be an option to
@@ -1828,6 +1835,9 @@ netsnmp_walk(PyObject *self, PyObject *args)
               }
 
               varbind = py_netsnmp_construct_varbind();
+              if (varbind == NULL)
+                break;
+
               if (varbind && build_python_varbind(varbind, vars, varlist_ind,
                                        sprintval_flag, &len, &str_buf, getlabel_flag) !=
                   TYPE_OTHER) {
@@ -1854,7 +1864,7 @@ netsnmp_walk(PyObject *self, PyObject *args)
 
               memcpy(oid_arr_broken_check[varlist_ind], vars->name,
                      sizeof(oid) * vars->name_length);
-              oid_arr_broken_check_len[varlist_ind] = (int)vars->name_length;
+              oid_arr_broken_check_len[varlist_ind] = vars->name_length;
 
               snmp_add_null_var(newpdu, vars->name,
                                 vars->name_length);
@@ -1945,8 +1955,8 @@ netsnmp_getbulk(PyObject *self, PyObject *args)
         goto done;
       }
       memcpy(&err_str, tmpstr, tmplen);
-      err_num = (int)py_netsnmp_attr_long(session, "ErrorNum");
-      err_ind = (int)py_netsnmp_attr_long(session, "ErrorInd");
+      err_num = py_netsnmp_attr_long(session, "ErrorNum");
+      err_ind = py_netsnmp_attr_long(session, "ErrorInd");
 
       if (py_netsnmp_attr_long(session, "UseLongNames"))
 	getlabel_flag |= USE_LONG_NAMES;
@@ -1956,8 +1966,8 @@ netsnmp_getbulk(PyObject *self, PyObject *args)
 	sprintval_flag = USE_ENUMS;
       if (py_netsnmp_attr_long(session, "UseSprintValue"))
 	sprintval_flag = USE_SPRINT_VALUE;
-      best_guess = (int)py_netsnmp_attr_long(session, "BestGuess");
-      retry_nosuch = (int)py_netsnmp_attr_long(session, "RetryNoSuch");
+      best_guess = py_netsnmp_attr_long(session, "BestGuess");
+      retry_nosuch = py_netsnmp_attr_long(session, "RetryNoSuch");
 
       pdu = snmp_pdu_create(SNMP_MSG_GETBULK);
 
@@ -2051,6 +2061,9 @@ netsnmp_getbulk(PyObject *self, PyObject *args)
 	    vars = vars->next_variable, varbind_ind++) {
 
 	  varbind = py_netsnmp_construct_varbind();
+	      if (varbind == NULL)
+	        break;
+
           if (varbind && build_python_varbind(varbind, vars, varbind_ind,
                               sprintval_flag, &len, &str_buf, getlabel_flag) != TYPE_OTHER) {
             const int hex = is_hex(str_buf, len);
@@ -2067,7 +2080,7 @@ netsnmp_getbulk(PyObject *self, PyObject *args)
 
 	  } else {
 	    PyObject *none = Py_BuildValue(""); /* new ref */
-	    /* not sure why making varbind failed - should not happen*/
+	    /* not sure why making vabind failed - should not happen*/
 	    PyList_Append(varbinds, none); /* increments ref */
 	    /* Return None for this variable. */
 	    PyTuple_SetItem(val_tuple, varbind_ind, none); /* steals ref */
@@ -2151,9 +2164,9 @@ netsnmp_set(PyObject *self, PyObject *args)
       goto done;
     }
 
-    use_enums = (int)py_netsnmp_attr_long(session, "UseEnums");
+    use_enums = py_netsnmp_attr_long(session, "UseEnums");
 
-    best_guess = (int)py_netsnmp_attr_long(session, "BestGuess");
+    best_guess = py_netsnmp_attr_long(session, "BestGuess");
 
     pdu = snmp_pdu_create(SNMP_MSG_SET);
 

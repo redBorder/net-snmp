@@ -7,7 +7,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -261,6 +261,7 @@ netsnmp_register_callback(int major, int minor, SNMPCallback * new_callback,
                           void *arg, int priority)
 {
     struct snmp_gen_callback *newscp = NULL, *scp = NULL;
+    struct snmp_gen_callback **prevNext = &(thecallbacks[major][minor]);
 
     if (major >= MAX_CALLBACK_IDS || minor >= MAX_CALLBACK_SUBIDS) {
         return SNMPERR_GENERR;
@@ -275,8 +276,6 @@ netsnmp_register_callback(int major, int minor, SNMPCallback * new_callback,
         _callback_unlock(major,minor);
         return SNMPERR_GENERR;
     } else {
-        struct snmp_gen_callback **prevNext = &(thecallbacks[major][minor]);
-
         newscp->priority = priority;
         newscp->sc_client_arg = arg;
         newscp->sc_callback = new_callback;

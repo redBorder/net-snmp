@@ -30,7 +30,6 @@ if (! (-f $tar_command)) {
 else {
   print "tar command:  $tar_command\n";
 }
-if (! (-f $gzip_command)) { $gzip_command = "c:/msys64/usr/bin/gzip.exe"; }
 if (! (-f $gzip_command)) {
   die ("Could not find gzip command");
 }

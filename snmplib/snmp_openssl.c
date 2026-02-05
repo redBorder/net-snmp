@@ -98,7 +98,7 @@ DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
 #endif
 #endif /* defined(NETSNMP_USE_OPENSSL) */
 
-/** TLS/DTLS certificate support */
+/** TLS/DTLS certificatte support */
 #if defined(NETSNMP_USE_OPENSSL) && defined(HAVE_LIBSSL) && !defined(NETSNMP_FEATURE_REMOVE_CERT_UTIL)
 
 netsnmp_feature_require(container_free_all);
@@ -111,7 +111,7 @@ netsnmp_feature_child_of(cert_dump_names, netsnmp_unused);
 static u_char have_started_already = 0;
 
 /*
- * This code merely does openssl initialization so that multiple
+ * This code merely does openssl initialization so that multilpe
  * modules are safe to call netsnmp_init_openssl() for bootstrapping
  * without worrying about other callers that may have already done so.
  */
@@ -218,7 +218,7 @@ netsnmp_openssl_cert_get_subjectName(X509 *ocert, char **buf, int *len)
 /** netsnmp_openssl_cert_get_commonName: get commonName for cert.
  * if a pointer to a buffer and its length are specified, they will be
  * used. otherwise, a new buffer will be allocated, which the caller will
- * be responsible for releasing.
+ * be responsbile for releasing.
  */
 char *
 netsnmp_openssl_cert_get_commonName(X509 *ocert, char **buf, int *len)
@@ -473,7 +473,7 @@ _extract_oname(const GENERAL_NAME *oname)
 /** netsnmp_openssl_cert_get_subjectAltName: get subjectAltName for cert.
  * if a pointer to a buffer and its length are specified, they will be
  * used. otherwise, a new buffer will be allocated, which the caller will
- * be responsible for releasing.
+ * be responsbile for releasing.
  */
 char *
 netsnmp_openssl_cert_get_subjectAltNames(X509 *ocert, char **buf, int *len)
@@ -637,7 +637,7 @@ netsnmp_openssl_cert_get_fingerprint(X509 *ocert, int alg)
         
         case NS_HASH_NONE:
             snmp_log(LOG_ERR, "hash type none not supported. using SHA1\n");
-            NETSNMP_FALLTHROUGH;
+            /* FALLTHROUGH */
 
         case NS_HASH_SHA1:
             digest = EVP_sha1();
@@ -741,7 +741,7 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
 
     /** check for a chain to a CA */
     ochain = SSL_get_peer_cert_chain(ssl);
-    sk_num_res = sk_X509_num(ochain);
+    sk_num_res = sk_num((const void *)ochain);
     if (!ochain || sk_num_res == 0) {
         DEBUGMSGT(("ssl:cert:chain", "peer has no cert chain\n"));
     }
@@ -750,9 +750,9 @@ netsnmp_openssl_get_cert_chain(SSL *ssl)
          * loop over chain, adding fingerprint / cert for each
          */
         DEBUGMSGT(("ssl:cert:chain", "examining cert chain\n"));
-        sk_num_res = sk_X509_num(ochain);
+        sk_num_res = sk_num((const void *)ochain);
         for(i = 0; i < sk_num_res; ++i) {
-            ocert_tmp = sk_X509_value(ochain, i);
+            ocert_tmp = (X509*)sk_value((const void *)ochain,i);
             fingerprint = netsnmp_openssl_cert_get_fingerprint(ocert_tmp, NS_HASH_SHA1);
             if (NULL == fingerprint)
                 break;
@@ -948,6 +948,19 @@ netsnmp_openssl_cert_issued_by(X509 *issuer, X509 *cert)
     return (X509_check_issued(issuer, cert) == X509_V_OK);
 }
 
+
+#ifndef NETSNMP_FEATURE_REMOVE_OPENSSL_ERR_LOG
+void
+netsnmp_openssl_err_log(const char *prefix)
+{
+    unsigned long err;
+    for (err = ERR_get_error(); err; err = ERR_get_error()) {
+        snmp_log(LOG_ERR,"%s: %ld\n", prefix ? prefix: "openssl error", err);
+        snmp_log(LOG_ERR, "library=%d, reason=%d\n", ERR_GET_LIB(err),
+                 ERR_GET_REASON(err));
+    }
+}
+#endif /* NETSNMP_FEATURE_REMOVE_OPENSSL_ERR_LOG */
 
 void
 netsnmp_openssl_null_checks(SSL *ssl, int *null_auth, int *null_cipher)

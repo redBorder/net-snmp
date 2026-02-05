@@ -8,7 +8,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -227,7 +227,7 @@ var_hrdevice(struct variable *vp,
              int exact, size_t * var_len, WriteMethod ** write_method)
 {
     int             dev_idx, type;
-    const oid      *oid_p;
+    oid            *oid_p;
     const char     *tmp_str;
     static char     string[1024];
 
@@ -266,7 +266,7 @@ really_try_next:
             oid_p = nullOid;
             *var_len = nullOidLen;
         }
-        return NETSNMP_REMOVE_CONST(void *, oid_p);
+        return (u_char *) oid_p;
     case HRDEV_STATUS:
         if (device_status[type] != NULL)
             long_return = ((*device_status[type]) (dev_idx));

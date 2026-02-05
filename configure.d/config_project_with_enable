@@ -171,10 +171,6 @@ NETSNMP_ARG_WITH(rpm,
                                   management system when building the host MIB
                                   module.])
 
-NETSNMP_ARG_WITH(pcre2-8,
-[  --without-pcre2                  Don't include pcre2 process searching
-                                  support in the agent.],
-      with_pcre2="$withval", with_pcre2="maybe")
 
 NETSNMP_ARG_WITH(pcre,
 [  --without-pcre                  Don't include pcre process searching
@@ -1041,6 +1037,10 @@ NETSNMP_ARG_WITH(enterprise-sysoid,
   fi
   sys_oid=`echo "$withval" | sed 's/^\.//' | sed 's/\./\,/g'`
   AC_DEFINE_UNQUOTED(NETSNMP_SYSTEM_MIB, $sys_oid)
+  sys_dot_oid=`echo "$withval" | sed 's/^\.//'`
+  AC_DEFINE_UNQUOTED(NETSNMP_SYSTEM_DOT_MIB, $sys_dot_oid)
+  sysoid_len=`echo "$withval" | sed 's/[^\.]//g' | awk -F\. '{ print NF }'`
+  AC_DEFINE_UNQUOTED(NETSNMP_SYSTEM_DOT_MIB_LENGTH, $sysoid_len)
   AC_MSG_RESULT(using enterprise sysOID $withval ....)
 ],[
   AC_MSG_RESULT(using default enterprise sysOID "NET-SNMP-MIB::netSnmpAgentOIDs...")

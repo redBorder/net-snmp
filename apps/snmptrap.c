@@ -132,7 +132,6 @@ main(int argc, char *argv[])
     char           *specific = NULL, *description = NULL, *agent = NULL;
     in_addr_t      *pdu_in_addr_t;
 #endif
-    char           *posix_env;
 
     SOCK_STARTUP;
 
@@ -142,8 +141,7 @@ main(int argc, char *argv[])
     else
         prognam = argv[0];
 
-    posix_env = strdup("POSIXLY_CORRECT=1");
-    putenv(posix_env);
+    putenv(strdup("POSIXLY_CORRECT=1"));
 
     if (strcmp(prognam, "snmpinform") == 0)
         inform = 1;
@@ -255,7 +253,7 @@ main(int argc, char *argv[])
             memcpy(pdu->enterprise, objid_enterprise,
                    sizeof(objid_enterprise));
             pdu->enterprise_length =
-                OID_LENGTH(objid_enterprise);
+                sizeof(objid_enterprise) / sizeof(oid);
         } else {
             name_length = MAX_OID_LEN;
             if (!snmp_parse_oid(argv[arg], name, &name_length)) {
@@ -329,14 +327,14 @@ main(int argc, char *argv[])
             trap = csysuptime;
         }
         snmp_add_var(pdu, objid_sysuptime,
-                     OID_LENGTH(objid_sysuptime), 't', trap);
+                     sizeof(objid_sysuptime) / sizeof(oid), 't', trap);
         if (++arg == argc) {
             fprintf(stderr, "Missing trap-oid parameter\n");
             usage();
             goto out;
         }
         if (snmp_add_var
-            (pdu, objid_snmptrap, OID_LENGTH(objid_snmptrap),
+            (pdu, objid_snmptrap, sizeof(objid_snmptrap) / sizeof(oid),
              'o', argv[arg]) != 0) {
             snmp_perror(argv[arg]);
             goto out;
@@ -383,7 +381,7 @@ close_session:
     snmp_shutdown(NETSNMP_APPLICATION_CONFIG_TYPE);
 
 out:
-    free(posix_env);
+    netsnmp_cleanup_session(&session);
     SOCK_CLEANUP;
     return exitval;
 }

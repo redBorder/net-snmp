@@ -317,7 +317,7 @@ snmpTagValid(const char *tag, const size_t tagLen)
 static struct snmpNotifyTable_data *StorageNew;
 
 static const int snmpNotifyTable_offset =
-    OID_LENGTH(snmpNotifyTable_variables_oid) + 3 - 1;
+    sizeof(snmpNotifyTable_variables_oid) / sizeof(oid) + 3 - 1;
 
 int
 write_snmpNotifyTag(int action,
@@ -362,7 +362,7 @@ write_snmpNotifyTag(int action,
          */
         tmpvar = StorageTmp->snmpNotifyTag;
         tmplen = StorageTmp->snmpNotifyTagLen;
-        StorageTmp->snmpNotifyTag = calloc(1, var_val_len + 1);
+        StorageTmp->snmpNotifyTag = (char*)calloc(1, var_val_len + 1);
         if (NULL == StorageTmp->snmpNotifyTag)
             return SNMP_ERR_RESOURCEUNAVAILABLE;
         break;
@@ -585,7 +585,7 @@ write_snmpNotifyRowStatus(int action,
             if (header_complex_parse_oid
                 (&
                  (name
-                  [OID_LENGTH(snmpNotifyTable_variables_oid) +
+                  [sizeof(snmpNotifyTable_variables_oid) / sizeof(oid) +
                    2]), newlen, vars) != SNMPERR_SUCCESS) {
                 /*
                  * XXX: free, zero vars 
@@ -600,7 +600,7 @@ write_snmpNotifyRowStatus(int action,
             if (StorageNew == NULL) {
                 return SNMP_ERR_RESOURCEUNAVAILABLE;
             }
-            StorageNew->snmpNotifyName = calloc( 1, vp->val_len + 1 );
+            StorageNew->snmpNotifyName = (char*)calloc( 1, vp->val_len + 1 );
             if (StorageNew->snmpNotifyName == NULL) {
                 return SNMP_ERR_RESOURCEUNAVAILABLE;
             }
@@ -614,7 +614,7 @@ write_snmpNotifyRowStatus(int action,
             StorageNew->snmpNotifyStorageType = ST_NONVOLATILE;
             StorageNew->snmpNotifyType = SNMPNOTIFYTYPE_TRAP;
             StorageNew->snmpNotifyTagLen = 0;
-            StorageNew->snmpNotifyTag = calloc(1, sizeof(char));
+            StorageNew->snmpNotifyTag = (char *) calloc(1, sizeof(char));
             if (StorageNew->snmpNotifyTag == NULL) {
                 return SNMP_ERR_RESOURCEUNAVAILABLE;
             }

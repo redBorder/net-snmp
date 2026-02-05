@@ -149,7 +149,7 @@ main(int argc, char **argv)
             break;
         case 'h':
             rval = 0;
-            NETSNMP_FALLTHROUGH;
+            /* fall through */
         default:
             usage(stdout);
             exit(rval);
@@ -276,7 +276,7 @@ test_genKu(void)
     const char     *hashname = "usmHMACMD5AuthProtocol.";
     char           *s;
     u_char          Ku[LOCAL_MAXBUF];
-    const oid      *hashtype = usmHMACMD5AuthProtocol;
+    oid            *hashtype = usmHMACMD5AuthProtocol;
 
     OUTPUT("Test of generate_Ku --");
 
@@ -355,7 +355,7 @@ test_genkul(void)
 
     u_char          Ku[LOCAL_MAXBUF], kul[LOCAL_MAXBUF];
 
-    const oid      *hashtype_Ku = usmHMACMD5AuthProtocol, *hashtype_kul;
+    oid            *hashtype_Ku = usmHMACMD5AuthProtocol, *hashtype_kul;
 
     OUTPUT("Test of generate_kul --");
 
@@ -504,7 +504,7 @@ test_keychange(void)
         newkey_buf[LOCAL_MAXBUF],
         temp_buf[LOCAL_MAXBUF], keychange_buf[LOCAL_MAXBUF];
 
-    const oid      *hashtype = usmHMACMD5AuthProtocol;
+    oid            *hashtype = usmHMACMD5AuthProtocol;
 
     OUTPUT("Test of KeyChange TC --");
 

@@ -287,7 +287,7 @@ handle_agentx_packet(int operation, netsnmp_session * session, int reqid,
                     "transport disconnect indication\n"));
 
         /*
-         * deal with existing session. This happened if agentx sends
+         * deal with existing session. This happend if agentx sends
          * a message to the master, but the master goes away before
          * a response is sent. agentx will spin in snmp_synch_response_cb,
          * waiting for a response. At the very least, the waiting
@@ -352,7 +352,8 @@ handle_agentx_packet(int operation, netsnmp_session * session, int reqid,
     if (pdu->command == AGENTX_MSG_GET
         || pdu->command == AGENTX_MSG_GETNEXT
         || pdu->command == AGENTX_MSG_GETBULK) {
-        smagic = calloc(1, sizeof(ns_subagent_magic));
+        smagic =
+            (ns_subagent_magic *) calloc(1, sizeof(ns_subagent_magic));
         if (smagic == NULL) {
             DEBUGMSGTL(("agentx/subagent", "couldn't malloc() smagic\n"));
             /* would like to send_agentx_error(), but it needs memory too */
@@ -1087,7 +1088,7 @@ agentx_check_session(unsigned int clientreg, void *clientarg)
              *    (which is no longer valid).
              * 
              * Given that the main session is not responsive anyway.
-             * it shouldn't matter if we lose some outstanding requests.
+             * it shoudn't matter if we lose some outstanding requests.
              */
             if (agentx_callback_sess != NULL ) {
                 snmp_close(agentx_callback_sess);

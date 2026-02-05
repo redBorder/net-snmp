@@ -211,7 +211,11 @@ SOFTWARE.
 #endif
 
 
-#define CHECK_OVERFLOW_S(x,y) do {                                      \
+#if SIZEOF_LONG == 4
+#  define CHECK_OVERFLOW_S(x,y)
+#  define CHECK_OVERFLOW_U(x,y)
+#else
+#  define CHECK_OVERFLOW_S(x,y) do {                                    \
         if (x > INT32_MAX) {                                            \
             DEBUGMSG(("asn","truncating signed value %ld to 32 bits (%d)\n",(long)(x),y)); \
             x &= 0xffffffff;                                            \
@@ -221,12 +225,13 @@ SOFTWARE.
         }                                                               \
     } while(0)
 
-#define CHECK_OVERFLOW_U(x,y) do {                                      \
+#  define CHECK_OVERFLOW_U(x,y) do {                                    \
         if (x > UINT32_MAX) {                                           \
             x &= 0xffffffff;                                            \
             DEBUGMSG(("asn","truncating unsigned value to 32 bits (%d)\n",y)); \
         }                                                               \
     } while(0)
+#endif
 
 /**
  * @internal
@@ -330,7 +335,7 @@ asn_parse_nlength(u_char *pkt, size_t pkt_len, u_long *data_len)
     if (pkt_len < 1)
         return NULL;               /* always too short */
 
-    if (NULL == pkt || NULL == data_len)
+    if (NULL == pkt || NULL == data_len || NULL == data_len)
         return NULL;
 
     *data_len = 0;
@@ -1513,10 +1518,12 @@ asn_parse_objid(u_char * data,
                 return NULL;
             }
         }
+#if defined(EIGHTBIT_SUBIDS) || (SIZEOF_LONG != 4)
         if (subidentifier > MAX_SUBID) {
             ERROR_MSG("subidentifier too large");
             return NULL;
         }
+#endif
         *oidp++ = (oid) subidentifier;
     }
 
@@ -1557,22 +1564,6 @@ asn_parse_objid(u_char * data,
     return bufp;
 }
 
-/* Number of bytes occupied by an ASN.1-encoded object identifier. */
-static unsigned int encoded_oid_len(uint32_t objid)
-{
-    unsigned int encoded_len = 0;
-
-    if (objid == 0)
-        return 1;
-
-    while (objid) {
-        encoded_len++;
-        objid >>= 7;
-    }
-
-    return encoded_len;
-}
-
 /**
  * @internal
  * asn_build_objid - Builds an ASN object identifier object containing the
@@ -1599,7 +1590,7 @@ static unsigned int encoded_oid_len(uint32_t objid)
 u_char         *
 asn_build_objid(u_char * data,
                 size_t * datalength,
-                u_char type, const oid * objid, size_t objidlength)
+                u_char type, oid * objid, size_t objidlength)
 {
     /*
      * ASN.1 objid ::= 0x06 asnlength subidentifier {subidentifier}*
@@ -1608,6 +1599,8 @@ asn_build_objid(u_char * data,
      * lastbyte ::= 0 7bitvalue
      */
     size_t          asnlength;
+    register oid   *op = objid;
+    u_char          objid_size[MAX_OID_LEN];
     register u_long objid_val;
     u_long          first_objid_val;
     register int    i;
@@ -1618,11 +1611,10 @@ asn_build_objid(u_char * data,
      */
     if (objidlength == 0) {
         /*
-         * there are not, so make the OID have two sub-identifiers with value
-         * zero. Both sub-identifiers are encoded as a single byte.
+         * there are not, so make OID have two with value of zero 
          */
         objid_val = 0;
-        objidlength = 1;
+        objidlength = 2;
     } else if (objid[0] > 2) {
         ERROR_MSG("build objid: bad first subidentifier");
         return NULL;
@@ -1630,21 +1622,22 @@ asn_build_objid(u_char * data,
         /*
          * encode the first value 
          */
-        objid_val = objid[0] * 40;
+        objid_val = (op[0] * 40);
         objidlength = 2;
+        op++;
     } else {
         /*
          * combine the first two values 
          */
-        if ((objid[1] >= 40 && objid[0] < 2) ||
-            objid[1] > UINT32_MAX - objid[0] * 40) {
+        if ((op[1] > 40) &&
+            (op[0] < 2)) {
             ERROR_MSG("build objid: bad second subidentifier");
             return NULL;
         }
-        objid_val = objid[0] * 40 + objid[1];
+        objid_val = (op[0] * 40) + op[1];
+        op += 2;
     }
     first_objid_val = objid_val;
-    CHECK_OVERFLOW_U(first_objid_val, 14);
 
     /*
      * ditch illegal calls now 
@@ -1655,42 +1648,76 @@ asn_build_objid(u_char * data,
     /*
      * calculate the number of bytes needed to store the encoded value 
      */
-    if (objidlength <= 1) {
-        asnlength = encoded_oid_len(first_objid_val);
-    } else {
-        asnlength = 0;
-        for (i = 1; i < objidlength; i++) {
-            objid_val = i == 1 ? first_objid_val : objid[i];
-            CHECK_OVERFLOW_U(objid_val, 5);
-            asnlength += encoded_oid_len(objid_val);
+    for (i = 1, asnlength = 0;;) {
+
+        CHECK_OVERFLOW_U(objid_val,5);
+        if (objid_val < (unsigned) 0x80) {
+            objid_size[i] = 1;
+            asnlength += 1;
+        } else if (objid_val < (unsigned) 0x4000) {
+            objid_size[i] = 2;
+            asnlength += 2;
+        } else if (objid_val < (unsigned) 0x200000) {
+            objid_size[i] = 3;
+            asnlength += 3;
+        } else if (objid_val < (unsigned) 0x10000000) {
+            objid_size[i] = 4;
+            asnlength += 4;
+        } else {
+            objid_size[i] = 5;
+            asnlength += 5;
         }
+        i++;
+        if (i >= (int) objidlength)
+            break;
+        objid_val = *op++;	/* XXX - doesn't handle 2.X (X > 40) */
     }
 
     /*
      * store the ASN.1 tag and length 
      */
     data = asn_build_header(data, datalength, type, asnlength);
-    if (_asn_build_header_check("build objid", data, *datalength, asnlength))
+    if (_asn_build_header_check
+        ("build objid", data, *datalength, asnlength))
         return NULL;
 
     /*
      * store the encoded OID value 
      */
-    if (objidlength <= 1) {
-        *data++ = 0;
-    } else {
-        for (i = 1; i < objidlength; i++) {
-            unsigned int encoded_len;
-            int j;
+    for (i = 1, objid_val = first_objid_val, op = objid + 2;
+         i < (int) objidlength; i++) {
+        if (i != 1)
+            objid_val = (uint32_t)(*op++); /* already logged warning above */
+        switch (objid_size[i]) {
+        case 1:
+            *data++ = (u_char) objid_val;
+            break;
 
-            objid_val = (uint32_t)(i == 1 ? first_objid_val : objid[i]);
-            encoded_len = encoded_oid_len(objid_val);
-            for (j = encoded_len - 1; j >= 0; j--) {
-                data[j] = (objid_val & 0x7f) |
-                    (j == encoded_len - 1 ? 0 : 0x80);
-                objid_val >>= 7;
-            }
-            data += encoded_len;
+        case 2:
+            *data++ = (u_char) ((objid_val >> 7) | 0x80);
+            *data++ = (u_char) (objid_val & 0x07f);
+            break;
+
+        case 3:
+            *data++ = (u_char) ((objid_val >> 14) | 0x80);
+            *data++ = (u_char) ((objid_val >> 7 & 0x7f) | 0x80);
+            *data++ = (u_char) (objid_val & 0x07f);
+            break;
+
+        case 4:
+            *data++ = (u_char) ((objid_val >> 21) | 0x80);
+            *data++ = (u_char) ((objid_val >> 14 & 0x7f) | 0x80);
+            *data++ = (u_char) ((objid_val >> 7 & 0x7f) | 0x80);
+            *data++ = (u_char) (objid_val & 0x07f);
+            break;
+
+        case 5:
+            *data++ = (u_char) ((objid_val >> 28) | 0x80);
+            *data++ = (u_char) ((objid_val >> 21 & 0x7f) | 0x80);
+            *data++ = (u_char) ((objid_val >> 14 & 0x7f) | 0x80);
+            *data++ = (u_char) ((objid_val >> 7 & 0x7f) | 0x80);
+            *data++ = (u_char) (objid_val & 0x07f);
+            break;
         }
     }
 
@@ -2087,26 +2114,26 @@ asn_build_unsigned_int64(u_char * data,
      * ASN.1 integer ::= 0x02 asnlength byte {byte}*
      */
 
-    uint64_t        value;
+    register u_long low, high;
+    register u_long mask, mask2;
     int             add_null_byte = 0;
-    size_t          intsize = 8;
+    size_t          intsize;
     u_char         *initdatap = data;
 
     if (countersize != sizeof(struct counter64)) {
-        _asn_size_err("build uint64", countersize, sizeof(struct counter64));
+        _asn_size_err("build uint64", countersize,
+                      sizeof(struct counter64));
         return NULL;
     }
+    intsize = 8;
+    low = cp->low;
+    high = cp->high;
 
-    {
-        u_long high = cp->high, low = cp->low;
+    CHECK_OVERFLOW_U(high,7);
+    CHECK_OVERFLOW_U(low,7);
 
-        CHECK_OVERFLOW_U(high,7);
-        CHECK_OVERFLOW_U(low,7);
-
-        value = ((uint64_t)cp->high << 32) | cp->low;
-    }
-
-    if (value >> 63) {
+    mask = 0xff000000U;
+    if (high & 0x80000000U) {
         /*
          * if MSB is set 
          */
@@ -2114,15 +2141,17 @@ asn_build_unsigned_int64(u_char * data,
         intsize++;
     } else {
         /*
-         * Truncate "unnecessary" bytes off of the most significant end of this
-         * 2's complement integer.
+         * Truncate "unnecessary" bytes off of the most significant end of this 2's
+         * complement integer.
          * There should be no sequence of 9 consecutive 1's or 0's at the most
          * significant end of the integer.
          */
-        static const uint64_t mask = 0xff8ull << 52;
-        while (((value & mask) == 0 || (value & mask) == mask) && intsize > 1) {
+        mask2 = 0xff800000U;
+        while ((((high & mask2) == 0) || ((high & mask2) == mask2))
+               && intsize > 1) {
             intsize--;
-            value <<= 8;
+            high = ((high & 0x00ffffffu) << 8) | ((low & mask) >> 24);
+            low = (low & 0x00ffffffu) << 8;
         }
     }
 #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
@@ -2187,8 +2216,10 @@ asn_build_unsigned_int64(u_char * data,
         intsize--;
     }
     while (intsize--) {
-        *data++ = value >> 56;
-        value <<= 8;
+        *data++ = (u_char) (high >> 24);
+        high = ((high & 0x00ffffff) << 8) | ((low & mask) >> 24);
+        low = (low & 0x00ffffff) << 8;
+
     }
     DEBUGDUMPSETUP("send", initdatap, data - initdatap);
     DEBUGIF("dumpv_send") {
@@ -2824,17 +2855,18 @@ asn_realloc(u_char ** pkt, size_t * pkt_len)
     if (pkt != NULL && pkt_len != NULL) {
         size_t          old_pkt_len = *pkt_len;
 
-        DEBUGMSGTL(("asn_realloc", " old_pkt %8p, old_pkt_len %" NETSNMP_PRIz
-                    "u\n", *pkt, old_pkt_len));
+        DEBUGMSGTL(("asn_realloc", " old_pkt %8p, old_pkt_len %lu\n",
+                    *pkt, (unsigned long)old_pkt_len));
 
         if (snmp_realloc(pkt, pkt_len)) {
-            DEBUGMSGTL(("asn_realloc", " new_pkt %8p, new_pkt_len %"
-                        NETSNMP_PRIz "u\n", *pkt, *pkt_len));
-            DEBUGMSGTL(("asn_realloc", " memmove(%8p + %08" NETSNMP_PRIz
-                        "x, %8p, %08" NETSNMP_PRIz "x)\n", *pkt,
-                        *pkt_len - old_pkt_len, *pkt, old_pkt_len));
+            DEBUGMSGTL(("asn_realloc", " new_pkt %8p, new_pkt_len %lu\n",
+                        *pkt, (unsigned long)*pkt_len));
+            DEBUGMSGTL(("asn_realloc",
+                        " memmove(%8p + %08x, %8p, %08x)\n",
+			*pkt, (unsigned)(*pkt_len - old_pkt_len),
+			*pkt, (unsigned)old_pkt_len));
             memmove(*pkt + (*pkt_len - old_pkt_len), *pkt, old_pkt_len);
-            memset(*pkt, ' ', *pkt_len - old_pkt_len);
+            memset(*pkt, (int) ' ', *pkt_len - old_pkt_len);
             return 1;
         } else {
             DEBUGMSG(("asn_realloc", " CANNOT REALLOC()\n"));
@@ -3214,52 +3246,6 @@ asn_realloc_rbuild_sequence(u_char ** pkt, size_t * pkt_len,
 
 /**
  * @internal
- * Store a single byte while reverse encoding.
- * @param pkt[in|out]     Start of the buffer.
- * @param pkt_len[in|out] Size of the buffer in bytes.
- * @param offset[in|out]  Offset from the end of the buffer where to write.
- * @param r[in]           If not zero, increase the buffer size if needed.
- * @param byte[in]        Data to store.
- *
- * @return 1 on success, 0 on error.
- */
-static int store_byte(uint8_t **pkt, size_t *pkt_len, size_t *offset, int r,
-                      uint8_t byte)
-{
-    netsnmp_assert(*offset <= *pkt_len);
-    if (*offset >= *pkt_len && (!r || !asn_realloc(pkt, pkt_len)))
-        return 0;
-    netsnmp_assert(*offset < *pkt_len);
-    *(*pkt + *pkt_len - (++*offset)) = byte;
-    return 1;
-}
-
-/**
- * @internal
- * Store 32 bits while reverse encoding.
- * @param pkt[in|out]     Start of the buffer.
- * @param pkt_len[in|out] Size of the buffer in bytes.
- * @param offset[in|out]  Offset from the end of the buffer where to write.
- * @param r[in]           If not zero, increase the buffer size if needed.
- * @param subid[in]       Data to store.
- *
- * @return 1 on success, 0 on error.
- */
-static int store_uint32(uint8_t **pkt, size_t *pkt_len, size_t *offset, int r,
-                        uint32_t subid)
-{
-    if (!store_byte(pkt, pkt_len, offset, r, subid & 0x7f))
-        return 0;
-
-    for (subid >>= 7; subid; subid >>= 7)
-        if (!store_byte(pkt, pkt_len, offset, r, subid | 0x80))
-            return 0;
-
-    return 1;
-}
-
-/**
- * @internal
  * builds an ASN object containing an objid.
  *
  * @see asn_build_objid
@@ -3298,11 +3284,16 @@ asn_realloc_rbuild_objid(u_char ** pkt, size_t * pkt_len,
      */
     if (objidlength == 0) {
         /*
-         * There are not, so make the OID have two sub-identifiers with value
-         * zero. Encode both sub-identifiers as a single byte.
+         * There are not, so make OID have two with value of zero.  
          */
-        if (!store_byte(pkt, pkt_len, offset, r, 0))
-            return 0;
+        while ((*pkt_len - *offset) < 2) {
+            if (!(r && asn_realloc(pkt, pkt_len))) {
+                return 0;
+            }
+        }
+
+        *(*pkt + *pkt_len - (++*offset)) = 0;
+        *(*pkt + *pkt_len - (++*offset)) = 0;
     } else if (objid[0] > 2) {
         ERROR_MSG("build objid: bad first subidentifier");
         return 0;
@@ -3310,33 +3301,70 @@ asn_realloc_rbuild_objid(u_char ** pkt, size_t * pkt_len,
         /*
          * Encode the first value.  
          */
-        if (!store_byte(pkt, pkt_len, offset, r, 40 * objid[0]))
+        if (((*pkt_len - *offset) < 1)
+            && !(r && asn_realloc(pkt, pkt_len))) {
             return 0;
+        }
+        *(*pkt + *pkt_len - (++*offset)) = (u_char) objid[0];
     } else {
-        for (i = objidlength - 1; i >= 2; i--) {
-            tmpint = objid[i];
-            CHECK_OVERFLOW_U(tmpint, 12);
-            if (!store_uint32(pkt, pkt_len, offset, r, tmpint))
+        for (i = objidlength; i > 2; i--) {
+            tmpint = objid[i - 1];
+            CHECK_OVERFLOW_U(tmpint,12);
+
+            if (((*pkt_len - *offset) < 1)
+                && !(r && asn_realloc(pkt, pkt_len))) {
                 return 0;
+            }
+            *(*pkt + *pkt_len - (++*offset)) = (u_char) tmpint & 0x7f;
+            tmpint >>= 7;
+
+            while (tmpint > 0) {
+                if (((*pkt_len - *offset) < 1)
+                    && !(r && asn_realloc(pkt, pkt_len))) {
+                    return 0;
+                }
+                *(*pkt + *pkt_len - (++*offset)) =
+                    (u_char) ((tmpint & 0x7f) | 0x80);
+                tmpint >>= 7;
+            }
         }
 
         /*
          * Combine the first two values.  
          */
-        if ((objid[1] >= 40 && objid[0] < 2) ||
-            objid[1] > UINT32_MAX - objid[0] * 40) {
+        if ((objid[1] > 40) &&
+            (objid[0] < 2)) {
+            ERROR_MSG("build objid: bad second subidentifier");
             return 0;
         }
-        if (!store_uint32(pkt, pkt_len, offset, r, objid[0] * 40 + objid[1]))
+        tmpint = ((objid[0] * 40) + objid[1]);
+        if (((*pkt_len - *offset) < 1)
+            && !(r && asn_realloc(pkt, pkt_len))) {
             return 0;
+        }
+        *(*pkt + *pkt_len - (++*offset)) = (u_char) tmpint & 0x7f;
+        tmpint >>= 7;
+
+        while (tmpint > 0) {
+            if (((*pkt_len - *offset) < 1)
+                && !(r && asn_realloc(pkt, pkt_len))) {
+                return 0;
+            }
+            *(*pkt + *pkt_len - (++*offset)) =
+                (u_char) ((tmpint & 0x7f) | 0x80);
+            tmpint >>= 7;
+        }
     }
 
     tmpint = *offset - start_offset;
-    if (asn_realloc_rbuild_header(pkt, pkt_len, offset, r, type, tmpint)) {
-        if (_asn_realloc_build_header_check(errpre, pkt, pkt_len, tmpint)) {
+    if (asn_realloc_rbuild_header(pkt, pkt_len, offset, r, type,
+                                  (*offset - start_offset))) {
+        if (_asn_realloc_build_header_check(errpre, pkt, pkt_len,
+                                            (*offset - start_offset))) {
             return 0;
         } else {
-            DEBUGDUMPSETUP("send", (*pkt + *pkt_len - *offset), tmpint);
+            DEBUGDUMPSETUP("send", (*pkt + *pkt_len - *offset),
+                           (*offset - start_offset));
             DEBUGMSG(("dumpv_send", "  ObjID: "));
             DEBUGMSGOID(("dumpv_send", objid, objidlength));
             DEBUGMSG(("dumpv_send", "\n"));
@@ -3411,6 +3439,9 @@ asn_realloc_rbuild_bitstring(u_char ** pkt, size_t * pkt_len,
      */
     static const char *errpre = "build bitstring";
     size_t          start_offset = *offset;
+
+    if (str == NULL && strlength != 0) 
+        return 0;
 
     while ((*pkt_len - *offset) < strlength) {
         if (!(r && asn_realloc(pkt, pkt_len))) {

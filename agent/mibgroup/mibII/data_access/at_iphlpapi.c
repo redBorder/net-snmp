@@ -202,7 +202,7 @@ write_arp(int action,
     int             var, retval = SNMP_ERR_NOERROR;
     static PMIB_IPNETROW oldarp_row = NULL;
     MIB_IPNETROW    temp_row;
-    uint32_t        status = NO_ERROR;
+    DWORD           status = NO_ERROR;
 
     /*
      * IP Net to Media table object identifier is of form:
@@ -287,7 +287,7 @@ write_arp(int action,
             }
             break;
         default:
-            DEBUGMSGTL(("snmpd", "unknown sub-id %d in write_arp\n",
+            DEBUGMSGTL(("snmpd", "unknown sub-id %d in write_rte\n",
                         var + 1));
             return SNMP_ERR_NOTWRITABLE;
         }
@@ -384,7 +384,7 @@ write_arp(int action,
              */
             if (!create_flag) {
                 if ((status = SetIpNetEntry(oldarp_row)) != NO_ERROR) {
-                    snmp_log(LOG_ERR, "Error in case UNDO, status %u\n",
+                    snmp_log(LOG_ERR, "Error in case UNDO, status : %u\n",
                              (unsigned int)status);
                     retval = SNMP_ERR_UNDOFAILED;
                 }
@@ -395,7 +395,7 @@ write_arp(int action,
 
                 if ((status = SetIpNetEntry(arp_row)) != NO_ERROR) {
                     snmp_log(LOG_ERR,
-                             "Error while deleting added row, status %u\n",
+                             "Error while deleting added row, status : %u\n",
                              (unsigned int)status);
                     retval = SNMP_ERR_UNDOFAILED;
                 }
@@ -432,7 +432,7 @@ write_arp(int action,
              */
             create_flag = 0;
         }
-        NETSNMP_FALLTHROUGH;
+        /* FALL THROUGH */
 
     case FREE:
         /*

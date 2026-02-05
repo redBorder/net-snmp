@@ -224,6 +224,7 @@ store_traceRouteProbeHistoryTable(int majorID, int minorID,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr = NULL;
+    size_t          tmpint;
     struct traceRouteProbeHistoryTable_data *StorageTmp = NULL;
     struct header_complex_index *hcindex = NULL;
 
@@ -257,22 +258,22 @@ store_traceRouteProbeHistoryTable(int majorID, int minorID,
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryIndex,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryHopIndex,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryProbeIndex,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryHAddrType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -283,17 +284,17 @@ store_traceRouteProbeHistoryTable(int majorID, int minorID,
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryResponse,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryStatus,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryLastRC,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->

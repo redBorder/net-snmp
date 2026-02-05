@@ -7,11 +7,12 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/hardware/memory.h>
-#include "hardware/fsys/fsys.h"
+#include <net-snmp/agent/hardware/fsys.h>
 #include "host_res.h"
 #include "hrh_filesys.h"
 #include "hrh_storage.h"
 #include "hr_disk.h"
+#include "hr_filesys.h"
 #include <net-snmp/utilities.h>
 
 

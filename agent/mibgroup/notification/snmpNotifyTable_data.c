@@ -531,11 +531,11 @@ init_snmpNotifyTable_data(void)
     static int done = 0;
 
     if (++done != 1) {
-        DEBUGMSGTL(("snmpNotifyTable_data", "multiple init calls\n"));
+        DEBUGMSGTL(("snmpNotifyTable_data", "multiple init calls"));
         return;
     }
 
-    DEBUGMSGTL(("snmpNotifyTable_data", "initializing...  \n"));
+    DEBUGMSGTL(("snmpNotifyTable_data", "initializing...  "));
 
     /*
      * we need to be called back later to store our data 
@@ -568,7 +568,7 @@ init_snmpNotifyTable_data(void)
 void
 shutdown_snmpNotifyTable_data(void)
 {
-    DEBUGMSGTL(("snmpNotifyTable_data", "shutting down ... \n"));
+    DEBUGMSGTL(("snmpNotifyTable_data", "shutting down ... "));
 
     snmp_unregister_callback(SNMP_CALLBACK_LIBRARY, SNMP_CALLBACK_STORE_DATA,
                              store_snmpNotifyTable, NULL, FALSE);
@@ -749,6 +749,7 @@ store_snmpNotifyTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
+    size_t          tmpint;
     struct snmpNotifyTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -782,15 +783,15 @@ store_snmpNotifyTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->snmpNotifyType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->snmpNotifyStorageType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->snmpNotifyRowStatus,
-                                       NULL);
+                                       &tmpint);
 
             snmpd_store_config(line);
         }

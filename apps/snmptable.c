@@ -220,7 +220,7 @@ usage(void)
     fprintf(stderr, "\t\t\t  b:       brief field names\n");
     fprintf(stderr, "\t\t\t  B:       do not use GETBULK requests\n");
     fprintf(stderr, "\t\t\t  c<NUM>:  print table in columns of <NUM> chars width\n");
-    fprintf(stderr, "\t\t\t  f<STR>:  print table delimited with <STR>\n");
+    fprintf(stderr, "\t\t\t  f<STR>:  print table delimitied with <STR>\n");
     fprintf(stderr, "\t\t\t  h:       print only the column headers\n");
     fprintf(stderr, "\t\t\t  H:       print no column headers\n");
     fprintf(stderr, "\t\t\t  i:       print index values\n");
@@ -548,16 +548,11 @@ get_field_names(void)
             break;
         }
         if (fields == 1) {
-            column = malloc(sizeof(*column));
+            column = (struct column *) malloc(sizeof(*column));
         } else {
-            struct column *tmp_column;
-
-            tmp_column = realloc(column, fields * sizeof(*column));
-            if (!tmp_column) {
-                fprintf(stderr, "Out of memory\n");
-                exit(1);
-            }
-            column = tmp_column;
+            column =
+                (struct column *) realloc(column,
+                                          fields * sizeof(*column));
         }
         column[fields - 1].label = strdup(name_p);
         column[fields - 1].width = strlen(name_p);
@@ -652,32 +647,29 @@ get_table_entries(netsnmp_session * ss)
                 if (entries >= allocated) {
                     if (allocated == 0) {
                         allocated = 10;
-                        data = malloc(allocated * fields * sizeof(char *));
+                        data =
+                            (char **) malloc(allocated * fields *
+                                             sizeof(char *));
                         memset(data, 0,
                                allocated * fields * sizeof(char *));
                         if (show_index)
-                            indices = malloc(allocated * sizeof(char *));
+                            indices =
+                                (char **) malloc(allocated *
+                                                 sizeof(char *));
                     } else {
-                        void *tmp_data = NULL, *tmp_indices = NULL;
-
                         allocated += 10;
-                        tmp_data = realloc(data, allocated * fields *
-                                           sizeof(char *));
+                        data =
+                            (char **) realloc(data,
+                                              allocated * fields *
+                                              sizeof(char *));
+                        memset(data + entries * fields, 0,
+                               (allocated -
+                                entries) * fields * sizeof(char *));
                         if (show_index)
-                            tmp_indices = realloc(indices, allocated *
+                            indices =
+                                (char **) realloc(indices,
+                                                  allocated *
                                                   sizeof(char *));
-                        if (tmp_data && (!show_index || tmp_indices)) {
-                            data = tmp_data;
-                            memset(data + entries * fields, 0,
-                                   (allocated - entries) * fields *
-                                   sizeof(char *));
-                            if (show_index)
-                                indices = tmp_indices;
-                        } else {
-                            free(tmp_data);
-                            free(tmp_indices);
-                            allocated -= 10;
-                        }
                     }
                 }
                 dp = data + (entries - 1) * fields;
@@ -736,7 +728,6 @@ get_table_entries(netsnmp_session * ss)
                                     break;
                                 case NETSNMP_OID_OUTPUT_FULL:
                                 case NETSNMP_OID_OUTPUT_NUMERIC:
-				case NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC:
                                 case NETSNMP_OID_OUTPUT_UCD:
                                     name_p = buf + strlen(table_name)+1;
                                     name_p = strchr(name_p, '.')+1;
@@ -929,7 +920,6 @@ getbulk_table_entries(netsnmp_session * ss)
                             break;
                         case NETSNMP_OID_OUTPUT_FULL:
                         case NETSNMP_OID_OUTPUT_NUMERIC:
-			case NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC:
                         case NETSNMP_OID_OUTPUT_UCD:
                             name_p = buf + strlen(table_name)+1;
                             name_p = strchr(name_p, '.')+1;

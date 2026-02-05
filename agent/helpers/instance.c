@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -588,7 +588,7 @@ netsnmp_feature_child_of(register_int_instance,instance);
 /**
  * This function registers an int helper handler to a specified OID.
  *
- * @param name         the name used for registration purposes.
+ * @param name         the name used for registration pruposes.
  *
  * @param reg_oid      the OID where you want to register your integer at
  *
@@ -741,7 +741,7 @@ netsnmp_instance_num_file_handler(netsnmp_mib_handler *handler,
         if (rc < 0)
             netsnmp_set_request_error(reqinfo, requests,
                                       SNMP_ERR_UNDOFAILED);
-        NETSNMP_FALLTHROUGH;
+        /* FALL THROUGH */
     case MODE_SET_COMMIT:
     case MODE_SET_FREE:
         if (NULL != nfi->filep) {

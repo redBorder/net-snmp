@@ -235,8 +235,6 @@ _${context}_initialize_interface(${context}_registration * reg_ptr,  u_long flag
 
     DEBUGMSGTL(("internal:${context}:_${context}_initialize_interface","called\n"));
 
-    /* Start with clean info, allows re-initializing */
-    memset(tbl_info, 0, sizeof(*tbl_info));
 
     /*************************************************
      *
@@ -1658,7 +1656,7 @@ ${context}_row_find_by_mib_index(${context}_mib_index *mib_idx)
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = OID_LENGTH(oid_tmp);
+    oid_idx.len = sizeof(oid_tmp)/sizeof(oid);
 
     /*
      * convert

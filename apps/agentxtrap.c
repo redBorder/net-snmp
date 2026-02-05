@@ -90,7 +90,7 @@ static netsnmp_pdu *pdu;        /**<< The trap pdu that is to be sent */
 static long     packetid;
 /** The session id of the session to the master */
 static long     session;
-static struct session_list *sessp; /**<< The current communication session */
+static void    *sessp;          /**<< The current communication session */
 
 #define STATE_CALL(method)                                              \
     if (!state->method) {                                               \
@@ -210,7 +210,7 @@ ConnectingEntry(tState self)
 {
     netsnmp_session init;
     netsnmp_transport *t;
-    struct session_list *sess;
+    void           *sess;
 
     if (sessp) {
         snmp_sess_close(sessp);
@@ -427,7 +427,6 @@ main(int argc, char *argv[])
     char           *prognam;
     char           *cp = NULL;
     const char     *sysUpTime = NULL;
-    char           *posix_env;
 
     /* initialize tcpip, if necessary */
     SOCK_STARTUP;
@@ -438,8 +437,7 @@ main(int argc, char *argv[])
     else
         prognam = argv[0];
 
-    posix_env = strdup("POSIXLY_CORRECT=1");
-    putenv(posix_env);
+    putenv(strdup("POSIXLY_CORRECT=1"));
 
     netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID,
                            NETSNMP_DS_LIB_DISABLE_PERSISTENT_LOAD, 1);
@@ -607,7 +605,6 @@ main(int argc, char *argv[])
     snmp_shutdown(NETSNMP_APPLICATION_CONFIG_TYPE);
 
 out:
-    free(posix_env);
     SOCK_CLEANUP;
     return result;
 }

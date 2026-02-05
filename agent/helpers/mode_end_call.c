@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -33,7 +33,7 @@ netsnmp_feature_child_of(mode_end_call, mib_helpers);
  *  above other helpers like the serialize helper to be useful.
  *
  *  Multiple mode specific handlers can be registered and will be
- *  called in the order they were registered in.  Callbacks registered
+ *  called in the order they were regestered in.  Callbacks regesterd
  *  with a mode of NETSNMP_MODE_END_ALL_MODES will be called for all
  *  modes.
  * 

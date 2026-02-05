@@ -61,7 +61,6 @@
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
 
-#include <net-snmp/library/snmp_impl.h>
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/system.h>
@@ -97,58 +96,6 @@ netsnmp_udp_fmtaddr(netsnmp_transport *t, const void *data, int len)
     return netsnmp_ipv4_fmtaddr("UDP", t, data, len);
 }
 
-static int
-netsnmp_udp_resolve_source(char *source, struct in_addr *network,
-        struct in_addr *mask)
-{
-    /* Split the source/netmask parts */
-    char *strmask = strchr(source, '/');
-    if (strmask != NULL)
-        /* Mask given. */
-        *strmask++ = '\0';
-
-    /* Try interpreting as a dotted quad. */
-   if (inet_pton(AF_INET, source, network) == 0) {
-        /* Nope, wasn't a dotted quad.  Must be a hostname. */
-        int ret = netsnmp_gethostbyname_v4(source, &(network->s_addr));
-        if (ret < 0) {
-            config_perror("cannot resolve source hostname");
-            return ret;
-        }
-    }
-
-    /* Now work out the mask. */
-    if (strmask == NULL || *strmask == '\0') {
-        /* No mask was given. Assume /32 */
-        mask->s_addr = (in_addr_t)(~0UL);
-    } else {
-        /* Try to interpret mask as a "number of 1 bits". */
-        char* cp;
-        long maskLen = strtol(strmask, &cp, 10);
-        if (*cp == '\0') {
-            if (0 < maskLen && maskLen <= 32)
-                mask->s_addr = htonl((in_addr_t)(~0UL << (32 - maskLen)));
-            else if (maskLen == 0)
-                mask->s_addr = 0;
-            else {
-                config_perror("bad mask length");
-                return -1;
-            }
-        }
-        /* Try to interpret mask as a dotted quad. */
-        else if (inet_pton(AF_INET, strmask, mask) == 0) {
-            config_perror("bad mask");
-            return -1;
-        }
-
-        /* Check that the network and mask are consistent. */
-        if (network->s_addr & ~mask->s_addr) {
-            config_perror("source/mask mismatch");
-            return -1;
-        }
-    }
-    return 0;
-}
 
 #if defined(HAVE_IP_PKTINFO) || (defined(HAVE_IP_RECVDSTADDR) && defined(HAVE_IP_SENDSRCADDR))
 
@@ -303,7 +250,7 @@ netsnmp_udp_com2SecEntry_create(com2SecEntry **entryp, const char *community,
     /** alloc space for struct + 3 strings with NULLs */
     len = offsetof(com2SecEntry, community) + communityLen + secNameLen +
         contextNameLen + 3;
-    e = calloc(len, 1);
+    e = (com2SecEntry*)calloc(len, 1);
     if (e == NULL)
         return C2SE_ERR_MEMORY;
     last = ((char*)e) + offsetof(com2SecEntry, community);
@@ -345,78 +292,6 @@ netsnmp_udp_com2SecEntry_create(com2SecEntry **entryp, const char *community,
 
     return C2SE_ERR_SUCCESS;
 }
-
-void
-netsnmp_udp_com2SecEntry_check_return_code(int rc)
-{
-    /*
-     * Check return code of the newly created com2Sec entry.
-     */
-    switch(rc) {
-        case C2SE_ERR_SUCCESS:
-            break;
-        case C2SE_ERR_CONTEXT_TOO_LONG:
-            config_perror("context name too long");
-            break;
-        case C2SE_ERR_COMMUNITY_TOO_LONG:
-            config_perror("community name too long");
-            break;
-        case C2SE_ERR_SECNAME_TOO_LONG:
-            config_perror("security name too long");
-            break;
-        case C2SE_ERR_MASK_MISMATCH:
-            config_perror("source/mask mismatch");
-            break;
-        case C2SE_ERR_MISSING_ARG:
-        default:
-            config_perror("unexpected error; could not create com2SecEntry");
-    }
-}
-
-#if defined(HAVE_ENDNETGRENT) && defined(HAVE_GETNETGRENT)
-int netsnmp_parse_source_as_netgroup(const char *sourcep, const char *community,
-                       const char *secName, const char *contextName, int negate)
-{
-    const char *netgroup = sourcep+1;
-    char *host, *user, *domain;
-    struct in_addr network, mask;
-    int rc;
-
-    /* Without '@' it has to be an address or hostname */
-    if (*sourcep != '@')
-        return 0;
-
-    /* Interpret as netgroup */
-#ifdef SETNETGRENT_RETURNS_INT
-    if (!setnetgrent(netgroup)) {
-        config_perror("netgroup could not be found");
-        return 1;
-    }
-#else
-    setnetgrent(netgroup);
-#endif
-    while (getnetgrent(&host, &user, &domain)) {
-        /* Parse source address and network mask for each netgroup host. */
-        if (netsnmp_udp_resolve_source(host, &network, &mask) == 0) {
-            /* Create a new com2Sec entry. */
-            rc = netsnmp_udp_com2SecEntry_create(NULL, community, secName, contextName,
-        					 &network, &mask, negate);
-            netsnmp_udp_com2SecEntry_check_return_code(rc);
-        } else {
-            config_perror("netgroup host address parsing issue");
-            break;
-        }
-    }
-    endnetgrent();
-    return 1;
-}
-#else
-int netsnmp_parse_source_as_netgroup(const char *sourcep, const char *community,
-                       const char *secName, const char *contextName, int negate)
-{
-    return 0;
-}
-#endif
 
 void
 netsnmp_udp_parse_security(const char *token, char *param)
@@ -490,11 +365,8 @@ netsnmp_udp_parse_security(const char *token, char *param)
         network.s_addr = 0;
         mask.s_addr = 0;
         negate = 0;
-        /* Create a new com2Sec entry. */
-        rc = netsnmp_udp_com2SecEntry_create(NULL, community, secName, contextName,
-                                             &network, &mask, negate);
-        netsnmp_udp_com2SecEntry_check_return_code(rc);
     } else {
+        char *strmask;
         if (*source == '!') {
             negate = 1;
             sourcep = source + 1;
@@ -502,16 +374,79 @@ netsnmp_udp_parse_security(const char *token, char *param)
             negate = 0;
             sourcep = source;
         }
-        if (!netsnmp_parse_source_as_netgroup(sourcep, community, secName,
-                                              contextName, negate)) {
-            /* Parse source address and network mask. */
-            if (netsnmp_udp_resolve_source(sourcep, &network, &mask) == 0) {
-                /* Create a new com2Sec entry. */
-                rc = netsnmp_udp_com2SecEntry_create(NULL, community, secName, contextName,
-                                                     &network, &mask, negate);
-                netsnmp_udp_com2SecEntry_check_return_code(rc);
+
+        /* Split the source/netmask parts */
+        strmask = strchr(sourcep, '/');
+        if (strmask != NULL)
+            /* Mask given. */
+            *strmask++ = '\0';
+
+        /* Try interpreting as a dotted quad. */
+        if (inet_pton(AF_INET, sourcep, &network) == 0) {
+            /* Nope, wasn't a dotted quad.  Must be a hostname. */
+            int ret = netsnmp_gethostbyname_v4(sourcep, &network.s_addr);
+            if (ret < 0) {
+                config_perror("cannot resolve IPv4 source hostname");
+                return;
             }
         }
+
+        /* Now work out the mask. */
+        if (strmask == NULL || *strmask == '\0') {
+            /* No mask was given. Assume /32 */
+            mask.s_addr = (in_addr_t)(~0UL);
+        } else {
+            /* Try to interpret mask as a "number of 1 bits". */
+            char* cp;
+            long maskLen = strtol(strmask, &cp, 10);
+            if (*cp == '\0') {
+                if (0 < maskLen && maskLen <= 32)
+                    mask.s_addr = htonl((in_addr_t)(~0UL << (32 - maskLen)));
+                else if (0 == maskLen)
+                    mask.s_addr = 0;
+                else {
+                    config_perror("bad mask length");
+                    return;
+                }
+            }
+            /* Try to interpret mask as a dotted quad. */
+            else if (inet_pton(AF_INET, strmask, &mask) == 0) {
+                config_perror("bad mask");
+                return;
+            }
+
+            /* Check that the network and mask are consistent. */
+            if (network.s_addr & ~mask.s_addr) {
+                config_perror("source/mask mismatch");
+                return;
+            }
+        }
+    }
+
+    /*
+     * Everything is okay.  Copy the parameters to the structure allocated
+     * above and add it to END of the list.
+     */
+    rc = netsnmp_udp_com2SecEntry_create(NULL, community, secName, contextName,
+                                         &network, &mask, negate);
+    switch(rc) {
+        case C2SE_ERR_SUCCESS:
+            break;
+        case C2SE_ERR_CONTEXT_TOO_LONG:
+            config_perror("context name too long");
+            break;
+        case C2SE_ERR_COMMUNITY_TOO_LONG:
+            config_perror("community name too long");
+            break;
+        case C2SE_ERR_SECNAME_TOO_LONG:
+            config_perror("security name too long");
+            break;
+        case C2SE_ERR_MASK_MISMATCH:
+            config_perror("source/mask mismatch");
+            break;
+        case C2SE_ERR_MISSING_ARG:
+        default:
+            config_perror("unexpected error; could not create com2SecEntry");
     }
 }
 
@@ -706,11 +641,7 @@ netsnmp_udp_ctor(void)
 {
     udpDomain.name = netsnmpUDPDomain;
     udpDomain.name_length = netsnmpUDPDomain_len;
-    udpDomain.prefix = calloc(2, sizeof(char *));
-    if (!udpDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    udpDomain.prefix = (const char**)calloc(2, sizeof(char *));
     udpDomain.prefix[0] = "udp";
 
     udpDomain.f_create_from_tstring_new = netsnmp_udp_create_tstring;

@@ -108,7 +108,11 @@ NETSNMP_STATIC_INLINE uint32_t le32(const uint32_t *p)
 #define hh(A,B,C,D,i,s,lp)   A = rot((A + h(B,C,D) + le32(&X[i]) + lp),s) + B
 #define ii(A,B,C,D,i,s,lp)   A = rot((A + i_(B,C,D) + le32(&X[i]) + lp),s) + B
 
+#ifdef STDC_HEADERS
 #define Uns(num) num##U
+#else
+#define Uns(num) num
+#endif                          /* STDC_HEADERS */
 
 #ifdef NETSNMP_ENABLE_TESTING_CODE
 /*
@@ -344,7 +348,7 @@ MDupdate(MDptr MDp, const unsigned char *X, unsigned int count)
 }
 
 /*
- * MDchecksum(data, len, MD5): do a checksum on an arbitrary amount of data 
+ * MDchecksum(data, len, MD5): do a checksum on an arbirtrary amount of data 
  */
 int
 MDchecksum(const u_char * data, size_t len, u_char * mac, size_t maclen)
@@ -377,7 +381,7 @@ MDchecksum(const u_char * data, size_t len, u_char * mac, size_t maclen)
 
 
 /*
- * MDsign(data, len, MD5): do a checksum on an arbitrary amount
+ * MDsign(data, len, MD5): do a checksum on an arbirtrary amount
  * of data, and prepended with a secret in the standard fashion 
  */
 int
@@ -427,7 +431,7 @@ MDsign(const u_char * data, size_t len, u_char * mac, size_t maclen,
     if (((uintptr_t) data) % sizeof(long) != 0) {
         /*
          * this relies on the ability to use integer math and thus we
-         * must rely on data that aligns on 32-bit-word-boundaries 
+         * must rely on data that aligns on 32-bit-word-boundries 
          */
         newdata = netsnmp_memdup(data, len);
         cp = newdata;

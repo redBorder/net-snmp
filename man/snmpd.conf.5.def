@@ -1,4 +1,4 @@
-.TH SNMPD.CONF 5 "10 Mar 2023" VVERSIONINFO "Net-SNMP"
+.TH SNMPD.CONF 5 "30 Jun 2010" VVERSIONINFO "Net-SNMP"
 .SH NAME
 snmpd.conf - configuration file for the Net-SNMP SNMP agent
 .SH DESCRIPTION
@@ -203,12 +203,6 @@ HIGH:!AES128\-SHA
 .RE
 .IP
 The default value is whatever openssl itself was configured with.
-.IP "tlsMinVersion STRING"
-The function sets the minimum supported TLS protocol version. 
-OPTION can be one of < tls1 | tls1_1| tls1_2 | tls1_3 >.
-.IP "tlsMaxVersion STRING"
-The function sets the maximum supported TLS protocol version. 
-OPTION can be one of < tls1 | tls1_1| tls1_2 | tls1_3 >.
 .IP "[snmp] x509CRLFile"
 If you are using a Certificate Authority (CA) that publishes a
 Certificate Revocation List (CRL) then this token can be used to
@@ -418,8 +412,7 @@ map an SNMPv1 or SNMPv2c community string to a security name - either from
 a particular range of source addresses, or globally (\fI"default"\fR).
 A restricted source can either be a specific hostname (or address), or
 a subnet - represented as IP/MASK (e.g. 10.10.10.0/255.255.255.0), or
-IP/BITS (e.g. 10.10.10.0/24), or the IPv6 equivalents, or
-a netgroup - represented as @netgroup.
+IP/BITS (e.g. 10.10.10.0/24), or the IPv6 equivalents.
 A restriction preceded by an exclamation mark (!) denies access from
 that address or subnet, e.g., !10.10.10.0/24 denies requests from
 sources in that subnet.  Deny restrictions must be before
@@ -434,14 +427,6 @@ com2sec sec1 10.0.0.0/8 public
 .RE
 .IP
 Access from outside of 10.0.0.0/8 would still be denied.
-.IP
-It is also possible to reference a specific \fInetgroup\fR starting with an
-'@' character (e.g.  @adminhosts). The \fInetgroup\fR lookup is running
-through the NSS (Name Services Switch) making it possible to define the
-group locally or via NIS/LDAP.
-.IP
-Note: The hostname DNS lookup and \fInetgroup\fR resolution is done only
-during snmpd start or reload.
 .IP
 The same community string can be specified in several separate directives
 (presumably with different source tokens), and the first source/community
@@ -783,17 +768,14 @@ e.g. "ram0"
 .IP "diskio_exclude_md yes"
 Excludes all Linux RAID block devices, whose names start with "md",
 e.g. "md0"
-.IP "diskio_exclude_nbd yes"
-Excludes all Linux network block devices, whose names start with "nbd",
-e.g. "nbd0"
 .PP
 On Linux systems, it is also possible to report only explicitly whitelisted
 devices. It may take a significant amount of time to process diskIOTable data
 on systems with tens of thousands of block devices and whitelisting only the
 important ones avoids large CPU consumption.
 .IP "diskio <device>"
-Enables whitelisting of devices and adds the device to the whitelist. Only
-explicitly whitelisted devices will be reported. This option may be used
+Enables acceptlist of devices and adds the device to the acceptlist. Only
+explicitly acceptlisted devices will be reported. This option may be used
 multiple times.
 .SS System Load Monitoring
 This requires that the agent was built with support for either the

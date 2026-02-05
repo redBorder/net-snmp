@@ -50,22 +50,13 @@ SOFTWARE.
  * Use is subject to license terms specified in the COPYING file
  */
 
+#define MIN_OID_LEN	    2
+#define MAX_OID_LEN	    128 /* max subid's in an oid */
 #ifndef MAX_NAME_LEN            /* conflicts with some libraries */
 #define MAX_NAME_LEN	    MAX_OID_LEN /* obsolete. use MAX_OID_LEN */
 #endif
 
-#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
-/*
- * If x is an array, x and &(x)[0] have different types. If x is a pointer,
- * x and &(x)[0] have the same type. Trigger a build error if x is a pointer
- * by making the compiler evaluate sizeof(int[-1]).
- */
-#define OID_LENGTH(x)                                                   \
-    (sizeof(x) / sizeof((x)[0]) +                                       \
-     sizeof(int[-__builtin_types_compatible_p(typeof(x), typeof(&(x)[0]))]))
-#else
-#define OID_LENGTH(x)  (sizeof(x) / sizeof((x)[0]))
-#endif
+#define OID_LENGTH(x)  (sizeof(x)/sizeof(oid))
 
 
 #ifndef HAVE_ASN_BOOLEAN
@@ -245,7 +236,7 @@ SOFTWARE.
     u_char         *asn_parse_objid(u_char *, size_t *, u_char *, oid *,
                                     size_t *);
     NETSNMP_IMPORT
-    u_char         *asn_build_objid(u_char *, size_t *, u_char, const oid *,
+    u_char         *asn_build_objid(u_char *, size_t *, u_char, oid *,
                                     size_t);
     NETSNMP_IMPORT
     u_char         *asn_parse_null(u_char *, size_t *, u_char *);

@@ -683,7 +683,7 @@ char * str;
 }
 
 /* does a destructive disection of <label1>...<labeln>.<iid> returning
-   <labeln> and <iid> in separate strings (note: will destructively
+   <labeln> and <iid> in seperate strings (note: will destructively
    alter input string, 'name') */
 static int
 __get_label_iid (name, last_label, iid, flag)
@@ -1098,10 +1098,10 @@ retry:
 
             case SNMP_ERR_NOSUCHNAME:
                if (retry_nosuch && (pdu = snmp_fix_pdu(*response, command))) {
-                  snmp_free_pdu(*response);
+                  if (*response) snmp_free_pdu(*response);
                   goto retry;
                }
-               NETSNMP_FALLTHROUGH;
+               /* FALLTHROUGH */
 
             /* Pv1, SNMPsec, Pv2p, v2c, v2u, v2*, and SNMPv3 PDUs */
             case SNMP_ERR_TOOBIG:
@@ -1182,10 +1182,6 @@ __snmp_xs_cb(int op, netsnmp_session *ss, int reqid, netsnmp_pdu *pdu,
   SV **err_num_svp = hv_fetch((HV*)SvRV(sess_ref), "ErrorNum", 8, 1);
   SV **err_ind_svp = hv_fetch((HV*)SvRV(sess_ref), "ErrorInd", 8, 1);
 
-  /* These are purely informative; only act on the final callback. */
-  if (op == NETSNMP_CALLBACK_OP_RESEND)
-    return 1;
-
   ENTER;
   SAVETMPS;
 
@@ -1218,7 +1214,7 @@ __snmp_xs_cb(int op, netsnmp_session *ss, int reqid, netsnmp_pdu *pdu,
       } else {
         warn("Couldn't clone PDU for inform response");
       }
-      NETSNMP_FALLTHROUGH;
+      /* FALLTHRU */
     case SNMP_MSG_TRAP:
     case SNMP_MSG_TRAP2:
       traplist = newAV();
@@ -1251,7 +1247,7 @@ __snmp_xs_cb(int op, netsnmp_session *ss, int reqid, netsnmp_pdu *pdu,
         sv_setuv(tmp_sv, pdu->time);
         av_push(traplist, tmp_sv);
     }
-      NETSNMP_FALLTHROUGH;
+      /* FALLTHRU */
     case SNMP_MSG_RESPONSE:
       {
       varlist = newAV();
@@ -2629,14 +2625,14 @@ snmp_new_v3_session(version, peer, retries, timeout, sec_name, sec_level, sec_en
                 goto end;
 	   }
 
-	   session.peername = netsnmp_strdup(peer);
+	   session.peername = peer;
            session.retries = retries; /* 5 */
            session.timeout = timeout; /* 1000000L */
            session.authenticator = NULL;
            session.contextNameLen = strlen(context);
-           session.contextName = netsnmp_strdup(context);
+           session.contextName = context;
            session.securityNameLen = strlen(sec_name);
-           session.securityName = netsnmp_strdup(sec_name);
+           session.securityName = sec_name;
            session.securityLevel = sec_level;
            session.securityModel = USM_SEC_MODEL_NUMBER;
            session.securityEngineIDLen =
@@ -2757,7 +2753,12 @@ snmp_new_v3_session(version, peer, retries, timeout, sec_name, sec_level, sec_en
            }
         end:
            RETVAL = ss;
-           netsnmp_cleanup_session(&session);
+	   netsnmp_free(session.securityPrivLocalKey);
+	   netsnmp_free(session.securityPrivProto);
+	   netsnmp_free(session.securityAuthLocalKey);
+	   netsnmp_free(session.securityAuthProto);
+	   netsnmp_free(session.contextEngineID);
+	   netsnmp_free(session.securityEngineID);
 	}
         OUTPUT:
         RETVAL
@@ -2788,13 +2789,13 @@ snmp_new_tunneled_session(version, peer, retries, timeout, sec_name, sec_level, 
 
            session.version = version;
 
-	   session.peername = netsnmp_strdup(peer);
+	   session.peername = peer;
            session.retries = retries; /* 5 */
            session.timeout = timeout; /* 1000000L */
            session.contextNameLen = strlen(context);
-           session.contextName = netsnmp_strdup(context);
+           session.contextName = context;
            session.securityNameLen = strlen(sec_name);
-           session.securityName = netsnmp_strdup(sec_name);
+           session.securityName = sec_name;
            session.securityLevel = sec_level;
            session.securityModel = NETSNMP_TSM_SECURITY_MODEL;
            session.contextEngineIDLen =
@@ -2809,7 +2810,6 @@ snmp_new_tunneled_session(version, peer, retries, timeout, sec_name, sec_level, 
                if (!session.transport_configuration) {
                    fprintf(stderr, "failed to initialize the transport configuration container\n");
                    RETVAL = NULL;
-                   netsnmp_cleanup_session(&session);
                    return;
                }
 
@@ -2845,7 +2845,12 @@ snmp_new_tunneled_session(version, peer, retries, timeout, sec_name, sec_level, 
            }
 
            RETVAL = ss;
-           netsnmp_cleanup_session(&session);
+	   netsnmp_free(session.securityPrivLocalKey);
+	   netsnmp_free(session.securityPrivProto);
+	   netsnmp_free(session.securityAuthLocalKey);
+	   netsnmp_free(session.securityAuthProto);
+	   netsnmp_free(session.contextEngineID);
+	   netsnmp_free(session.securityEngineID);
 	}
         OUTPUT:
         RETVAL

@@ -8,7 +8,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -333,10 +333,9 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
 
     DEBUGMSGT(("logging:options", "optarg: '%s', argc %d, argv '%s'\n",
                optarg, argc, argv ? argv[0] : "NULL"));
+    optarg++;
     if (!*cp)
         cp = &missing_opt;
-    else
-        optarg++;
 
     /*
      * Support '... -Lx=value ....' syntax
@@ -377,7 +376,7 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
         if (priority == -1)  return -1;
         if (inc_optind)
             optind++;
-        NETSNMP_FALLTHROUGH;
+        /* Fallthrough */
     case 'e':
         logh = netsnmp_register_stdio_loghandler(0, priority, pri_max, "stderr");
         break;
@@ -390,7 +389,7 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
         if (priority == -1)  return -1;
         if (inc_optind)
             optind++;
-        NETSNMP_FALLTHROUGH;
+        /* Fallthrough */
     case 'o':
         logh = netsnmp_register_stdio_loghandler( 1, priority, pri_max, "stdout" );
         break;
@@ -404,11 +403,9 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
         priority = decode_priority( &optarg, &pri_max );
         if (priority == -1) return -1;
         while (*optarg == ' ') optarg++;
-        if (!*optarg && !argv)
-            return -1;
-        else if (!*optarg)
-            optarg = optind + 1 < argc ? argv[++optind] : NULL;
-        NETSNMP_FALLTHROUGH;
+        if (!*optarg && !argv) return -1;
+        else if (!*optarg) optarg = argv[++optind];
+        /* FALL THROUGH */
     case 'f':
         if (inc_optind)
             optind++;
@@ -436,7 +433,7 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
             if (optind < argc)
                 optarg = argv[optind];
         }
-        NETSNMP_FALLTHROUGH;
+        /* Fallthrough */
     case 's':
         if (inc_optind)
             optind++;
@@ -467,7 +464,7 @@ snmp_log_options(char *optarg, int argc, char *const *argv)
         if (priority == -1)  return -1;
         if (inc_optind)
             optind++;
-        NETSNMP_FALLTHROUGH;
+        /* Fallthrough */
     case 'n':
         /*
          * disable all logs to clean them up (close files, etc),
@@ -1370,7 +1367,7 @@ snmp_log_string(int priority, const char *str)
  * @return Returns 0 on success, -1 when the code could not format the log-
  *         string, -2 when dynamic memory could not be allocated if the length
  *         of the log buffer is greater then 1024 bytes.  For each of these
- *         errors a LOG_ERR message is written to the logfile.
+ *         errors a LOG_ERR messgae is written to the logfile.
  *
  * @see snmp_log
  */

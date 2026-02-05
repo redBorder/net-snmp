@@ -22,9 +22,6 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
 #ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif
@@ -73,7 +70,7 @@ Sort_Array(netsnmp_container *c)
         /*
          * Sort the table 
          */
-        qsort(t->data, t->count, sizeof(t->data[0]), c->compare);
+        qsort(t->data, t->count, sizeof(void *), c->compare);
         t->dirty = 0;
 
         /*
@@ -608,7 +605,7 @@ netsnmp_binary_array_get_subset(netsnmp_container *c, void *key, int *len)
 {
     binary_array_table *t;
     void          **subset;
-    int             start, end, subset_size;
+    int             start, end;
     size_t          i;
 
     /*
@@ -632,29 +629,22 @@ netsnmp_binary_array_get_subset(netsnmp_container *c, void *key, int *len)
      * find matching items
      */
     start = end = binary_search_for_start((netsnmp_index *)key, c);
-    /*
-     * Although start == end, Coverity doesn't seem to realize this. Hence
-     * check both 'start' and 'end'.
-     */
-    if (start < 0 || end < 0 || start >= INT_MAX - 1 || end >= INT_MAX - 1)
+    if (start == -1)
         return NULL;
 
     for (i = start + 1; i < t->count; ++i) {
         if (0 != c->ncompare(t->data[i], key))
             break;
-        if (end >= INT_MAX - 1)
-            break;
         ++end;
     }
 
     *len = end - start + 1;
-    if (*len <= 0 || *len > INT_MAX / sizeof(void*))
+    if (*len <= 0)
         return NULL;
 
-    subset_size = *len * sizeof(void *);
-    subset = malloc(subset_size);
+    subset = (void **)malloc((*len) * sizeof(void*));
     if (subset)
-        memcpy(subset, &t->data[start], subset_size);
+        memcpy(subset, &t->data[start], sizeof(void*) * (*len));
 
     return subset;
 }

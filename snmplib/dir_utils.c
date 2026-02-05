@@ -35,6 +35,10 @@
 #endif
 #ifdef HAVE_DIRENT_H
 # include <dirent.h>
+# define NAMLEN(dirent) strlen((dirent)->d_name)
+#else
+# define dirent direct
+# define NAMLEN(dirent) (dirent)->d_namlen
 #endif
 
 #include <errno.h>
@@ -101,9 +105,6 @@ netsnmp_directory_container_read_some(netsnmp_container *user_container,
         /** default to unsorted */
         if (! (flags & NETSNMP_DIR_SORTED))
             CONTAINER_SET_OPTIONS(container, CONTAINER_KEY_UNSORTED, rc);
-        /** default to duplicates not allowed */
-        if (! (flags & NETSNMP_DIR_ALLOW_DUPLICATES))
-           CONTAINER_SET_OPTIONS(container, CONTAINER_KEY_ALLOW_DUPLICATES, rc);
     }
 
     dir = opendir(dirname);
@@ -225,7 +226,7 @@ _insert_nsfile( netsnmp_container *c, const char *name, struct stat *stats,
     }
 
     if (flags & NETSNMP_DIR_NSFILE_STATS) {
-        ns_file->stats = calloc(1,sizeof(*(ns_file->stats)));
+        ns_file->stats = (struct stat*)calloc(1,sizeof(*(ns_file->stats)));
         if (NULL == ns_file->stats) {
             snmp_log(LOG_ERR, "error creating stats for ns_file\n");
             netsnmp_file_release(ns_file);

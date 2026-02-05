@@ -3,7 +3,7 @@
  * that may apply:
  */
 /*
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -194,7 +194,7 @@ updateLogmatch(int iindex)
                          * ------------------------------------ 
                          */
 
-                        if (pos < LONG_MAX &&
+                        if ((long)pos >= 0 &&
                             !fseek(logmatchTable[iindex].logfile, pos,
                                    SEEK_SET)) {
 
@@ -273,7 +273,7 @@ updateLogmatch(int iindex)
                 /*
                  * ------------------------------------ 
                  * when we are here that means we       
-                 * couldn't set the file position maybe  
+                 * could't set the file position maybe  
                  * the file was rotated; let's reset    
                  * the filepointer, but not the counter 
                  * ------------------------------------ 

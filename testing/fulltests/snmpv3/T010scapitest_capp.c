@@ -177,7 +177,7 @@ main(int argc, char **argv)
             break;
         case 'h':
             rval = 0;
-            NETSNMP_FALLTHROUGH;
+            /* fall through */
         default:
             usage();
             exit(rval);
@@ -379,7 +379,7 @@ test_dokeyedhash(void)
         goto test_dokeyedhash_again;
     }
 
-    } /* while(1) */
+    } /* whilte(1) */
 
     return failcount;
 

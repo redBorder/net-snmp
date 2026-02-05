@@ -28,7 +28,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ******************************************************************/
 /*
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -55,8 +55,24 @@ SOFTWARE.
 #include <sys/stat.h>
 #endif
 
+/*
+ * Wow.  This is ugly.  -- Wes 
+ */
 #ifdef HAVE_DIRENT_H
-#include <dirent.h>
+# include <dirent.h>
+# define NAMLEN(dirent) strlen((dirent)->d_name)
+#else
+# define dirent direct
+# define NAMLEN(dirent) (dirent)->d_namlen
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
 #endif
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
@@ -157,7 +173,7 @@ struct objgroup {
 #define SYNTAX_MASK     0x80
 /*
  * types of tokens
- * Tokens with the SYNTAX_MASK bit set are syntax tokens 
+ * Tokens wiht the SYNTAX_MASK bit set are syntax tokens 
  */
 #define CONTINUE    -1
 #define ENDOFFILE   0
@@ -1167,7 +1183,7 @@ init_tree_roots(void)
     /*
      * build root node 
      */
-    tp = calloc(1, sizeof(struct tree));
+    tp = (struct tree *) calloc(1, sizeof(struct tree));
     if (tp == NULL)
         return;
     tp->label = strdup("joint-iso-ccitt");
@@ -1187,7 +1203,7 @@ init_tree_roots(void)
     /*
      * build root node 
      */
-    tp = calloc(1, sizeof(struct tree));
+    tp = (struct tree *) calloc(1, sizeof(struct tree));
     if (tp == NULL)
         return;
     tp->next_peer = lasttp;
@@ -1208,7 +1224,7 @@ init_tree_roots(void)
     /*
      * build root node 
      */
-    tp = calloc(1, sizeof(struct tree));
+    tp = (struct tree *) calloc(1, sizeof(struct tree));
     if (tp == NULL)
         return;
     tp->next_peer = lasttp;
@@ -1585,7 +1601,7 @@ do_subtree(struct tree *root, struct node **nodes)
 	    }
         }
 
-        tp = calloc(1, sizeof(struct tree));
+        tp = (struct tree *) calloc(1, sizeof(struct tree));
         if (tp == NULL)
             return;
         tp->parent = xxroot;
@@ -1593,10 +1609,6 @@ do_subtree(struct tree *root, struct node **nodes)
         tp->number_modules = 1;
         tp->module_list = &(tp->modid);
         tree_from_node(tp, np);
-        if (!otp && !xxroot) {
-          free(tp);
-          return;
-        }
         tp->next_peer = otp ? otp->next_peer : xxroot->child_list;
         if (otp)
             otp->next_peer = tp;
@@ -1958,7 +1970,7 @@ parse_objectid(FILE * fp, char *name)
 
     /*
      * Handle numeric-only object identifiers,
-     *  by labeling the first sub-identifier
+     *  by labelling the first sub-identifier
      */
     op = loid;
     if (!op->label) {
@@ -2362,7 +2374,7 @@ parse_asntype(FILE * fp, char *name, int *ntype, char *ntoken)
                                 *ntype);
                     return NULL;
                 }
-                NETSNMP_FALLTHROUGH;
+                /* FALL THROUGH */
             case INTEGER:
                 *ntype = get_token(fp, ntoken, MAXTOKEN);
                 do {
@@ -3489,21 +3501,19 @@ check_utc(const char *utc)
     int             len, year, month, day, hour, minute;
 
     len = strlen(utc);
-    if (len == 0) {
-        print_error("Timestamp has zero length", utc, QUOTESTRING);
-        return;
-    }
     if (utc[len - 1] != 'Z' && utc[len - 1] != 'z') {
         print_error("Timestamp should end with Z", utc, QUOTESTRING);
         return;
     }
     if (len == 11) {
-        len = sscanf(utc, "%2d%2d%2d%2d%2dZ", &year, &month, &day, &hour,
-                     &minute);
+        len =
+            sscanf(utc, "%2d%2d%2d%2d%2dZ", &year, &month, &day, &hour,
+                   &minute);
         year += 1900;
     } else if (len == 13)
-        len = sscanf(utc, "%4d%2d%2d%2d%2dZ", &year, &month, &day, &hour,
-                     &minute);
+        len =
+            sscanf(utc, "%4d%2d%2d%2d%2dZ", &year, &month, &day, &hour,
+                   &minute);
     else {
         print_error("Bad timestamp format (11 or 13 characters)",
                     utc, QUOTESTRING);
@@ -4131,7 +4141,7 @@ unload_module_by_ID(int modID, struct tree *tree_top)
                 switch (cnt) {
                 case 0:
                     tp->module_list[0] = -1;    /* Mark unused, */
-		    NETSNMP_FALLTHROUGH;
+		    /* FALL THROUGH */
 
                 case 1:        /* save the remaining module */
                     if (&(tp->modid) != tp->module_list) {
@@ -4262,8 +4272,7 @@ unload_all_mibs(void)
         if (ptc->description)
             free(ptc->description);
     }
-    SNMP_FREE(tclist);
-    tc_alloc = 0;
+    memset(tclist, 0, tc_alloc * sizeof(struct tc));
 
     memset(buckets, 0, sizeof(buckets));
     memset(nbuckets, 0, sizeof(nbuckets));
@@ -4314,7 +4323,7 @@ new_module(const char *name, const char *file)
      */
     DEBUGMSGTL(("parse-mibs", "  Module %d %s is in %s\n", max_module,
                 name, file));
-    mp = calloc(1, sizeof(struct module));
+    mp = (struct module *) calloc(1, sizeof(struct module));
     if (mp == NULL)
         return;
     mp->name = strdup(name);
@@ -4726,17 +4735,13 @@ static int netsnmp_getc(FILE *stream)
 static int
 get_token(FILE *const fp, char *const token, const int maxtlen)
 {
-    int             ch, ch_next;
-    char           *cp;
-    int             hash;
-    struct tok     *tp;
-    int             too_long;
+    register int    ch, ch_next;
+    register char  *cp = token;
+    register int    hash = 0;
+    register struct tok *tp;
+    int             too_long = 0;
     enum { bdigits, xdigits, other } seenSymbols;
 
-fetch_next_token:
-    cp = token;
-    hash = 0;
-    too_long = 0;
     /*
      * skip all white space 
      */
@@ -4761,12 +4766,11 @@ fetch_next_token:
                 if (ch == '0' || ch == '1')
                     break;
                 seenSymbols = xdigits;
-                NETSNMP_FALLTHROUGH;
+		/* FALL THROUGH */
             case xdigits:
                 if (isxdigit(ch))
                     break;
                 seenSymbols = other;
-                NETSNMP_FALLTHROUGH;
             case other:
                 break;
             }
@@ -4881,10 +4885,10 @@ fetch_next_token:
                 return ENDOFFILE;
             if (ch_next == '\n')
                 mibLine++;
-            goto fetch_next_token;
+            return get_token(fp, token, maxtlen);
         }
         ungetc(ch_next, fp);
-	NETSNMP_FALLTHROUGH;
+	/* fallthrough */
     default:
         /*
          * Accumulate characters until end of token is found.  Then attempt to
@@ -5184,20 +5188,17 @@ parseQuoteString(FILE * fp, char *token, int maxtlen)
         if (ch == '\n') {
             mibLine++;
         } else if (ch == '"') {
-            netsnmp_assert(token - token_start < maxtlen);
             *token = '\0';
             if (too_long && netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID, 
 					   NETSNMP_DS_LIB_MIB_WARNINGS) > 1) {
                 /*
                  * show short form for brevity sake 
                  */
-                int             truncate_at = SNMP_MIN(50, maxtlen - 1);
-                char            ch_save = *(token_start + truncate_at);
-
-                *(token_start + truncate_at) = '\0';
+                char            ch_save = *(token_start + 50);
+                *(token_start + 50) = '\0';
                 print_error("Warning: string too long",
                             token_start, QUOTESTRING);
-                *(token_start + truncate_at) = ch_save;
+                *(token_start + 50) = ch_save;
             }
             return QUOTESTRING;
         }
@@ -5242,7 +5243,8 @@ getIndexes(FILE * fp, struct index_list **retp)
     type = get_token(fp, token, MAXTOKEN);
     while (type != RIGHTBRACKET && type != ENDOFFILE) {
         if ((type == LABEL) || (type & SYNTAX_MASK)) {
-            *mypp = calloc(1, sizeof(struct index_list));
+            *mypp =
+                (struct index_list *) calloc(1, sizeof(struct index_list));
             if (*mypp) {
                 (*mypp)->ilabel = strdup(token);
                 (*mypp)->isimplied = nextIsImplied;
@@ -5279,7 +5281,10 @@ getVarbinds(FILE * fp, struct varbind_list **retp)
     type = get_token(fp, token, MAXTOKEN);
     while (type != RIGHTBRACKET && type != ENDOFFILE) {
         if ((type == LABEL) || (type & SYNTAX_MASK)) {
-            *mypp = calloc(1, sizeof(struct varbind_list));
+            *mypp =
+                (struct varbind_list *) calloc(1,
+                                               sizeof(struct
+                                                      varbind_list));
             if (*mypp) {
                 (*mypp)->vblabel = strdup(token);
                 mypp = &(*mypp)->next;
@@ -5372,7 +5377,7 @@ copy_enums(struct enum_list *sp)
     struct enum_list *xp = NULL, **spp = &xp;
 
     while (sp) {
-        *spp = calloc(1, sizeof(struct enum_list));
+        *spp = (struct enum_list *) calloc(1, sizeof(struct enum_list));
         if (!*spp)
             break;
         (*spp)->label = strdup(sp->label);
@@ -5389,7 +5394,7 @@ copy_ranges(struct range_list *sp)
     struct range_list *xp = NULL, **spp = &xp;
 
     while (sp) {
-        *spp = calloc(1, sizeof(struct range_list));
+        *spp = (struct range_list *) calloc(1, sizeof(struct range_list));
         if (!*spp)
             break;
         (*spp)->low = sp->low;
@@ -5647,7 +5652,7 @@ print_mib_leaves(FILE * f, struct tree *tp, int width)
         for (ntp = tp->child_list; ntp; ntp = ntp->next_peer)
             count++;
         if (count) {
-            leaves = calloc(count, sizeof(struct leave));
+            leaves = (struct leave *) calloc(count, sizeof(struct leave));
             if (!leaves)
                 return;
             for (ntp = tp->child_list, count = 0; ntp;

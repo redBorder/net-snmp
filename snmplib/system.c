@@ -28,7 +28,7 @@ SOFTWARE.
 ******************************************************************/
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -524,7 +524,7 @@ get_myaddr(void)
      */
 
     for (i = 8;; i += 8) {
-        buf = calloc(i, sizeof(struct ifreq));
+        buf = (char *) calloc(i, sizeof(struct ifreq));
         if (buf == NULL) {
             close(sd);
             return 0;
@@ -1144,8 +1144,10 @@ setenv(const char *name, const char *value, int overwrite)
         if (getenv(name))
             return 0;
     }
-    if (asprintf(&cp, "%s=%s", name, value) < 0)
+    cp = (char *) malloc(strlen(name) + strlen(value) + 2);
+    if (cp == NULL)
         return -1;
+    sprintf(cp, "%s=%s", name, value);
     ret = putenv(cp);
 #ifdef WIN32
     free(cp);

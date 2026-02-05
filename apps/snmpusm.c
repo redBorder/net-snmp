@@ -12,7 +12,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -512,13 +512,13 @@ main(int argc, char *argv[])
              */
 #ifndef NETSNMP_DISABLE_MD5
             session.securityAuthProtoLen =
-                OID_LENGTH(usmHMACMD5AuthProtocol);
+                sizeof(usmHMACMD5AuthProtocol) / sizeof(oid);
             session.securityAuthProto =
                 snmp_duplicate_objid(usmHMACMD5AuthProtocol,
                                      session.securityAuthProtoLen);
 #else
             session.securityAuthProtoLen =
-                OID_LENGTH(usmHMACSHA1AuthProtocol);
+                sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid);
             session.securityAuthProto =
                 snmp_duplicate_objid(usmHMACSHA1AuthProtocol,
                                      session.securityAuthProtoLen);

@@ -43,9 +43,6 @@ static netsnmp_container *dirs = NULL;
 
 /* ---------------------------------------------------------------------
  */
-
-#define SNMP_CFRelease(x) do { if (x) { CFRelease(x); x = NULL; } } while(0)
-
 void
 netsnmp_swinst_arch_init( void )
 {
@@ -112,6 +109,7 @@ netsnmp_swinst_arch_load( netsnmp_container *container, u_int flags )
 {
     netsnmp_iterator   *it;
     const char         *dir;
+    int                 rc;
 
     DEBUGMSGTL(("swinst:arch:darwin", "load\n"));
 
@@ -124,7 +122,7 @@ netsnmp_swinst_arch_load( netsnmp_container *container, u_int flags )
     
     it = CONTAINER_ITERATOR(dirs);
     for (dir = ITERATOR_FIRST(it); dir; dir = ITERATOR_NEXT(it)) {
-        _add_applications_in_dir(container, dir);
+        rc = _add_applications_in_dir(container, dir);
     }
     ITERATOR_RELEASE(it);
     DEBUGMSGTL(("swinst:arch:darwin", "loaded %d apps\n",_index));
@@ -361,8 +359,6 @@ _check_classic_app(CFURLRef currentURL, CFStringRef *prodName,
      */
     FSRef theFSRef;
     int theResFile;
-    VersRecHndl versHandle;
-    StringPtr longVersionPtr;
 
     if ((NULL == prodName) || (NULL == version))
        return -1;
@@ -379,12 +375,12 @@ _check_classic_app(CFURLRef currentURL, CFStringRef *prodName,
         SNMP_CFRelease(*prodName);
         return -1;
     }
-    versHandle = (VersRecHndl)Get1IndResource('vers', 1);
+    VersRecHndl versHandle = (VersRecHndl)Get1IndResource('vers', 1);
     if (versHandle != NULL) {
         *version = CFStringCreateWithPascalString(kCFAllocatorDefault,
                        (**versHandle).shortVersion, kCFStringEncodingMacRoman);
         if (*version == NULL) {
-            longVersionPtr = (**versHandle).shortVersion;
+            StringPtr longVersionPtr = (**versHandle).shortVersion;
             longVersionPtr = (StringPtr)(((Ptr) longVersionPtr) +
                               1 + ((unsigned char) *longVersionPtr));
             *version = CFStringCreateWithPascalString(kCFAllocatorDefault,

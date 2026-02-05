@@ -8,8 +8,6 @@
 #include "XSUB.h"
 #pragma GCC diagnostic pop
 
-#include <float.h>
-#include <math.h>
 #include <netdb.h>
 #include <sys/socket.h>
 
@@ -642,8 +640,8 @@ nari_setValue(me, type, value)
 		  /* Might be ok - got a double that might be an actual integer */
 		  dtmp = SvNVX(value);
 		  ltmp = SvIV(value);
-		  if (fabs(dtmp - ltmp) > fabs(NV_EPSILON * dtmp)) {
-			snmp_log(LOG_ERR, "Could not convert double to integer in setValue: '%.20g'\n", dtmp);
+		  if (dtmp != ltmp) {
+			snmp_log(LOG_ERR, "Could not convert double to integer in setValue: '%f'", dtmp);
 			RETVAL = 0;
 			break;
 		  }
@@ -657,7 +655,7 @@ nari_setValue(me, type, value)
 	          stringptr = SvPV(value, stringlen);
 		  ltmp = strtol( stringptr, NULL, 0 );
 		  if (errno == EINVAL) {
-			snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'\n", stringptr);
+		  	snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'", stringptr);
 			RETVAL = 0;
 			break;
 		  }
@@ -692,8 +690,8 @@ nari_setValue(me, type, value)
 		  /* Might be ok - got a double that might be an actual unsigned */
 		  dtmp = SvNVX(value);
 		  utmp = SvIV(value);
-		  if (fabs(dtmp - utmp) > fabs(NV_EPSILON * dtmp)) {
-			snmp_log(LOG_ERR, "Could not convert double to unsigned in setValue: '%.20g'\n", dtmp);
+		  if (dtmp != utmp) {
+			snmp_log(LOG_ERR, "Could not convert double to unsigned in setValue: '%f'", dtmp);
 			RETVAL = 0;
 			break;
 		  }
@@ -707,7 +705,7 @@ nari_setValue(me, type, value)
 	          stringptr = SvPV(value, stringlen);
 		  utmp = strtoul( stringptr, NULL, 0 );
 		  if (errno == EINVAL) {
-			snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'\n", stringptr);
+		  	snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'", stringptr);
 			RETVAL = 0;
 			break;
 		  }
@@ -735,8 +733,8 @@ nari_setValue(me, type, value)
 		  /* Might be ok - got a double that might be an actual unsigned */
 		  dtmp = SvNVX(value);
 		  ulltmp = SvIV(value);
-		  if (fabs(dtmp - ulltmp) > fabs(NV_EPSILON * dtmp)) {
-			snmp_log(LOG_ERR, "Could not convert double to unsigned in setValue: '%.20g'\n", dtmp);
+		  if (dtmp != ulltmp) {
+			snmp_log(LOG_ERR, "Could not convert double to unsigned in setValue: '%f'", dtmp);
 			RETVAL = 0;
 			break;
 		  }
@@ -751,7 +749,7 @@ nari_setValue(me, type, value)
 	          errno = 0;
 		  ulltmp = strtoull( stringptr, NULL, 0 );
 		  if (errno != 0) {
-		      snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'\n", stringptr);
+		      snmp_log(LOG_ERR, "Could not convert string to number in setValue: '%s'", stringptr);
 		      RETVAL = 0;
 		  } else
 

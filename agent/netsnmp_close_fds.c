@@ -4,9 +4,6 @@
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #endif
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -27,11 +24,6 @@ void netsnmp_close_fds(int fd)
         fd = -1;
 
 #ifdef __linux__
-#ifdef __NR_close_range
-    if (syscall(__NR_close_range, fd + 1, UINT_MAX, 0) == 0)
-        return;
-#endif
-
     if ((dir = opendir("/proc/self/fd"))) {
         while ((ent = readdir(dir))) {
             if (sscanf(ent->d_name, "%d", &i) == 1) {
@@ -62,5 +54,5 @@ void netsnmp_close_fds(int fd)
 
     for (i = largest_fd; i > fd && i >= 0; i--)
         close(i);
-#endif /* defined(HAVE_FORK) */
+#endif
 }

@@ -9,7 +9,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -1041,7 +1041,7 @@ var_ifEntry(struct variable *vp,
         return (u_char *) & long_return;
     case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
                     vp->magic));
@@ -1313,7 +1313,7 @@ var_ifEntry(struct variable *vp,
         return (u_char *) & long_return;
     case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
                     vp->magic));
@@ -1565,7 +1565,7 @@ Interface_Scan_Init(void)
     /*
      * read the second line (a header) and determine the fields we
      * should read from.  This should be done in a better way by
-     * actually looking for the field names we want.  But that's too
+     * actually looking for the field names we want.  But thats too
      * much work for today.  -- Wes 
      */
     fgets(line, sizeof(line), devin);
@@ -1625,7 +1625,7 @@ Interface_Scan_Init(void)
             continue;
         }
 
-        nnew = calloc(1, sizeof(struct ifnet));
+        nnew = (struct ifnet *) calloc(1, sizeof(struct ifnet));
         if (nnew == NULL)
             break;              /* alloc error */
 
@@ -2026,7 +2026,7 @@ Interface_Scan_NextInt(int *Index,
     struct ifnet    ifnet;
     struct in_ifaddr *ia, in_ifaddr;
     short           has_ipaddr = 0;
-#if !defined(HAVE_STRUCT_IFNET_IF_XNAME)
+#if !HAVE_STRUCT_IFNET_IF_XNAME
     register char  *cp;
 #endif
 
@@ -2258,12 +2258,12 @@ Interface_Get_Ether_By_Index(int Index, u_char * EtherAddr)
     }
 #ifdef freebsd2
     if (saveifnet.if_type != IFT_ETHER) {
-        return (0);             /* Not an Ethernet if */
+        return (0);             /* Not an ethernet if */
     }
 #endif
     /*
      *  the arpcom structure is an extended ifnet structure which
-     *  contains the Ethernet address.
+     *  contains the ethernet address.
      */
 #ifndef linux
 #if !(defined(netbsd1) || defined(bsdi2) || defined(openbsd2))
@@ -2650,7 +2650,7 @@ var_ifEntry(struct variable * vp,
         return (u_char *) & long_return;
     case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
                     vp->magic));
@@ -2865,7 +2865,7 @@ var_ifEntry(struct variable * vp,
         return (u_char *) & long_return;
     case NETSNMP_IFSPECIFIC:
         *var_len = nullOidLen;
-        return NETSNMP_REMOVE_CONST(void *, nullOid);
+        return (u_char *) nullOid;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
                     vp->magic));
@@ -2929,13 +2929,12 @@ writeIfEntry(int action,
         ifEntryRow.dwIndex = (int) name[10];
         ifEntryRow.dwAdminStatus = admin_status;
         /*
-         * Only UP and DOWN status are supported. That's why done in COMMIT 
+         * Only UP and DOWN status are supported. Thats why done in COMMIT 
          */
         if (SetIfEntry(&ifEntryRow) != NO_ERROR) {
             snmp_log(LOG_ERR,
-                     "Error in writeIfEntry case COMMIT with index %u & adminStatus %u\n",
-                     (unsigned int)ifEntryRow.dwIndex,
-                     (unsigned int)ifEntryRow.dwAdminStatus);
+                     "Error in writeIfEntry case COMMIT with index: %lu & adminStatus %lu\n",
+                     ifEntryRow.dwIndex, ifEntryRow.dwAdminStatus);
             return SNMP_ERR_COMMITFAILED;
         }
 

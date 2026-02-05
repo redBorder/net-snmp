@@ -1,7 +1,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include "hardware/fsys/fsys.h"
+#include <net-snmp/agent/hardware/fsys.h>
 
 #include <stdio.h>
 #ifdef HAVE_SYS_MNTCTL_H
@@ -152,7 +152,7 @@ netsnmp_fsys_arch_load( void )
             entry->flags |= NETSNMP_FS_FLAG_BOOTABLE;
 
         /*
-         *  XXX - identify removable disks
+         *  XXX - identify removeable disks
          */
 
         /*

@@ -38,7 +38,7 @@ PERFORMANCE OF THIS SOFTWARE.
 ******************************************************************/
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -246,7 +246,7 @@ _init_agent_callback_transport(void)
 #endif
 
 /**
- * Initialize the agent.  Calls into init_agent_read_config to set that app's
+ * Initialize the agent.  Calls into init_agent_read_config to set tha app's
  * configuration file in the appropriate default storage space,
  *  NETSNMP_DS_LIB_APPTYPE.  Need to call init_agent before calling init_snmp.
  *
@@ -350,15 +350,12 @@ init_agent(const char *app)
     return r;
 }                               /* end init_agent() */
 
-const oid       nullOid[] = { 0, 0 };
-const int       nullOidLen = sizeof(nullOid);
+oid             nullOid[] = { 0, 0 };
+int             nullOidLen = sizeof(nullOid);
 
 void
-shutdown_agent(void)
-{
-#if defined(NETSNMP_USE_OPENSSL) && defined(HAVE_LIBSSL) && NETSNMP_TRANSPORT_TLSBASE_DOMAIN
-    netsnmp_certs_shutdown();
-#endif
+shutdown_agent(void) {
+
     /* probably some of this can be called as shutdown callback */
     shutdown_tree();
     clear_context();
@@ -400,7 +397,7 @@ add_to_init_list(char *module_list)
 
     cp = strtok_r(cp, ", :", &st);
     while (cp) {
-        newitem = calloc(1, sizeof(*initlist));
+        newitem = (struct module_init_list *) calloc(1, sizeof(*initlist));
         newitem->module_name = strdup(cp);
         newitem->next = *list;
         *list = newitem;

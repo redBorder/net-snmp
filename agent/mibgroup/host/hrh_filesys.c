@@ -18,11 +18,12 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/hardware/memory.h>
-#include "hardware/fsys/fsys.h"
+#include <net-snmp/agent/hardware/fsys.h>
 #include "host_res.h"
 #include "hrh_filesys.h"
 #include "hrh_storage.h"
 #include "hr_disk.h"
+#include "hr_filesys.h"
 #include <net-snmp/utilities.h>
 
 #ifdef HAVE_MNTENT_H
@@ -309,7 +310,7 @@ when_dumped(const char *filesys, int level, size_t *length)
     char           *cp2, *cp3;
 
     /*
-     * Look for the relevant entries in /etc/dumpdates
+     * Look for the relevent entries in /etc/dumpdates
      *
      * This is complicated by the fact that disks are
      *   mounted using block devices, but dumps are

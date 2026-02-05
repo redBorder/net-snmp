@@ -262,7 +262,7 @@ term_handler(int sig)
 #ifdef WIN32SERVICE
     /*
      * In case of windows, select() in receive() function will not return 
-     * on signal. That's why following function is called, which closes the 
+     * on signal. Thats why following function is called, which closes the 
      * socket descriptors and causes the select() to return
      */
     snmp_close(main_session);
@@ -284,6 +284,11 @@ pre_parse(netsnmp_session * session, netsnmp_transport *transport,
 {
 #ifdef NETSNMP_USE_LIBWRAP
     char *addr_string = NULL;
+    /* 'char *' wrapers on 'const char *' STRING_UNKNOWN value for hosts_ctl */
+    char name[sizeof("snmptrapd")] = "snmptrapd";
+    char name_unknown[sizeof(STRING_UNKNOWN)] = STRING_UNKNOWN;
+    char addr_unknown[sizeof(STRING_UNKNOWN)] = STRING_UNKNOWN;
+    char user_unknown[sizeof(STRING_UNKNOWN)] = STRING_UNKNOWN;
 
     if (transport != NULL && transport->f_fmtaddr != NULL) {
         /*
@@ -308,8 +313,7 @@ pre_parse(netsnmp_session * session, netsnmp_transport *transport,
         if (xp)
             *xp = '\0';
 
-        if (hosts_ctl("snmptrapd", STRING_UNKNOWN, 
-		      sbuf, STRING_UNKNOWN) == 0) {
+        if (hosts_ctl(name, name_unknown, sbuf, user_unknown) == 0) {
             DEBUGMSGTL(("snmptrapd:libwrap", "%s rejected", addr_string));
             SNMP_FREE(addr_string);
             return 0;
@@ -317,8 +321,7 @@ pre_parse(netsnmp_session * session, netsnmp_transport *transport,
       }
       SNMP_FREE(addr_string);
     } else {
-        if (hosts_ctl("snmptrapd", STRING_UNKNOWN,
-                      STRING_UNKNOWN, STRING_UNKNOWN) == 0) {
+        if (hosts_ctl(name, name_unknown, addr_unknown, user_unknown) == 0) {
             DEBUGMSGTL(("snmptrapd:libwrap", "[unknown] rejected"));
             return 0;
         }
@@ -413,61 +416,6 @@ parse_config_pidFile(const char *token, char *cptr)
   free_config_pidFile();
   pid_file = strdup (cptr);
 }
-
-#ifdef HAVE_UNISTD_H
-void
-parse_config_agentuser(const char *token, char *cptr)
-{
-    if (cptr[0] == '#') {
-        char           *ecp;
-        int             uid;
-
-        uid = strtoul(cptr + 1, &ecp, 10);
-        if (*ecp != 0) {
-            config_perror("Bad number");
-	} else {
-            netsnmp_set_agent_user_id(uid);
-	}
-#if defined(HAVE_GETPWNAM) && defined(HAVE_PWD_H)
-    } else {
-        struct passwd *info;
-
-        info = getpwnam(cptr);
-        if (info)
-            netsnmp_set_agent_user_id(info->pw_uid);
-        else
-            config_perror("User not found in password database");
-        endpwent();
-#endif
-    }
-}
-
-void
-parse_config_agentgroup(const char *token, char *cptr)
-{
-    if (cptr[0] == '#') {
-        char           *ecp;
-        int             gid = strtoul(cptr + 1, &ecp, 10);
-
-        if (*ecp != 0) {
-            config_perror("Bad number");
-	} else {
-            netsnmp_set_agent_group_id(gid);
-	}
-#if defined(HAVE_GETGRNAM) && defined(HAVE_GRP_H)
-    } else {
-        struct group   *info;
-
-        info = getgrnam(cptr);
-        if (info)
-            netsnmp_set_agent_group_id(info->gr_gid);
-        else
-            config_perror("Group not found in group database");
-        endgrent();
-#endif
-    }
-}
-#endif
 
 void
 parse_config_doNotFork(const char *token, char *cptr)
@@ -664,9 +612,9 @@ main(int argc, char *argv[])
 #endif
 #ifdef HAVE_UNISTD_H
     register_config_handler("snmptrapd", "agentuser",
-                            parse_config_agentuser, NULL, "userid");
+                            netsnmp_parse_agent_user, NULL, "userid");
     register_config_handler("snmptrapd", "agentgroup",
-                            parse_config_agentgroup, NULL, "groupid");
+                            netsnmp_parse_agent_group, NULL, "groupid");
 #endif
 
     register_config_handler("snmptrapd", "doNotFork",
@@ -1358,7 +1306,7 @@ out:
 /*
  * Read the configuration files. Implemented as a signal handler so that
  * receipt of SIGHUP will cause configuration to be re-read when the
- * trap daemon is running detached from the console.
+ * trap daemon is running detatched from the console.
  *
  */
 void

@@ -27,7 +27,6 @@ netsnmp_feature_require(sockaddr_size);
 #include <net-snmp/library/snmpDTLSUDPDomain.h>
 #include <net-snmp/library/snmpUDPIPv6Domain.h>
 #include <net-snmp/library/snmp_assert.h>
-#include <net-snmp/library/snmp_impl.h>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -90,7 +89,7 @@ netsnmp_feature_require(sockaddr_size);
 #define WE_ARE_SERVER 0
 #define WE_ARE_CLIENT 1
 
-const oid       netsnmpDTLSUDPDomain[] = { TRANSPORT_DOMAIN_DTLS_UDP_IP };
+oid             netsnmpDTLSUDPDomain[] = { TRANSPORT_DOMAIN_DTLS_UDP_IP };
 size_t          netsnmpDTLSUDPDomain_len = OID_LENGTH(netsnmpDTLSUDPDomain);
 
 static netsnmp_tdomain dtlsudpDomain;
@@ -275,7 +274,7 @@ start_new_cached_connection(netsnmp_transport *t,
     */
     /* Implementation notes:
        + This Information is passed in via the transport and default
-         parameters
+         paremeters
     */
     /* see if we have base configuration to copy in to this new one */
     if (NULL != t->data && t->data_length == sizeof(_netsnmpTLSBaseData)) {
@@ -1675,10 +1674,6 @@ netsnmp_dtlsudp_ctor(void)
     dtlsudpDomain.name = netsnmpDTLSUDPDomain;
     dtlsudpDomain.name_length = netsnmpDTLSUDPDomain_len;
     dtlsudpDomain.prefix = calloc(num_prefixes + 1, sizeof(char *));
-    if (!dtlsudpDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
     for (i = 0; i < num_prefixes; ++ i)
         dtlsudpDomain.prefix[i] = prefixes[i];
 

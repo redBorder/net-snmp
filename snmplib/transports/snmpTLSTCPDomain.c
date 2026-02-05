@@ -55,7 +55,6 @@ netsnmp_feature_require(cert_util);
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
 #include <net-snmp/library/snmp_assert.h>
-#include <net-snmp/library/snmp_impl.h>
 #include <net-snmp/library/snmpIPv4BaseDomain.h>
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/snmpTLSBaseDomain.h>
@@ -77,7 +76,7 @@ netsnmp_feature_require(cert_util);
 #define WE_ARE_SERVER 0
 #define WE_ARE_CLIENT 1
 
-const oid       netsnmpTLSTCPDomain[] = { TRANSPORT_DOMAIN_TLS_TCP_IP };
+oid             netsnmpTLSTCPDomain[] = { TRANSPORT_DOMAIN_TLS_TCP_IP };
 size_t          netsnmpTLSTCPDomain_len = OID_LENGTH(netsnmpTLSTCPDomain);
 
 static netsnmp_tdomain tlstcpDomain;
@@ -201,7 +200,7 @@ netsnmp_tlstcp_recv(netsnmp_transport *t, void *buf, int size,
      */
     /* For this implementation we use the t->data memory pointer as
        the sessionID.  As it's a pointer to session specific data tied
-       with the transport object we know it'll never be reallocated
+       with the transport object we know it'll never be realloated
        (ie, duplicated) until release by this transport object and is
        safe to use as a unique session identifier. */
 
@@ -623,7 +622,7 @@ netsnmp_tlstcp_accept(netsnmp_transport *t)
     */
     /* Implementation notes:
        - we expect fingerprints to be stored in the transport config
-       - we do not currently support multiple principals and only offer one
+       - we do not currently support mulitple principals and only offer one
     */
     if ((rc = netsnmp_tlsbase_verify_client_cert(ssl, tlsdata))
         != SNMPERR_SUCCESS) {
@@ -718,6 +717,10 @@ netsnmp_tlstcp_open_client(netsnmp_transport *t)
         snmp_log(LOG_ERR, "failed to create TLS context\n");
         return NULL;
     }
+
+#ifdef SSL_CTX_set_max_proto_version
+    SSL_CTX_set_max_proto_version(tlsdata->ssl_context, 0);
+#endif
 
     /* RFC5953 Section 5.3.1:  Establishing a Session as a Client
        3)  Using the destTransportDomain and destTransportAddress values,
@@ -908,13 +911,16 @@ netsnmp_tlstcp_open_server(netsnmp_transport *t)
     rc = BIO_do_accept(tlsdata->accept_bio);
     if (rc <= 0) {
         _openssl_log_error(rc, tlsdata->ssl, "BIO_do_accept");
-        snmp_log(LOG_ERR,
-                 "TLSTCP: Failed to do first accept on the TLS accept BIO\n");
+        snmp_log(LOG_ERR, "TLSTCP: Failed to do first accept on the TLS accept BIO\n");
         return NULL;
     }
 
     /* create the OpenSSL TLS context */
     tlsdata->ssl_context = sslctx_server_setup(TLS_method());
+#ifdef SSL_CTX_set_max_proto_version
+    if (tlsdata->ssl_context)
+        SSL_CTX_set_max_proto_version(tlsdata->ssl_context, 0);
+#endif
 
     t->sock = BIO_get_fd(tlsdata->accept_bio, NULL);
     t->flags |= NETSNMP_TRANSPORT_FLAG_LISTEN;
@@ -1078,11 +1084,7 @@ netsnmp_tlstcp_ctor(void)
 
     tlstcpDomain.name = netsnmpTLSTCPDomain;
     tlstcpDomain.name_length = netsnmpTLSTCPDomain_len;
-    tlstcpDomain.prefix = calloc(3, sizeof(char *));
-    if (!tlstcpDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    tlstcpDomain.prefix = (const char**)calloc(3, sizeof(char *));
     tlstcpDomain.prefix[0] = "tlstcp";
     tlstcpDomain.prefix[1] = "tls";
 

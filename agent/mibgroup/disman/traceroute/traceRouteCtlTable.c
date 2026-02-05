@@ -1008,6 +1008,7 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr = NULL;
+    size_t          tmpint;
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     struct header_complex_index *hcindex = NULL;
 
@@ -1039,7 +1040,7 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteCtlTargetAddressType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -1050,37 +1051,37 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteCtlByPassRouteTable,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlDataSize,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlTimeOut,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlProbesPerHop, NULL);
+                                       traceRouteCtlProbesPerHop, &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlPort,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlMaxTtl,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlDSField,
-                                       NULL);
+                                       &tmpint);
 
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteCtlSourceAddressType,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -1090,7 +1091,7 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->traceRouteCtlIfIndex,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -1100,28 +1101,28 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlMaxFailures, NULL);
+                                       traceRouteCtlMaxFailures, &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlDontFragment, NULL);
+                                       traceRouteCtlDontFragment, &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlInitialTtl, NULL);
+                                       traceRouteCtlInitialTtl, &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlFrequency,
-                                       NULL);
+                                       &tmpint);
 
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlStorageType, NULL);
+                                       traceRouteCtlStorageType, &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       traceRouteCtlAdminStatus, NULL);
+                                       traceRouteCtlAdminStatus, &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->traceRouteCtlDescr,
@@ -1129,7 +1130,7 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->traceRouteCtlMaxRows,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -1140,7 +1141,7 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        traceRouteCtlCreateHopsEntries,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_OBJECT_ID, cptr,
                                        &StorageTmp->traceRouteCtlType,
@@ -1148,12 +1149,12 @@ store_traceRouteCtlTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->traceRouteCtlRowStatus,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        traceRouteProbeHistoryMaxIndex,
-                                       NULL);
+                                       &tmpint);
 
 
 
@@ -1483,7 +1484,7 @@ send_traceRoute_trap(struct traceRouteCtlTable_data *item,
      * snmpTrap oid 
      */
     snmp_varlist_add_variable(&var_list, objid_snmptrap,
-                              OID_LENGTH(objid_snmptrap),
+                              sizeof(objid_snmptrap) / sizeof(oid),
                               ASN_OBJECT_ID, (u_char *) trap_oid,
                               trap_oid_len * sizeof(oid));
 
@@ -1559,7 +1560,7 @@ write_traceRouteCtlTargetAddressType(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -1587,7 +1588,7 @@ write_traceRouteCtlTargetAddressType(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -1603,7 +1604,7 @@ write_traceRouteCtlTargetAddressType(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlTargetAddressType;
         StorageTmp->traceRouteCtlTargetAddressType = *((long *) var_val);
@@ -1644,7 +1645,7 @@ write_traceRouteCtlTargetAddress(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -1673,7 +1674,7 @@ write_traceRouteCtlTargetAddress(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -1689,7 +1690,7 @@ write_traceRouteCtlTargetAddress(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlTargetAddress;
         tmplen = StorageTmp->traceRouteCtlTargetAddressLen;
@@ -1741,7 +1742,7 @@ write_traceRouteCtlByPassRouteTable(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -1769,7 +1770,7 @@ write_traceRouteCtlByPassRouteTable(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -1785,7 +1786,7 @@ write_traceRouteCtlByPassRouteTable(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlByPassRouteTable;
         StorageTmp->traceRouteCtlByPassRouteTable = *((long *) var_val);
@@ -1823,7 +1824,7 @@ write_traceRouteCtlDataSize(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -1851,7 +1852,7 @@ write_traceRouteCtlDataSize(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -1867,7 +1868,7 @@ write_traceRouteCtlDataSize(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlDataSize;
         if ((*((long *) var_val)) >= 0 && (*((long *) var_val)) <= 65507)
@@ -1910,7 +1911,7 @@ write_traceRouteCtlTimeOut(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -1938,7 +1939,7 @@ write_traceRouteCtlTimeOut(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -1954,7 +1955,7 @@ write_traceRouteCtlTimeOut(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlTimeOut;
 
@@ -2000,7 +2001,7 @@ write_traceRouteCtlProbesPerHop(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2028,7 +2029,7 @@ write_traceRouteCtlProbesPerHop(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2044,7 +2045,7 @@ write_traceRouteCtlProbesPerHop(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlProbesPerHop;
 
@@ -2087,7 +2088,7 @@ write_traceRouteCtlPort(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2112,7 +2113,7 @@ write_traceRouteCtlPort(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2128,7 +2129,7 @@ write_traceRouteCtlPort(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlPort;
         StorageTmp->traceRouteCtlPort = *((long *) var_val);
@@ -2168,7 +2169,7 @@ write_traceRouteCtlMaxTtl(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2196,7 +2197,7 @@ write_traceRouteCtlMaxTtl(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2212,7 +2213,7 @@ write_traceRouteCtlMaxTtl(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlMaxTtl;
         if ((*((long *) var_val)) >= 1 && (*((long *) var_val)) <= 255)
@@ -2253,7 +2254,7 @@ write_traceRouteCtlDSField(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2281,7 +2282,7 @@ write_traceRouteCtlDSField(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2297,7 +2298,7 @@ write_traceRouteCtlDSField(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlDSField;
         StorageTmp->traceRouteCtlDSField = *((long *) var_val);
@@ -2335,7 +2336,7 @@ write_traceRouteCtlSourceAddressType(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2363,7 +2364,7 @@ write_traceRouteCtlSourceAddressType(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2379,7 +2380,7 @@ write_traceRouteCtlSourceAddressType(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlSourceAddressType;
         StorageTmp->traceRouteCtlSourceAddressType = *((long *) var_val);
@@ -2418,7 +2419,7 @@ write_traceRouteCtlSourceAddress(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2447,7 +2448,7 @@ write_traceRouteCtlSourceAddress(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2463,7 +2464,7 @@ write_traceRouteCtlSourceAddress(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlSourceAddress;
         tmplen = StorageTmp->traceRouteCtlSourceAddressLen;
@@ -2515,7 +2516,7 @@ write_traceRouteCtlIfIndex(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2543,7 +2544,7 @@ write_traceRouteCtlIfIndex(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2559,7 +2560,7 @@ write_traceRouteCtlIfIndex(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlIfIndex;
         StorageTmp->traceRouteCtlIfIndex = *((long *) var_val);
@@ -2599,7 +2600,7 @@ write_traceRouteCtlMiscOptions(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2628,7 +2629,7 @@ write_traceRouteCtlMiscOptions(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2644,7 +2645,7 @@ write_traceRouteCtlMiscOptions(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlMiscOptions;
         tmplen = StorageTmp->traceRouteCtlMiscOptionsLen;
@@ -2693,7 +2694,7 @@ write_traceRouteCtlMaxFailures(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2721,7 +2722,7 @@ write_traceRouteCtlMaxFailures(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2737,7 +2738,7 @@ write_traceRouteCtlMaxFailures(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlMaxFailures;
         if ((*((long *) var_val)) >= 0 && (*((long *) var_val)) <= 15)
@@ -2782,7 +2783,7 @@ write_traceRouteCtlDontFragment(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2810,7 +2811,7 @@ write_traceRouteCtlDontFragment(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2826,7 +2827,7 @@ write_traceRouteCtlDontFragment(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlDontFragment;
         StorageTmp->traceRouteCtlDontFragment = *((long *) var_val);
@@ -2866,7 +2867,7 @@ write_traceRouteCtlInitialTtl(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2894,7 +2895,7 @@ write_traceRouteCtlInitialTtl(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2910,7 +2911,7 @@ write_traceRouteCtlInitialTtl(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlInitialTtl;
         if ((*((long *) var_val)) >= 0 && (*((long *) var_val)) <= 255)
@@ -2951,7 +2952,7 @@ write_traceRouteCtlFrequency(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -2979,7 +2980,7 @@ write_traceRouteCtlFrequency(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -2995,7 +2996,7 @@ write_traceRouteCtlFrequency(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlFrequency;
         StorageTmp->traceRouteCtlFrequency = *((long *) var_val);
@@ -3036,7 +3037,7 @@ write_traceRouteCtlStorageType(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -3073,7 +3074,7 @@ write_traceRouteCtlStorageType(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3089,7 +3090,7 @@ write_traceRouteCtlStorageType(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlStorageType;
         StorageTmp->traceRouteCtlStorageType = *((long *) var_val);
@@ -3130,7 +3131,7 @@ write_traceRouteCtlAdminStatus(int action,
     struct traceRouteResultsTable_data *StorageNew = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -3155,7 +3156,7 @@ write_traceRouteCtlAdminStatus(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3171,7 +3172,7 @@ write_traceRouteCtlAdminStatus(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlAdminStatus;
         StorageTmp->traceRouteCtlAdminStatus = *((long *) var_val);
@@ -3247,7 +3248,7 @@ write_traceRouteCtlDescr(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
 
     if ((StorageTmp =
@@ -3277,7 +3278,7 @@ write_traceRouteCtlDescr(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3293,7 +3294,7 @@ write_traceRouteCtlDescr(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlDescr;
         tmplen = StorageTmp->traceRouteCtlDescrLen;
@@ -3346,7 +3347,7 @@ write_traceRouteCtlMaxRows(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -3374,7 +3375,7 @@ write_traceRouteCtlMaxRows(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3390,7 +3391,7 @@ write_traceRouteCtlMaxRows(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlMaxRows;
         StorageTmp->traceRouteCtlMaxRows = *((long *) var_val);
@@ -3429,7 +3430,7 @@ write_traceRouteCtlTrapGeneration(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
                         &name[sizeof(traceRouteCtlTable_variables_oid) /
@@ -3457,7 +3458,7 @@ write_traceRouteCtlTrapGeneration(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3473,7 +3474,7 @@ write_traceRouteCtlTrapGeneration(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlTrapGeneration;
         tmplen = StorageTmp->traceRouteCtlTrapGenerationLen;
@@ -3525,7 +3526,7 @@ write_traceRouteCtlCreateHopsEntries(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -3553,7 +3554,7 @@ write_traceRouteCtlCreateHopsEntries(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3569,7 +3570,7 @@ write_traceRouteCtlCreateHopsEntries(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlCreateHopsEntries;
         StorageTmp->traceRouteCtlCreateHopsEntries = *((long *) var_val);
@@ -3607,7 +3608,7 @@ write_traceRouteCtlType(int action,
     struct traceRouteCtlTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
 
     if ((StorageTmp =
          header_complex(traceRouteCtlTableStorage, NULL,
@@ -3636,7 +3637,7 @@ write_traceRouteCtlType(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         break;
 
@@ -3652,7 +3653,7 @@ write_traceRouteCtlType(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in the UNDO case 
+         * it.  Note that anything done here must be reversable in the UNDO case 
          */
         tmpvar = StorageTmp->traceRouteCtlType;
         tmplen = StorageTmp->traceRouteCtlTypeLen;
@@ -3700,7 +3701,7 @@ write_traceRouteCtlRowStatus(int action,
     static struct traceRouteCtlTable_data *StorageDel = NULL;
     size_t          newlen =
         name_len -
-        (OID_LENGTH(traceRouteCtlTable_variables_oid) + 3 - 1);
+        (sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) + 3 - 1);
     static int      old_value;
     int             set_value;
     static netsnmp_variable_list *vars = NULL;
@@ -3803,7 +3804,7 @@ write_traceRouteCtlRowStatus(int action,
 
     case RESERVE2:
         /*
-         * memory reservation, final preparation... 
+         * memory reseveration, final preparation... 
          */
         if (StorageTmp == NULL) {
 
@@ -3821,7 +3822,7 @@ write_traceRouteCtlRowStatus(int action,
             if (header_complex_parse_oid
                 (&
                  (name
-                  [OID_LENGTH(traceRouteCtlTable_variables_oid) +
+                  [sizeof(traceRouteCtlTable_variables_oid) / sizeof(oid) +
                    2]), newlen, vars) != SNMPERR_SUCCESS) {
                 /*
                  * XXX: free, zero vars 
@@ -3894,7 +3895,7 @@ write_traceRouteCtlRowStatus(int action,
         /*
          * The variable has been stored in set_value for you to
          * use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversible in
+         * it.  Note that anything done here must be reversable in
          * the UNDO case 
          */
 

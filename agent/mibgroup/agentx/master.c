@@ -7,7 +7,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -216,6 +216,7 @@ agentx_got_response(int operation,
     int             i, ret;
     netsnmp_request_info *requests, *request;
     netsnmp_variable_list *var;
+    netsnmp_session *ax_session;
 
     cache = netsnmp_handler_check_cache(cache);
     if (!cache) {
@@ -230,7 +231,7 @@ agentx_got_response(int operation,
 
     switch (operation) {
     case NETSNMP_CALLBACK_OP_TIMED_OUT:{
-            struct session_list *s = snmp_sess_pointer(session);
+            void           *s = snmp_sess_pointer(session);
             DEBUGMSGTL(("agentx/master", "timeout on session %8p req=0x%x\n",
                         session, (unsigned)reqid));
 
@@ -260,6 +261,8 @@ agentx_got_response(int operation,
             } else {
                 DEBUGMSGTL(("agentx/master", "NULL sess_pointer??\n"));
             }
+            ax_session = (netsnmp_session *) cache->localinfo;
+            netsnmp_free_agent_snmp_session_by_session(ax_session, NULL);
             netsnmp_free_delegated_cache(cache);
             return 0;
         }

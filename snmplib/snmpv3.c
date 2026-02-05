@@ -463,7 +463,7 @@ snmpv3_parse_args(char *optarg, netsnmp_session * session, char **Apsz,
  * XXX	What if a node has multiple interfaces?
  * XXX	What if multiple engines all choose the same address?
  *      (answer:  You're screwed, because you might need a kul database
- *       which is dependent on the current engineID.  Enumeration and other
+ *       which is dependant on the current engineID.  Enumeration and other
  *       tricks won't work). 
  */
 int
@@ -1089,8 +1089,6 @@ init_snmpv3_post_config(int majorid, int minorid, void *serverarg,
 
     size_t          engineIDLen;
     u_char         *c_engineID;
-    u_long          localEngineTime;
-    u_long          localEngineBoots;
 
     c_engineID = snmpv3_generate_engineID(&engineIDLen);
 
@@ -1115,11 +1113,9 @@ init_snmpv3_post_config(int majorid, int minorid, void *serverarg,
     /*
      * for USM set our local engineTime in the LCD timing cache 
      */
-    localEngineTime = snmpv3_local_snmpEngineTime();
-    localEngineBoots = snmpv3_local_snmpEngineBoots();
     set_enginetime(c_engineID, engineIDLen,
-                   localEngineBoots,
-                   localEngineTime, TRUE);
+                   snmpv3_local_snmpEngineBoots(),
+                   snmpv3_local_snmpEngineTime(), TRUE);
 #endif /* NETSNMP_SECMOD_USM */
 
     SNMP_FREE(c_engineID);
@@ -1238,9 +1234,10 @@ snmpv3_clone_engineID(u_char ** dest, size_t * destlen, u_char * src,
     *destlen = 0;
 
     if (srclen && src) {
-        *dest = netsnmp_memdup(src, srclen);
+        *dest = (u_char *) malloc(srclen);
         if (*dest == NULL)
             return 0;
+        memmove(*dest, src, srclen);
         *destlen = srclen;
     }
     return *destlen;

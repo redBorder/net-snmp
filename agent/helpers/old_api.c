@@ -33,7 +33,7 @@
  * * right one to talk with, it will use the same oid buffer to pass to the
  * * rest of the clients, which may not longer be valid.  This should be
  * * fixed in all clients rather than the master.  However, its not a
- * * particularly easy bug to track down so this saves debugging time at
+ * * particularily easy bug to track down so this saves debugging time at
  * * the expense of a few memcpy's.
  */
 #define MIB_CLIENTS_ARE_EVIL 1
@@ -308,9 +308,6 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
     size_t          tmp_len;
     oid             tmp_name[MAX_OID_LEN];
 
-    snmp_call_callbacks(SNMP_CALLBACK_LIBRARY,
-                        SNMP_CALLBACK_MIB_REQUEST_INFO,
-                        reqinfo);
     /*
      * create old variable structure with right information 
      */
@@ -420,14 +417,14 @@ netsnmp_old_api_helper(netsnmp_mib_handler *handler,
             /*
              * BBB: fall through for everything that is a set (see AAA) 
              */
-	    NETSNMP_FALLTHROUGH;
+	    /* FALL THROUGH */
 
         default:
             /*
              * WWW: explicitly list the SET conditions 
              */
             /*
-             * (the rest of the) SET conditions 
+             * (the rest of the) SET contions 
              */
             cacheptr =
                 (netsnmp_old_api_cache *)

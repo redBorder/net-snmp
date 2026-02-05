@@ -13,7 +13,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -56,6 +56,9 @@
 
 #define config_add_mib(x) NETSNMP_REQUIRE_SEMICOLON
 
+/* Define to 1 if using 'alloca.c'. */
+#undef C_ALLOCA
+
 /* location of swap device */
 #undef DMEM_LOC
 
@@ -73,6 +76,12 @@
 
 /* Define to 1 if you have the `AES_cfb128_encrypt' function. */
 #undef HAVE_AES_CFB128_ENCRYPT
+
+/* Define to 1 if you have 'alloca', as a function or macro. */
+#undef HAVE_ALLOCA
+
+/* Define to 1 if <alloca.h> works. */
+#undef HAVE_ALLOCA_H
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
@@ -162,7 +171,8 @@
 /* Define to 1 if you have the `DH_set0_pqg' function. */
 #undef HAVE_DH_SET0_PQG
 
-/* Define to 1 if you have the <dirent.h> header file. */
+/* Define to 1 if you have the <dirent.h> header file, and it defines 'DIR'.
+   */
 #undef HAVE_DIRENT_H
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
@@ -182,9 +192,6 @@
 
 /* Define to 1 if you have the 'endfsent' function. */
 #undef HAVE_ENDFSENT
-
-/* Define to 1 if you have the 'endnetgrent' function. */
-#undef HAVE_ENDNETGRENT
 
 /* Define to 1 if you have the `ERR_get_error_all' function. */
 #undef HAVE_ERR_GET_ERROR_ALL
@@ -227,9 +234,6 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
-
-/* Define if FD_CLOEXEC is defined in <fcntl.h> */
-#undef HAVE_FD_CLOEXEC
 
 /* Define to 1 if you have the 'fgetc_unlocked' function. */
 #undef HAVE_FGETC_UNLOCKED
@@ -383,6 +387,9 @@
 
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 #undef HAVE_IPHLPAPI_H
+
+/* Set if IPV6_RECVPKTINFO is usable */
+#undef HAVE_IPV6_RECVPKTINFO
 
 /* Set if IP_PKTINFO is usable */
 #undef HAVE_IP_PKTINFO
@@ -553,6 +560,9 @@
 /* Define if MIB_IF_TABLE2 is available */
 #undef HAVE_MIB_IF_TABLE2
 
+/* Define to 1 if you have the <minix/config.h> header file. */
+#undef HAVE_MINIX_CONFIG_H
+
 /* Define to 1 if you have the 'mkstemp' function. */
 #undef HAVE_MKSTEMP
 
@@ -588,6 +598,9 @@
 
 /* Define to 1 if you have the <ncurses/curses.h> header file. */
 #undef HAVE_NCURSES_CURSES_H
+
+/* Define to 1 if you have the <ndir.h> header file, and it defines 'DIR'. */
+#undef HAVE_NDIR_H
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
@@ -739,9 +752,6 @@
 /* Define to 1 if you have the <openssl/aes.h> header file. */
 #undef HAVE_OPENSSL_AES_H
 
-/* Define to 1 if you have the <openssl/bio.h> header file. */
-#undef HAVE_OPENSSL_BIO_H
-
 /* Define to 1 if you have the <openssl/des.h> header file. */
 #undef HAVE_OPENSSL_DES_H
 
@@ -757,15 +767,6 @@
 /* Define to 1 if you have the <openssl/hmac.h> header file. */
 #undef HAVE_OPENSSL_HMAC_H
 
-/* Define to 1 if you have the <openssl/objects.h> header file. */
-#undef HAVE_OPENSSL_OBJECTS_H
-
-/* Define to 1 if you have the <openssl/ossl_typ.h> header file. */
-#undef HAVE_OPENSSL_OSSL_TYP_H
-
-/* Define to 1 if you have the <openssl/rand.h> header file. */
-#undef HAVE_OPENSSL_RAND_H
-
 /* Define to 1 if you have the `OPENSSL_sk_num' function. */
 #undef HAVE_OPENSSL_SK_NUM
 
@@ -774,15 +775,6 @@
 
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
-
-/* Define to 1 if you have the <openssl/x509v3.h> header file. */
-#undef HAVE_OPENSSL_X509V3_H
-
-/* Define to 1 if you have the <openssl/x509.h> header file. */
-#undef HAVE_OPENSSL_X509_H
-
-/* Define to 1 if you have the <openssl/x509_vfy.h> header file. */
-#undef HAVE_OPENSSL_X509_VFY_H
 
 /* Define to 1 if you have the <osreldate.h> header file. */
 #undef HAVE_OSRELDATE_H
@@ -795,9 +787,6 @@
 
 /* Define to 1 if you have the <pci/pci.h> header file. */
 #undef HAVE_PCI_PCI_H
-
-/* Define to 1 if you have <pcre2.h>. */
-#undef HAVE_PCRE2_H
 
 /* Define to 1 if you have <pcre.h>. */
 #undef HAVE_PCRE_H
@@ -912,9 +901,6 @@
 
 /* Define to 1 if you have the 'setmntent' function. */
 #undef HAVE_SETMNTENT
-
-/* Define to 1 if you have the 'setnetgrent' function. */
-#undef HAVE_SETNETGRENT
 
 /* Define to 1 if you have the 'setsid' function. */
 #undef HAVE_SETSID
@@ -1277,6 +1263,10 @@
 /* Define to 1 if you have the <sys/conf.h> header file. */
 #undef HAVE_SYS_CONF_H
 
+/* Define to 1 if you have the <sys/dir.h> header file, and it defines 'DIR'.
+   */
+#undef HAVE_SYS_DIR_H
+
 /* Define to 1 if you have the <sys/diskio.h> header file. */
 #undef HAVE_SYS_DISKIO_H
 
@@ -1324,6 +1314,10 @@
 
 /* Define to 1 if you have the <sys/mount.h> header file. */
 #undef HAVE_SYS_MOUNT_H
+
+/* Define to 1 if you have the <sys/ndir.h> header file, and it defines 'DIR'.
+   */
+#undef HAVE_SYS_NDIR_H
 
 /* Define to 1 if you have the <sys/osd.h> header file. */
 #undef HAVE_SYS_OSD_H
@@ -1546,6 +1540,9 @@
 
 /* Define to 1 if you have the 'waitpid' function. */
 #undef HAVE_WAITPID
+
+/* Define to 1 if you have the <wchar.h> header file. */
+#undef HAVE_WCHAR_H
 
 /* Define to 1 if you have the <windows.h> header file. */
 #undef HAVE_WINDOWS_H
@@ -1823,11 +1820,31 @@
    function */
 #undef SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER
 
-/* Define if the setnetgrent() return type is 'int' */
-#undef SETNETGRENT_RETURNS_INT
+/* The size of 'int', as computed by sizeof. */
+#undef SIZEOF_INT
+
+/* The size of 'intmax_t', as computed by sizeof. */
+#undef SIZEOF_INTMAX_T
+
+/* The size of 'long', as computed by sizeof. */
+#undef SIZEOF_LONG
+
+/* The size of 'long long', as computed by sizeof. */
+#undef SIZEOF_LONG_LONG
+
+/* The size of 'short', as computed by sizeof. */
+#undef SIZEOF_SHORT
 
 /* The size of 'sockaddr_un.sun_path', as computed by sizeof. */
 #undef SIZEOF_SOCKADDR_UN_SUN_PATH
+
+/* If using the C implementation of alloca, define if you know the
+   direction of stack growth for your system; otherwise it will be
+   automatically deduced at runtime.
+	STACK_DIRECTION > 0 => grows toward higher addresses
+	STACK_DIRECTION < 0 => grows toward lower addresses
+	STACK_DIRECTION = 0 => direction of growth unknown */
+#undef STACK_DIRECTION
 
 /* Define if statfs takes 2 args and the second argument has type struct
    fs_data. [Ultrix] */
@@ -1851,6 +1868,98 @@
 
 /* Where is the uname command */
 #undef UNAMEPROG
+
+/* Enable extensions on AIX, Interix, z/OS.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable general extensions on macOS.  */
+#ifndef _DARWIN_C_SOURCE
+# undef _DARWIN_C_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable X/Open compliant socket functions that do not require linking
+   with -lxnet on HP-UX 11.11.  */
+#ifndef _HPUX_ALT_XOPEN_SOCKET_API
+# undef _HPUX_ALT_XOPEN_SOCKET_API
+#endif
+/* Identify the host operating system as Minix.
+   This macro does not affect the system headers' behavior.
+   A future release of Autoconf may stop defining this macro.  */
+#ifndef _MINIX
+# undef _MINIX
+#endif
+/* Enable general extensions on NetBSD.
+   Enable NetBSD compatibility extensions on Minix.  */
+#ifndef _NETBSD_SOURCE
+# undef _NETBSD_SOURCE
+#endif
+/* Enable OpenBSD compatibility extensions on NetBSD.
+   Oddly enough, this does nothing on OpenBSD.  */
+#ifndef _OPENBSD_SOURCE
+# undef _OPENBSD_SOURCE
+#endif
+/* Define to 1 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_SOURCE
+# undef _POSIX_SOURCE
+#endif
+/* Define to 2 if needed for POSIX-compatible behavior.  */
+#ifndef _POSIX_1_SOURCE
+# undef _POSIX_1_SOURCE
+#endif
+/* Enable POSIX-compatible threading on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-5:2014.  */
+#ifndef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+# undef __STDC_WANT_IEC_60559_ATTRIBS_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-1:2014.  */
+#ifndef __STDC_WANT_IEC_60559_BFP_EXT__
+# undef __STDC_WANT_IEC_60559_BFP_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-2:2015.  */
+#ifndef __STDC_WANT_IEC_60559_DFP_EXT__
+# undef __STDC_WANT_IEC_60559_DFP_EXT__
+#endif
+/* Enable extensions specified by C23 Annex F.  */
+#ifndef __STDC_WANT_IEC_60559_EXT__
+# undef __STDC_WANT_IEC_60559_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TS 18661-4:2015.  */
+#ifndef __STDC_WANT_IEC_60559_FUNCS_EXT__
+# undef __STDC_WANT_IEC_60559_FUNCS_EXT__
+#endif
+/* Enable extensions specified by C23 Annex H and ISO/IEC TS 18661-3:2015.  */
+#ifndef __STDC_WANT_IEC_60559_TYPES_EXT__
+# undef __STDC_WANT_IEC_60559_TYPES_EXT__
+#endif
+/* Enable extensions specified by ISO/IEC TR 24731-2:2010.  */
+#ifndef __STDC_WANT_LIB_EXT2__
+# undef __STDC_WANT_LIB_EXT2__
+#endif
+/* Enable extensions specified by ISO/IEC 24747:2009.  */
+#ifndef __STDC_WANT_MATH_SPEC_FUNCS__
+# undef __STDC_WANT_MATH_SPEC_FUNCS__
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable X/Open extensions.  Define to 500 only if necessary
+   to make mbstate_t available.  */
+#ifndef _XOPEN_SOURCE
+# undef _XOPEN_SOURCE
+#endif
+
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
@@ -1909,6 +2018,9 @@
 
 /* Define as a signed integer type capable of holding a process identifier. */
 #undef pid_t
+
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
+#undef size_t
 
 /* Define to the type of an unsigned integer type of width exactly 16 bits if
    such a type exists and the standard includes do not define it. */
@@ -2164,6 +2276,8 @@
 
 /* The assigned enterprise number for sysObjectID. */
 #define NETSNMP_SYSTEM_MIB		1,3,6,1,4,1,8072,3,2,NETSNMP_OSTYPE
+#define NETSNMP_SYSTEM_DOT_MIB		1.3.6.1.4.1.8072.3.2.NETSNMP_OSTYPE
+#define NETSNMP_SYSTEM_DOT_MIB_LENGTH	10
 
 /* The assigned enterprise number for notifications. */
 #define NETSNMP_NOTIFICATION_MIB		1,3,6,1,4,1,8072,4
@@ -2331,6 +2445,12 @@
  *
  *    -DNETSNMP_NO_INLINE
  *
+ * Header and source files should only test against NETSNMP_USE_INLINE:
+ *
+ *   #ifdef NETSNMP_USE_INLINE
+ *   NETSNMP_INLINE function(int parm) { return parm -1; }
+ *   #endif
+ *
  * Functions which should be static, regardless of whether or not inline
  * is available or enabled should use the NETSNMP_STATIC_INLINE macro,
  * like so:
@@ -2352,6 +2472,7 @@
 #include NETSNMP_MACHINE_INCLUDE_FILE
 
 #if NETSNMP_ENABLE_INLINE && !defined(NETSNMP_NO_INLINE)
+#   define NETSNMP_USE_INLINE 1
 #   ifndef NETSNMP_INLINE
 #      define NETSNMP_INLINE __inline__
 #   endif
@@ -2402,23 +2523,6 @@ NETSNMP_STATIC_INLINE int netsnmp_bigendian(void)
 # define NETSNMP_BIGENDIAN netsnmp_bigendian()
 #endif
 
-#if defined(__has_attribute)
-#  if __has_attribute(__fallthrough__)
-#    define NETSNMP_FALLTHROUGH __attribute__((__fallthrough__))
-#  endif
-#endif
-#if !defined NETSNMP_FALLTHROUGH
-#  define NETSNMP_FALLTHROUGH do {} while (0) /* fallthrough */
-#endif
-
-#if defined(__has_attribute)
-#  if __has_attribute(__nonnull__)
-#    define NETSNMP_NONNULL(...) __attribute__((__nonnull__(__VA_ARGS__)))
-#  endif
-#endif
-#if !defined NETSNMP_NONNULL
-#  define NETSNMP_NONNULL(...) /* nonnull */
-#endif
 
 /* ********* NETSNMP_MARK_BEGIN_LEGACY_DEFINITIONS *********/
 /* 
@@ -2583,6 +2687,8 @@ NETSNMP_STATIC_INLINE int netsnmp_bigendian(void)
 #define ENTERPRISE_DOT_MIB_LENGTH NETSNMP_ENTERPRISE_DOT_MIB_LENGTH
 
 #define SYSTEM_MIB		  NETSNMP_SYSTEM_MIB
+#define SYSTEM_DOT_MIB		  NETSNMP_SYSTEM_DOT_MIB
+#define SYSTEM_DOT_MIB_LENGTH	  NETSNMP_SYSTEM_DOT_MIB_LENGTH
 
 #define NOTIFICATION_MIB	    NETSNMP_NOTIFICATION_MIB	
 #define NOTIFICATION_DOT_MIB	    NETSNMP_NOTIFICATION_DOT_MIB

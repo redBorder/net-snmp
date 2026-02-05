@@ -120,7 +120,6 @@ SOFTWARE.
     NETSNMP_IMPORT
     void            print_ascii_dump(FILE *);
     void            register_mib_handlers(void);
-    NETSNMP_IMPORT
     void            netsnmp_set_mib_directory(const char *dir);
     NETSNMP_IMPORT
     char            *netsnmp_get_mib_directory(void);
@@ -514,7 +513,6 @@ SOFTWARE.
 #define NETSNMP_OID_OUTPUT_NUMERIC 4
 #define NETSNMP_OID_OUTPUT_UCD     5
 #define NETSNMP_OID_OUTPUT_NONE    6
-#define NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC 7
 #ifdef __cplusplus
 }
 #endif

@@ -42,10 +42,8 @@ netsnmp_feature_require(cert_util);
 #include <net-snmp/library/snmp_logging.h>
 #include <net-snmp/library/snmp_api.h>
 #include <net-snmp/library/tools.h>
-#include <net-snmp/library/snmp.h>
 #include <net-snmp/library/snmp_debug.h>
 #include <net-snmp/library/snmp_assert.h>
-#include <net-snmp/library/snmp_impl.h>
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/snmp_secmod.h>
 #include <net-snmp/library/read_config.h>
@@ -81,7 +79,7 @@ static unsigned long ERR_get_error_all(const char **file, int *line,
 /* this is called during negotiation */
 int verify_callback(int ok, X509_STORE_CTX *ctx) {
     int err, depth;
-    char subject[SNMP_MAXBUF_MEDIUM], issuer[SNMP_MAXBUF_MEDIUM], *fingerprint;
+    char buf[1024], *fingerprint;
     X509 *thecert;
     netsnmp_cert *cert;
     _netsnmp_verify_info *verify_info;
@@ -93,12 +91,10 @@ int verify_callback(int ok, X509_STORE_CTX *ctx) {
     
     /* things to do: */
 
-    X509_NAME_oneline(X509_get_subject_name(thecert), subject, sizeof(subject));
-    X509_NAME_oneline(X509_get_issuer_name(thecert), issuer, sizeof(issuer));
+    X509_NAME_oneline(X509_get_subject_name(thecert), buf, sizeof(buf));
     fingerprint = netsnmp_openssl_cert_get_fingerprint(thecert, NS_HASH_SHA1);
-    DEBUGMSGTL(("tls_x509:verify", " subject: %s\n", subject));
-    DEBUGMSGTL(("tls_x509:verify", "  issuer: %s\n", issuer));
-    DEBUGMSGTL(("tls_x509:verify", "      fp: %s\n", fingerprint ?
+    DEBUGMSGTL(("tls_x509:verify", "Cert: %s\n", buf));
+    DEBUGMSGTL(("tls_x509:verify", "  fp: %s\n", fingerprint ?
                 fingerprint : "unknown"));
 
     ssl = X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx());
@@ -133,7 +129,7 @@ int verify_callback(int ok, X509_STORE_CTX *ctx) {
         } else {
             DEBUGMSGTL(("tls_x509:verify", "  no matching fp found\n"));
             /* log where we are and why called */
-            snmp_log(LOG_ERR, "tls verification failure: ok=%d ctx=%p depth=%d fp=%s subject='%s' issuer='%s' err=%i:%s\n", ok, ctx, depth, fingerprint, subject, issuer, err, X509_verify_cert_error_string(err));
+            snmp_log(LOG_ERR, "tls verification failure: ok=%d ctx=%p depth=%d err=%i:%s\n", ok, ctx, depth, err, X509_verify_cert_error_string(err));
             SNMP_FREE(fingerprint);
             return 0;
         }
@@ -232,10 +228,9 @@ int
 netsnmp_tlsbase_verify_server_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
     /* XXX */
     X509            *remote_cert;
-    char            *their_hostname;
-    size_t           their_hostname_len;
+    char            *check_name;
     int              ret;
-    size_t           i;
+    
     netsnmp_assert_or_return(ssl != NULL, SNMPERR_GENERR);
     netsnmp_assert_or_return(tlsdata != NULL, SNMPERR_GENERR);
 
@@ -258,41 +253,86 @@ netsnmp_tlsbase_verify_server_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
 
     case NO_FINGERPRINT_AVAILABLE:
         if (tlsdata->their_hostname && tlsdata->their_hostname[0] != '\0') {
-            char *lower_hostname;
+            GENERAL_NAMES      *onames;
+            const GENERAL_NAME *oname = NULL;
+            int                 i, j;
+            int                 count;
+            char                buf[SPRINT_MAX_LEN];
+            int                 is_wildcarded = 0;
+            char               *compare_to;
 
-            their_hostname_len = strlen(tlsdata->their_hostname);
-            their_hostname = tlsdata->their_hostname;
-            
-            /* RFC 6353: convert their_hostname to lowercase */
-            lower_hostname = calloc(their_hostname_len + 1, sizeof(char));
-            if (NULL == lower_hostname) {
-                LOGANDDIE("Failed to allocate memory to convert hostname to lowercase");
+            /* see if the requested hostname has a wildcard prefix */
+            if (strncmp(tlsdata->their_hostname, "*.", 2) == 0) {
+                is_wildcarded = 1;
+                compare_to = tlsdata->their_hostname + 2;
+            } else {
+                compare_to = tlsdata->their_hostname;
             }
-            for (i = 0; i < their_hostname_len; ++i) {
-                lower_hostname[i] = tolower((unsigned char) their_hostname[i]);
+
+            /* if the hostname we were expecting to talk to matches
+               the cert, then we can accept this connection. */
+
+            /* check against the DNS subjectAltName */
+            onames = (GENERAL_NAMES *)X509_get_ext_d2i(remote_cert,
+                                                       NID_subject_alt_name,
+                                                       NULL, NULL );
+            if (NULL != onames) {
+                count = sk_GENERAL_NAME_num(onames);
+
+                for (i=0 ; i <count; ++i)  {
+                    oname = sk_GENERAL_NAME_value(onames, i);
+                    if (GEN_DNS == oname->type) {
+
+                        /* get the value */
+                        ASN1_STRING_to_UTF8((unsigned char**)&check_name,
+                                            oname->d.ia5);
+
+                        /* convert to lowercase for comparisons */
+                        for (j = 0; *check_name && j < sizeof(buf)-1;
+                             ++check_name, ++j) {
+                            buf[j] = tolower(0xFF & *check_name);
+                        }
+                        if (j < sizeof(buf))
+                            buf[j] = '\0';
+                        check_name = buf;
+                        
+                        if (is_wildcarded) {
+                            /* we *only* allow passing till the first '.' */
+                            /* ie *.example.com can't match a.b.example.com */
+                            check_name = strchr(check_name, '.') + 1;
+                        }
+
+                        DEBUGMSGTL(("tls_x509:verify", "checking subjectAltname of dns:%s\n", check_name));
+                        if (strcmp(compare_to, check_name) == 0) {
+
+                            DEBUGMSGTL(("tls_x509:verify", "Successful match on a subjectAltname of dns:%s\n", check_name));
+                            return SNMPERR_SUCCESS;
+                        }
+                    }
+                }
             }
-            /* RFC 1034 section 3.5
-               Disable support for "w*.example.com" and "*w.example.com"
-               multilevel wildcards
-            */
-            if (1 == X509_check_host(remote_cert,
-                                   lower_hostname,
-                                   their_hostname_len,
-                                   X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS | X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS,
-                                   NULL)) {
-                DEBUGMSGTL(("tls_x509:verify", "Successful match on a subjectAltname of dns or a common name: %s\n", lower_hostname));
-                free(lower_hostname);
+
+            /* check the common name for a match */
+            check_name =
+                netsnmp_openssl_cert_get_commonName(remote_cert, NULL, NULL);
+
+            if (is_wildcarded) {
+                /* we *only* allow passing till the first '.' */
+                /* ie *.example.com can't match a.b.example.com */
+                if (check_name)
+                    check_name = strchr(check_name, '.');
+                if (check_name)
+                    check_name++;
+            }
+
+            if (check_name && strcmp(compare_to, check_name) == 0) {
+                DEBUGMSGTL(("tls_x509:verify", "Successful match on a common name of %s\n", check_name));
                 return SNMPERR_SUCCESS;
             }
-            free(lower_hostname);
-            if (1 == X509_check_ip_asc(remote_cert,
-                                      their_hostname,
-                                      0)) {
-                DEBUGMSGTL(("tls_x509:verify", "Successful match on a subjectAltname of IP: %s\n", their_hostname));
-                return SNMPERR_SUCCESS;
-            }
-            snmp_log(LOG_ERR, "No matching names in the certificate to match the expected %s\n", their_hostname);
+
+            snmp_log(LOG_ERR, "No matching names in the certificate to match the expected %s\n", tlsdata->their_hostname);
             return SNMPERR_GENERR;
+
         }
         /* XXX: check for hostname match instead */
         snmp_log(LOG_ERR, "Can not verify a remote server identity without configuration\n");
@@ -321,7 +361,7 @@ netsnmp_tlsbase_verify_client_cert(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
     */
     /* Implementation notes:
        + path validation is taken care of during the openssl verify
-         routines, our part of which is handled in verify_callback
+         routines, our part of which is hanlded in verify_callback
          above.
        + fingerprint verification happens below.
     */
@@ -405,48 +445,21 @@ netsnmp_tlsbase_extract_security_name(SSL *ssl, _netsnmpTLSBaseData *tlsdata) {
 int
 _trust_this_cert(SSL_CTX *the_ctx, char *certspec) {
     netsnmp_cert *trustcert;
-    netsnmp_cert *candidate;
-    netsnmp_void_array *matching = NULL;
-
-    int                 i;
 
     DEBUGMSGTL(("sslctx_client", "Trying to load a trusted certificate: %s\n",
                 certspec));
 
     /* load this identifier into the trust chain */
     trustcert = netsnmp_cert_find(NS_CERT_CA,
-                                  NS_CERTKEY_FINGERPRINT,
+                                  NS_CERTKEY_MULTIPLE,
                                   certspec);
-
-    /* loop through all CA certs in the given files */
-    if (!trustcert) {
-        matching = netsnmp_certs_find(NS_CERT_CA,
-                                      NS_CERTKEY_FILE,
-                                      certspec);
-        for (i = 0; (matching) && (i < matching->size); ++i) {
-            candidate = (netsnmp_cert*)matching->array[i];
-            if (netsnmp_cert_trust(the_ctx, candidate) != SNMPERR_SUCCESS) {
-                free(matching->array);
-                free(matching);
-                LOGANDDIE("failed to load trust certificate");
-            }
-        } /** matching loop */
-
-        if (matching) {
-            free(matching->array);
-            free(matching);
-            return 1;
-	}
-    }
-
-    /* fall back to trusting the remote peer certificate */
     if (!trustcert)
         trustcert = netsnmp_cert_find(NS_CERT_REMOTE_PEER,
                                       NS_CERTKEY_MULTIPLE,
                                       certspec);
     if (!trustcert)
         LOGANDDIE("failed to find requested certificate to trust");
-
+        
     /* Add the certificate to the context */
     if (netsnmp_cert_trust(the_ctx, trustcert) != SNMPERR_SUCCESS)
         LOGANDDIE("failed to load trust certificate");
@@ -473,19 +486,10 @@ _load_trusted_certs(SSL_CTX *the_ctx) {
     }
 }    
 
-#ifndef TLS1_3_VERSION
-#define TLS1_3_VERSION 0x304
-#endif
-
 SSL_CTX *
 _sslctx_common_setup(SSL_CTX *the_ctx, _netsnmpTLSBaseData *tlsbase) {
     char         *crlFile;
     char         *cipherList;
-#ifdef SSL_CTX_set_min_proto_version
-    const char   *tlsMinVersion;
-    const char   *tlsMaxVersion;
-    int          tlsVersion;
-#endif
     X509_LOOKUP  *lookup;
     X509_STORE   *cert_store = NULL;
 
@@ -508,65 +512,6 @@ _sslctx_common_setup(SSL_CTX *the_ctx, _netsnmpTLSBaseData *tlsbase) {
         X509_STORE_set_flags(cert_store,
                              X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
     }
-
-#ifdef SSL_CTX_set_min_proto_version
-    tlsVersion = TLS1_2_VERSION;
-    tlsMinVersion = "tls1_2";
-    tlsMinVersion = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
-                                          NETSNMP_DS_LIB_TLS_MIN_VERSION);
-    if (NULL != tlsMinVersion) {
-        if (strcmp("tls1",tlsMinVersion) == 0) {
-           tlsVersion = TLS1_VERSION;
-        }
-        else if (strcmp("tls1_1",tlsMinVersion) == 0) {
-           tlsVersion = TLS1_1_VERSION;
-        }
-        else if (strcmp("tls1_2",tlsMinVersion) == 0) {
-           tlsVersion = TLS1_2_VERSION;
-        }
-        else if (strcmp("tls1_3",tlsMinVersion) == 0) {
-           tlsVersion = TLS1_3_VERSION;
-        }
-        else {
-            LOGANDDIE("Invalid tlsMinVersion value");
-        }
-    }
-    if (1 == SSL_CTX_set_min_proto_version(the_ctx, tlsVersion)) {
-        snmp_log(LOG_INFO,"Set tlsMinVersion to '%s'\n", tlsMinVersion);
-    }
-    else {
-        LOGANDDIE("Set tlsMinVersion failed");
-    }
-
-    tlsVersion = TLS1_3_VERSION;
-    tlsMaxVersion = "tls1_3";
-    tlsMaxVersion = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
-                                          NETSNMP_DS_LIB_TLS_MAX_VERSION);
-    if (NULL != tlsMaxVersion) {
-        if (strcmp("tls1",tlsMaxVersion) == 0) {
-            tlsVersion = TLS1_VERSION;
-        }
-        else if (strcmp("tls1_1",tlsMaxVersion) == 0) {
-            tlsVersion = TLS1_1_VERSION;
-        }
-        else if (strcmp("tls1_2",tlsMaxVersion) == 0) {
-            tlsVersion = TLS1_2_VERSION;
-        }
-        else if (strcmp("tls1_3",tlsMaxVersion) == 0) {
-            tlsVersion = TLS1_3_VERSION;
-        }
-        else {
-            LOGANDDIE("Invalid tlsMaxVersion value");
-        }
-    }
-
-    if (1 == SSL_CTX_set_max_proto_version(the_ctx, tlsVersion)) {
-        snmp_log(LOG_INFO,"Set tlsMaxVersion to '%s'\n", tlsMaxVersion);
-    }
-    else {
-        LOGANDDIE("Set tlsMaxVersion failed");
-    }
-#endif
 
     cipherList = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
                                        NETSNMP_DS_LIB_TLS_ALGORITMS);
@@ -812,7 +757,7 @@ netsnmp_tlsbase_session_init(struct netsnmp_transport_s *transport,
                              struct snmp_session *sess) {
     /* the default security model here should be TSM; most other
        things won't work with TLS because we'll throw out the packet
-       if it doesn't have a proper tmStateRef (and only TSM generates
+       if it doesn't have a proper tmStateRef (and onyl TSM generates
        this at the moment */
     if (!(transport->flags & NETSNMP_TRANSPORT_FLAG_LISTEN)) {
         if (sess->securityModel == SNMP_DEFAULT_SECMODEL) {
@@ -912,16 +857,6 @@ netsnmp_tlsbase_ctor(void) {
     netsnmp_ds_register_config(ASN_OCTET_STR, "snmp", "tlsAlgorithms",
                                NETSNMP_DS_LIBRARY_ID,
                                NETSNMP_DS_LIB_TLS_ALGORITMS);
-
-    /* What TLS version should be used at least */
-    netsnmp_ds_register_config(ASN_OCTET_STR, "snmp", "tlsMinVersion",
-                               NETSNMP_DS_LIBRARY_ID,
-                               NETSNMP_DS_LIB_TLS_MIN_VERSION);
-
-    /* What TLS version should be used at max */
-    netsnmp_ds_register_config(ASN_OCTET_STR, "snmp", "tlsMaxVersion",
-                               NETSNMP_DS_LIBRARY_ID,
-                               NETSNMP_DS_LIB_TLS_MAX_VERSION);
 
     /*
      * for the client

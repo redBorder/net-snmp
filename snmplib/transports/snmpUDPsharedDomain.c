@@ -49,7 +49,7 @@
 
 netsnmp_feature_require(transport_cache);
 
-const oid netsnmpUDPsharedDomain[] = { 1,3,6,1,2,1,100,1,999 }; /** made up */
+oid    netsnmpUDPsharedDomain[] = { 1,3,6,1,2,1,100,1,999 }; /** made up */
 size_t netsnmpUDPsharedDomain_len = OID_LENGTH(netsnmpUDPsharedDomain);
 
 /* ***************************************************************************
@@ -226,8 +226,7 @@ netsnmp_udpshared_transport_with_source(const struct netsnmp_ep *ep,
     if (!local && src_addr) {
         /** check for existing base transport */
         b = netsnmp_transport_cache_get(PF_INET, SOCK_DGRAM, local,
-                                        (const void *)src_addr,
-                                        sizeof(*src_addr));
+                                        (const void *)src_addr);
         if (NULL != b && NULL != b->local) {
             /*
              * uh-oh. we've assumed sharedudp is just for clients, and we're
@@ -262,8 +261,7 @@ netsnmp_udpshared_transport_with_source(const struct netsnmp_ep *ep,
     /** cache base transport for future use */
     if (!local && src_addr && 1 == b->local_length) {
         netsnmp_transport_cache_save(PF_INET, SOCK_DGRAM, local,
-                                     (const void *)src_addr, sizeof(*src_addr),
-                                     b);
+                                     (const void *)src_addr, b);
     }
 
     return t;
@@ -309,8 +307,7 @@ netsnmp_udpshared6_transport_with_source(const struct netsnmp_ep *ep,
     if (!local && src_addr6) {
         /** check for existing base transport */
         b = netsnmp_transport_cache_get(PF_INET6, SOCK_DGRAM, local,
-                                        (const void *)src_addr6,
-                                        sizeof(*src_addr6));
+                                        (const void *)src_addr6);
         if (NULL != b && NULL != b->local) {
             /*
              * uh-oh. we've assumed sharedudp is just for clients, and we're
@@ -344,8 +341,7 @@ netsnmp_udpshared6_transport_with_source(const struct netsnmp_ep *ep,
     /** cache base transport for future use */
     if (!local && src_addr6 && 1 == b->local_length) {
         netsnmp_transport_cache_save(PF_INET6, SOCK_DGRAM, local,
-                                     (const void *)src_addr6,
-                                     sizeof(*src_addr6), b);
+                                     (const void *)src_addr6, b);
     }
 
     return t;
@@ -461,11 +457,7 @@ netsnmp_udpshared_ctor(void)
     domain.name = netsnmpUDPsharedDomain;
     domain.name_length = netsnmpUDPsharedDomain_len;
 
-    domain.prefix = calloc(2, sizeof(char *));
-    if (!domain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    domain.prefix = (const char**)calloc(2, sizeof(char *));
     domain.prefix[0] = "udpshared";
 
     domain.f_create_from_tstring_new = netsnmp_udpshared_create_tstring;

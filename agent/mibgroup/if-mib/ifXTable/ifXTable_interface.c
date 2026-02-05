@@ -1882,7 +1882,7 @@ static void _ifXTable_container_row_save(void *data, void *type)
      *
      * 1) allocate space for each column. Comment out columns you don't
      * intend to save. You may also need to add room for any non-
-     * column data you want to store. Remember, data will be stored in
+     * column data you want to store. Remeber, data will be stored in
      * ASCII form, so you need to allow for that. Here are some
      * general guidelines:
      *
@@ -2180,7 +2180,7 @@ ifXTable_row_find_by_mib_index(ifXTable_mib_index * mib_idx)
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = OID_LENGTH(oid_tmp);
+    oid_idx.len = sizeof(oid_tmp) / sizeof(oid);
 
     /*
      * convert

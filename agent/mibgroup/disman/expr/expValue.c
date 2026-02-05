@@ -498,7 +498,7 @@ DIGIT:
             /* 
              * ... or a (single-character) binary operator.
              */
-            NETSNMP_FALLTHROUGH;
+            /* Fallthrough */
         case '+':
         case '*':
         case '/':

@@ -126,8 +126,8 @@ header_complex_parse_oid(oid * oidIndex, size_t oidLen,
         case ASN_COUNTER:
         case ASN_GAUGE:
         case ASN_TIMETICKS:
-            var->val.integer = calloc(1, sizeof(long));
-            if (var->val.integer == NULL)
+            var->val.integer = (long *) calloc(1, sizeof(long));
+            if (var->val.string == NULL)
                 return SNMPERR_GENERR;
 
             *var->val.integer = (long) *oidIndex++;
@@ -153,7 +153,7 @@ header_complex_parse_oid(oid * oidIndex, size_t oidLen,
                 break;          /* zero length strings shouldn't malloc */
 
             var->val_len = itmp * sizeof(oid);
-            var->val.objid = calloc(1, var->val_len);
+            var->val.objid = (oid *) calloc(1, var->val_len);
             if (var->val.objid == NULL)
                 return SNMPERR_GENERR;
 
@@ -186,7 +186,7 @@ header_complex_parse_oid(oid * oidIndex, size_t oidLen,
              * malloc by size+1 to allow a null to be appended. 
              */
             var->val_len = itmp;
-            var->val.string = calloc(1, itmp + 1);
+            var->val.string = (u_char *) calloc(1, itmp + 1);
             if (var->val.string == NULL)
                 return SNMPERR_GENERR;
 
@@ -443,7 +443,7 @@ header_complex_maybe_add_data_by_oid(struct header_complex_index **thedata,
          * XXX: check for == and error (overlapping table entries) 
          * 8/2005 rks Ok, I added duplicate entry check, but only log
          *            warning and continue, because it seems that nobody
-         *            that calls this function does error checking!.
+         *            that calls this fucntion does error checking!.
          */
         rc = snmp_oid_compare(hciptrn->name, hciptrn->namelen,
                               newoid, newoid_len);
@@ -631,7 +631,7 @@ int main(void)
     snmp_varlist_add_variable(&vars, NULL, 0, ASN_INTEGER, NULL, 0);
     ret =
         header_complex_parse_oid(testparse,
-                                 OID_LENGTH(testparse), vars);
+                                 sizeof(testparse) / sizeof(oid), vars);
     DEBUGMSGTL(("header_complex_test", "parse returned %d...\n", ret));
 
 }

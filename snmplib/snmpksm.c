@@ -169,12 +169,12 @@ init_snmpksm_post_config(int majorid, int minorid, void *serverarg,
 {
 
     if (kcontext == NULL) {
-	/* not reached, I'd imagine */
+	/* not reached, i'd imagine */
         return SNMPERR_KRB5;
     }
 
     if (service_name == NULL) {
-	/* always reached, I'd imagine */
+	/* always reached, i'd imagine */
 	char *c = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
 					NETSNMP_DS_LIB_KSM_SERVICE_NAME);
 	if (c != NULL) {
@@ -186,7 +186,7 @@ init_snmpksm_post_config(int majorid, int minorid, void *serverarg,
     }
 
     if (keytab_setup == 0) {
-	/* always reached, I'd imagine */
+	/* always reached, i'd imagine */
 	char *c = netsnmp_ds_get_string(NETSNMP_DS_LIBRARY_ID,
 					NETSNMP_DS_LIB_KSM_KEYTAB);
 	if (c) {
@@ -1461,7 +1461,7 @@ ksm_process_in_msg(struct snmp_secmod_incoming_params *parms)
 #endif
 
         /*
-         * We need to initialize the authorization context, and set the
+         * We need to initalize the authorization context, and set the
          * replay cache in it (and initialize the replay cache if we
          * haven't already
          */

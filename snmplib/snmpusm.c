@@ -106,53 +106,53 @@ struct usmStateReference {
     u_int           usr_sec_level;
 };
 
-const oid usmNoAuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmNoAuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                  NETSNMP_USMAUTH_NOAUTH };
 #ifndef NETSNMP_DISABLE_MD5
-const oid usmHMACMD5AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMACMD5AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                       NETSNMP_USMAUTH_HMACMD5 };
 #endif
-const oid usmHMACSHA1AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMACSHA1AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                        NETSNMP_USMAUTH_HMACSHA1 };
 
 #ifdef HAVE_EVP_SHA384
-const oid usmHMAC384SHA512AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMAC384SHA512AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                             NETSNMP_USMAUTH_HMAC384SHA512 };
-const oid usmHMAC256SHA384AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMAC256SHA384AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                             NETSNMP_USMAUTH_HMAC256SHA384 };
 #endif /* HAVE_EVP_SHA384 */
 
 #ifdef HAVE_EVP_SHA224
-const oid usmHMAC192SHA256AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMAC192SHA256AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                             NETSNMP_USMAUTH_HMAC192SHA256 };
-const oid usmHMAC128SHA224AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
+oid    usmHMAC128SHA224AuthProtocol[10] = { NETSNMP_USMAUTH_BASE_OID,
                                             NETSNMP_USMAUTH_HMAC128SHA224 };
 #endif /* HAVE_EVP_SHA384 */
 
-const oid usmNoPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 1 };
+oid             usmNoPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 1 };
 
 #ifndef NETSNMP_DISABLE_DES
-const oid usmDESPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 2 };
+oid             usmDESPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 2 };
 #endif
 
 
-const oid usmAESPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 4 };
+oid    usmAESPrivProtocol[10] = { 1, 3, 6, 1, 6, 3, 10, 1, 2, 4 };
 /* backwards compat */
-const oid *usmAES128PrivProtocol = usmAESPrivProtocol;
+oid    *usmAES128PrivProtocol = usmAESPrivProtocol;
 
 #ifdef NETSNMP_DRAFT_BLUMENTHAL_AES_04
     /* OIDs from http://www.snmp.com/eso/esoConsortiumMIB.txt */
-const oid usmAES192PrivProtocol[9] = { 1,3,6,1,4,1,14832,1,3 };
-const oid usmAES256PrivProtocol[9] = { 1,3,6,1,4,1,14832,1,4 };
+oid    usmAES192PrivProtocol[9] = { 1,3,6,1,4,1,14832,1,3 };
+oid    usmAES256PrivProtocol[9] = { 1,3,6,1,4,1,14832,1,4 };
     /* OIDs from CISCO MIB */
-const oid usmAES192CiscoPrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,1 };
-const oid usmAES256CiscoPrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,2 };
+oid    usmAES192CiscoPrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,1 };
+oid    usmAES256CiscoPrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,2 };
 /*
  * these OIDs are in pySNMP source as OIDs for AES+Reeder. We'll just
  * use OIDS from CISCO-SNMP-USM-OIDS-MIB
  *
-const oid usmAES192Cisco2PrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,101 };
-const oid usmAES256Cisco2PrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,102 };
+oid    usmAES192Cisco2PrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,101 };
+oid    usmAES256Cisco2PrivProtocol[11]  = { 1,3,6,1,4,1,9,12,6,1,102 };
  */
 #endif /* NETSNMP_DRAFT_BLUMENTHAL_AES_04 */
 
@@ -482,9 +482,10 @@ usm_get_user_from_list(const u_char *engineID, size_t engineIDLen,
 {
     struct usmUser *ptr;
 
+    if (name == NULL)
+        name = "";
     for (ptr = puserList; ptr != NULL; ptr = ptr->next) {
-        if (ptr->name && strlen(ptr->name) == nameLen &&
-            memcmp(ptr->name, name, nameLen) == 0) {
+        if (ptr->name && !strcmp(ptr->name, name)) {
           DEBUGMSGTL(("usm", "match on user %s\n", ptr->name));
           if (ptr->engineIDLen == engineIDLen &&
             ((ptr->engineID == NULL && engineID == NULL) ||
@@ -511,6 +512,7 @@ usm_get_user_from_list(const u_char *engineID, size_t engineIDLen,
     return NULL;
 }
 
+
 struct usmUser *
 usm_get_user2(const u_char *engineID, size_t engineIDLen, const void *name,
               size_t nameLen)
@@ -521,6 +523,7 @@ usm_get_user2(const u_char *engineID, size_t engineIDLen, const void *name,
                                   userList, 1);
 }
 
+
 /*
  * usm_get_user(): Returns a user from userList based on the engineID,
  * engineIDLen and name of the requested user.
@@ -528,6 +531,7 @@ usm_get_user2(const u_char *engineID, size_t engineIDLen, const void *name,
 struct usmUser *
 usm_get_user(const u_char *engineID, size_t engineIDLen, const char *name)
 {
+    DEBUGMSGTL(("usm", "getting user %s\n", name));
     return usm_get_user2(engineID, engineIDLen, name, strlen(name));
 }
 
@@ -712,7 +716,7 @@ usm_remove_usmUser_from_list(struct usmUser *user, struct usmUser **ppuserList)
  * NOTE: if there was only one user in the list, list head will be NULL.
  *       So NULL can also mean success. Use the newer usm_remove_usmUser() for
  *       more specific return codes. This function is kept for backwards
- *       compatibility with this ambiguous behaviour.
+ *       compatability with this ambiguous behaviour.
  */
 static struct usmUser *
 usm_remove_user_from_list(struct usmUser *user,
@@ -813,117 +817,6 @@ usm_free_user(struct usmUser *user)
     return NULL;                /* for convenience to returns from calling functions */
 
 }                               /* end usm_free_user() */
-
-int usm_set_priv_key(struct usmUser *user, const char *fname,
-                     u_char **old_key, size_t *old_key_len,
-                     const u_char *new_key, u_int new_key_len)
-{
-    u_char buf[SNMP_MAXBUF_SMALL], buf2[SNMP_MAXBUF_SMALL];
-    size_t buflen = sizeof(buf);
-    int plen, res;
-
-    plen = sc_get_proper_priv_length(user->privProtocol,
-                                     user->privProtocolLen);
-    DEBUGMSGTL(("usmUser", "plen %d\n", plen));
-    /*
-     * extend key as needed
-     */
-    DEBUGMSGTL(("9:usmUser", "%s: new_key_len %d\n", fname, new_key_len));
-    if (new_key_len < 2 * plen) {
-        struct usmUser dummy;
-
-        memset(&dummy, 0x0, sizeof(dummy));
-        dummy.engineID = user->engineID;
-        dummy.engineIDLen = user->engineIDLen;
-        dummy.authProtocol = user->authProtocol;
-        dummy.authProtocolLen = user->authProtocolLen;
-        dummy.privProtocol = user->privProtocol;
-        dummy.privProtocolLen = user->privProtocolLen;
-        memcpy(buf2, new_key, new_key_len);
-        dummy.privKey = buf2;
-        dummy.privKeyLen = new_key_len;
-        res = usm_extend_user_kul(&dummy, sizeof(buf2));
-        if (res != SNMP_ERR_NOERROR) {
-            DEBUGMSGTL(("usmUser", "%s: extend kul failed\n", fname));
-            return SNMP_ERR_GENERR;
-        }
-        DEBUGMSGTL(("9:usmUser", "%s: extend kul OK\n", fname));
-        new_key = dummy.privKey;
-        new_key_len = dummy.privKeyLen;
-        /*
-         * make sure no reallocation happened; buf2 must be large enough
-         */
-        netsnmp_assert(dummy.privKey == buf2);
-    }
-
-    /*
-     * Change the key. 
-     */
-    DEBUGMSGTL(("usmUser", "%s: changing priv key for user %s\n",
-                fname, user->secName));
-
-    res = decode_keychange(user->authProtocol, user->authProtocolLen,
-                           user->privKey, user->privKeyLen, new_key,
-                           new_key_len, buf, &buflen);
-    if (res != SNMPERR_SUCCESS) {
-        DEBUGMSGTL(("usmUser", "%s failed\n", fname));
-        return SNMP_ERR_GENERR;
-    }
-    DEBUGMSGTL(("usmUser", "%s succeeded\n", fname));
-    *old_key = user->privKey;
-    *old_key_len = user->privKeyLen;
-    user->privKey = netsnmp_memdup(buf, buflen);
-    if (user->privKey == NULL)
-        return SNMP_ERR_RESOURCEUNAVAILABLE;
-    user->privKeyLen = buflen;
-    return SNMP_ERR_NOERROR;
-}
-
-/*******************************************************************-o-******
- * usm_generate_OID
- *
- * Parameters:
- *	*prefix		(I) OID prefix to the usmUser table entry.
- *	 prefixLen	(I)
- *	*uptr		(I) Pointer to a user in the user list.
- *	*length		(O) Length of generated index OID.
- *      
- * Returns:
- *	Pointer to the OID index for the user (uptr)  -OR-
- *	NULL on failure.
- *
- *
- * Generate the index OID for a given usmUser name.  'length' is set to
- * the length of the index OID.
- *
- * Index OID format is:
- *
- *    <...prefix>.<engineID_length>.<engineID>.<user_name_length>.<user_name>
- */
-oid            *
-usm_generate_OID(const oid *prefix, size_t prefixLen,
-                 const struct usmUser *uptr, size_t *length)
-{
-    oid            *indexOid;
-    int             i;
-
-    *length = 2 + uptr->engineIDLen + strlen(uptr->name) + prefixLen;
-    indexOid = malloc(*length * sizeof(oid));
-    if (!indexOid)
-        return indexOid;
-
-    memmove(indexOid, prefix, prefixLen * sizeof(oid));
-
-    indexOid[prefixLen] = uptr->engineIDLen;
-    for (i = 0; i < uptr->engineIDLen; i++)
-        indexOid[prefixLen + 1 + i] = (oid) uptr->engineID[i];
-
-    indexOid[prefixLen + uptr->engineIDLen + 1] = strlen(uptr->name);
-    for (i = 0; i < strlen(uptr->name); i++)
-        indexOid[prefixLen + uptr->engineIDLen + 2 + i] = (oid) uptr->name[i];
-
-    return indexOid;
-}                               /* end usm_generate_OID() */
 
 /*******************************************************************-o-******
  * asn_predict_int_length
@@ -1359,7 +1252,7 @@ usm_check_secLevel_vs_protocols(int level,
         &&
         (netsnmp_oid_equals
          (privProtocol, privProtocolLen, usmNoPrivProtocol,
-          OID_LENGTH(usmNoPrivProtocol)) == 0)) {
+          sizeof(usmNoPrivProtocol) / sizeof(oid)) == 0)) {
         DEBUGMSGTL(("usm", "Level: %d\n", level));
         DEBUGMSGTL(("usm", "Auth Protocol: "));
         DEBUGMSGOID(("usm", authProtocol, authProtocolLen));
@@ -1373,7 +1266,7 @@ usm_check_secLevel_vs_protocols(int level,
         &&
         (netsnmp_oid_equals
          (authProtocol, authProtocolLen, usmNoAuthProtocol,
-          OID_LENGTH(usmNoAuthProtocol)) == 0)) {
+          sizeof(usmNoAuthProtocol) / sizeof(oid)) == 0)) {
         DEBUGMSGTL(("usm", "Level: %d\n", level));
         DEBUGMSGTL(("usm", "Auth Protocol: "));
         DEBUGMSGOID(("usm", authProtocol, authProtocolLen));
@@ -1488,7 +1381,7 @@ usm_generate_out_msg(int msgProcModel,  /* (UNUSED) */
      * 
      * None of these are to be free'd - they are either pointing to
      * what's in the secStateRef or to something either in the
-     * actual parameter list or the user list.
+     * actual prarmeter list or the user list.
      */
 
     const char     *theName = NULL;
@@ -1576,12 +1469,12 @@ usm_generate_out_msg(int msgProcModel,  /* (UNUSED) */
              */
             theAuthProtocol = usmNoAuthProtocol;
             theAuthProtocolLength =
-                OID_LENGTH(usmNoAuthProtocol);
+                sizeof(usmNoAuthProtocol) / sizeof(oid);
             theAuthKey = NULL;
             theAuthKeyLength = 0;
             thePrivProtocol = usmNoPrivProtocol;
             thePrivProtocolLength =
-                OID_LENGTH(usmNoPrivProtocol);
+                sizeof(usmNoPrivProtocol) / sizeof(oid);
             thePrivKey = NULL;
             thePrivKeyLength = 0;
         }
@@ -2079,12 +1972,12 @@ usm_rgenerate_out_msg(int msgProcModel, /* (UNUSED) */
              */
             theAuthProtocol = usmNoAuthProtocol;
             theAuthProtocolLength =
-                OID_LENGTH(usmNoAuthProtocol);
+                sizeof(usmNoAuthProtocol) / sizeof(oid);
             theAuthKey = NULL;
             theAuthKeyLength = 0;
             thePrivProtocol = usmNoPrivProtocol;
             thePrivProtocolLength =
-                OID_LENGTH(usmNoPrivProtocol);
+                sizeof(usmNoPrivProtocol) / sizeof(oid);
             thePrivKey = NULL;
             thePrivKeyLength = 0;
         }
@@ -2546,7 +2439,7 @@ usm_parse_security_parameters(u_char * secParams,
 
     /*
      * Retrieve the engine boots, notice switch in the way next_ptr and
-     * remaining_bytes are used (to accommodate the asn code).
+     * remaining_bytes are used (to accomodate the asn code).
      */
     DEBUGDUMPHEADER("recv", "msgAuthoritativeEngineBoots");
     if ((next_ptr = asn_parse_int(next_ptr, &remaining_bytes, &type_value,
@@ -2879,12 +2772,12 @@ usm_check_secLevel(int level, struct usmUser *user)
     DEBUGMSGTL(("comparex", "Comparing: %" NETSNMP_PRIo "u %" NETSNMP_PRIo "u ",
                 usmNoPrivProtocol[0], usmNoPrivProtocol[1]));
     DEBUGMSGOID(("comparex", usmNoPrivProtocol,
-                 OID_LENGTH(usmNoPrivProtocol)));
+                 sizeof(usmNoPrivProtocol) / sizeof(oid)));
     DEBUGMSG(("comparex", "\n"));
     if (level == SNMP_SEC_LEVEL_AUTHPRIV
         && (netsnmp_oid_equals(user->privProtocol, user->privProtocolLen,
                              usmNoPrivProtocol,
-                             OID_LENGTH(usmNoPrivProtocol)) ==
+                             sizeof(usmNoPrivProtocol) / sizeof(oid)) ==
             0)) {
         DEBUGMSGTL(("usm", "Level: %d\n", level));
         DEBUGMSGTL(("usm", "User (%s) Auth Protocol: ", user->name));
@@ -2899,7 +2792,7 @@ usm_check_secLevel(int level, struct usmUser *user)
         &&
         (netsnmp_oid_equals
          (user->authProtocol, user->authProtocolLen, usmNoAuthProtocol,
-          OID_LENGTH(usmNoAuthProtocol)) == 0)) {
+          sizeof(usmNoAuthProtocol) / sizeof(oid)) == 0)) {
         DEBUGMSGTL(("usm", "Level: %d\n", level));
         DEBUGMSGTL(("usm", "User (%s) Auth Protocol: ", user->name));
         DEBUGMSGOID(("usm", user->authProtocol, user->authProtocolLen));
@@ -3093,6 +2986,7 @@ usm_process_in_msg(int msgProcModel,    /* (UNUSED) */
      * Locate the User record.
      * If the user/engine ID is unknown, report this as an error.
      */
+
     if (sess && sess->sessUser)
         user = sess->sessUser;
     else
@@ -3402,7 +3296,7 @@ usm_handle_report(struct session_list *slp,
         }
         session->s_snmp_errno = res;
     }  
-    NETSNMP_FALLTHROUGH;
+    /* fallthrough */
     case SNMPERR_USM_UNKNOWNENGINEID:
     case SNMPERR_USM_UNKNOWNSECURITYNAME:
     case SNMPERR_USM_UNSUPPORTEDSECURITYLEVEL:
@@ -3596,7 +3490,7 @@ err:
  * 
  * creates a user in the usm table from the information in a session.
  * If the user already exists, it is updated with the current
- * information from the session, also update boot/time set
+ * information from the session
  * 
  * Parameters:
  * session -- IN: pointer to the session to use when creating the user.
@@ -3611,20 +3505,6 @@ usm_create_user_from_session(netsnmp_session * session)
     struct usmUser *user;
     int             user_just_created = 0;
     char *cp;
-
-    /*
-     * If boot/time supplied set it for this engineID. Do it from hook when
-     * creating user in case probe was sent by other means for example
-     * asynchronously.
-     */
-    if (!(session->flags & SNMP_FLAGS_TIME_CREATED) &&
-        (session->engineBoots || session->engineTime)) {
-        set_enginetime(session->securityEngineID,
-                       session->securityEngineIDLen,
-                       session->engineBoots, session->engineTime,
-                       TRUE);
-        session->flags |= SNMP_FLAGS_TIME_CREATED;
-    }
 
     /*
      * - don't create-another/copy-into user for this session by default
@@ -3709,7 +3589,7 @@ usm_create_user_from_session(netsnmp_session * session)
             user->authKeyLen = session->securityAuthLocalKeyLen;
         } else if (session->securityAuthKeyLen != 0) {
             SNMP_FREE(user->authKey);
-            user->authKey = calloc(1, USM_LENGTH_KU_HASHBLOCK);
+            user->authKey = (u_char *) calloc(1, USM_LENGTH_KU_HASHBLOCK);
             user->authKeyLen = USM_LENGTH_KU_HASHBLOCK;
             if ((user->authKey == NULL) ||
                 generate_kul(user->authProtocol, user->authProtocolLen,
@@ -3757,7 +3637,7 @@ usm_create_user_from_session(netsnmp_session * session)
             keyBufSize = user->privKeyLen = session->securityPrivLocalKeyLen;
         } else if (session->securityPrivKeyLen != 0) {
             SNMP_FREE(user->privKey);
-            user->privKey = calloc(1, keyBufSize);
+            user->privKey = (u_char *) calloc(1, keyBufSize);
             user->privKeyLen = keyBufSize;
             if ((user->privKey == NULL) ||
                 generate_kul(user->authProtocol, user->authProtocolLen,
@@ -3829,9 +3709,14 @@ usm_build_probe_pdu(netsnmp_pdu **pdu, struct usmUser **sessUser)
      */
     if (!pdu)
         return -1;
-    *pdu = snmpv3_probe_usm_pdu_create();
+    *pdu = snmp_pdu_create(SNMP_MSG_GET);
     if (!(*pdu))
         return -1;
+    (*pdu)->version = SNMP_VERSION_3;
+    (*pdu)->securityName = strdup("");
+    (*pdu)->securityNameLen = strlen((*pdu)->securityName);
+    (*pdu)->securityLevel = SNMP_SEC_LEVEL_NOAUTH;
+    (*pdu)->securityModel = SNMP_SEC_MODEL_USM;
 
     /*
      * create the empty user 
@@ -3842,7 +3727,7 @@ usm_build_probe_pdu(netsnmp_pdu **pdu, struct usmUser **sessUser)
         user = usm_get_user2(NULL, 0, (*pdu)->securityName,
                          (*pdu)->securityNameLen);
     if (user == NULL) {
-        user = calloc(1, sizeof(struct usmUser));
+        user = (struct usmUser *) calloc(1, sizeof(struct usmUser));
         if (user == NULL) {
             snmp_free_pdu(*pdu);
             *pdu = (netsnmp_pdu *) NULL;
@@ -3850,10 +3735,10 @@ usm_build_probe_pdu(netsnmp_pdu **pdu, struct usmUser **sessUser)
         }
         user->name = strdup((*pdu)->securityName);
         user->secName = strdup((*pdu)->securityName);
-        user->authProtocolLen = OID_LENGTH(usmNoAuthProtocol);
+        user->authProtocolLen = sizeof(usmNoAuthProtocol) / sizeof(oid);
         user->authProtocol =
             snmp_duplicate_objid(usmNoAuthProtocol, user->authProtocolLen);
-        user->privProtocolLen = OID_LENGTH(usmNoPrivProtocol);
+        user->privProtocolLen = sizeof(usmNoPrivProtocol) / sizeof(oid);
         user->privProtocol =
             snmp_duplicate_objid(usmNoPrivProtocol, user->privProtocolLen);
         if (sessUser)
@@ -3932,7 +3817,6 @@ static int usm_discover_engineid(struct session_list *slp,
                        session->securityEngineIDLen,
                        session->engineBoots, session->engineTime,
                        TRUE);
-        session->flags |= SNMP_FLAGS_TIME_CREATED;
     }
     return SNMPERR_SUCCESS;
 }
@@ -4100,7 +3984,7 @@ usm_create_user(void)
     /*
      * create the new user 
      */
-    newUser = calloc(1, sizeof(struct usmUser));
+    newUser = (struct usmUser *) calloc(1, sizeof(struct usmUser));
     if (newUser == NULL)
         return NULL;
 
@@ -4109,17 +3993,17 @@ usm_create_user(void)
      */
     if ((newUser->authProtocol =
          snmp_duplicate_objid(usmNoAuthProtocol,
-                              OID_LENGTH(usmNoAuthProtocol))) ==
+                              sizeof(usmNoAuthProtocol) / sizeof(oid))) ==
         NULL)
         return usm_free_user(newUser);
-    newUser->authProtocolLen = OID_LENGTH(usmNoAuthProtocol);
+    newUser->authProtocolLen = sizeof(usmNoAuthProtocol) / sizeof(oid);
 
     if ((newUser->privProtocol =
          snmp_duplicate_objid(usmNoPrivProtocol,
-                              OID_LENGTH(usmNoPrivProtocol))) ==
+                              sizeof(usmNoPrivProtocol) / sizeof(oid))) ==
         NULL)
         return usm_free_user(newUser);
-    newUser->privProtocolLen = OID_LENGTH(usmNoPrivProtocol);
+    newUser->privProtocolLen = sizeof(usmNoPrivProtocol) / sizeof(oid);
 
     /*
      * set the storage type to nonvolatile, and the status to ACTIVE 
@@ -4621,7 +4505,7 @@ usm_set_user_password(struct usmUser *user, const char *token, char *line)
  * create a usm user from a string.
  *
  * The format for the string is described in the createUser
- * section of the snmpd.conf man page.
+ * secion of the snmpd.conf man page.
  *
  * On success, a pointer to the created usmUser struct is returned.
  * On error, a NULL pointer is returned. In this case, if a pointer to a
@@ -4703,19 +4587,7 @@ usm_create_usmUser_from_string(char *line, const char **errorMsg)
 
         newuser->engineID = ebuf;
         newuser->engineIDLen = eout_len;
-
-        /*
-        * set the lcd entry for this engineID to the minimum boots/time
-        * values so that its a known engineid and won't return a report pdu.
-        * This is mostly important when receiving v3 traps so that the usm
-        * will at least continue processing them.
-        * Note: We do this at the end so that it only runs if the parsing
-        * was successful
-        */
-        set_enginetime(newuser->engineID, newuser->engineIDLen, 1, 0, 0);
-
-
-        cp = copy_nword(cp, buf, sizeof(buf));        
+        cp = copy_nword(cp, buf, sizeof(buf));
     } else {
         newuser->engineID = snmpv3_generate_engineID(&ret);
         if (ret == 0) {
@@ -5186,7 +5058,10 @@ static int
 deinit_usm_post_config(int majorid, int minorid, void *serverarg,
 		       void *clientarg)
 {
-    usm_free_user(noNameUser);
+    if (usm_free_user(noNameUser) != NULL) {
+	DEBUGMSGTL(("deinit_usm_post_config", "could not free initial user\n"));
+	return SNMPERR_GENERR;
+    }
     noNameUser = NULL;
 
     DEBUGMSGTL(("deinit_usm_post_config", "initial user removed\n"));
@@ -5202,7 +5077,7 @@ init_usm(void)
     DEBUGMSGTL(("init_usm", "unit_usm: %" NETSNMP_PRIo "u %" NETSNMP_PRIo "u\n",
                 usmNoPrivProtocol[0], usmNoPrivProtocol[1]));
 
-    sc_init();                  /* initialize scapi code */
+    sc_init();                  /* initalize scapi code */
 
     /*
      * register ourselves as a security service

@@ -327,7 +327,7 @@ ifXTable_indexes_set(ifXTable_rowreq_ctx * rowreq_ctx, long ifIndex_val)
     /*
      * convert mib index to oid index
      */
-    rowreq_ctx->oid_idx.len = OID_LENGTH(rowreq_ctx->oid_tmp);
+    rowreq_ctx->oid_idx.len = sizeof(rowreq_ctx->oid_tmp) / sizeof(oid);
     if (0 != ifXTable_index_to_oid(&rowreq_ctx->oid_idx,
                                    &rowreq_ctx->tbl_idx)) {
         return MFD_ERROR;
@@ -1968,7 +1968,7 @@ Indicates whether linkUp/linkDown traps should be generated
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transition from one value to another
+ * new value is legal (ie, the transistion from one value to another
  * is legal).
  *      
  *@note
@@ -2150,7 +2150,7 @@ This object has a value of false(2) if this interface only
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transition from one value to another
+ * new value is legal (ie, the transistion from one value to another
  * is legal).
  *      
  *@note
@@ -2354,7 +2354,7 @@ This object is an 'alias' name for the interface as
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transition from one value to another
+ * new value is legal (ie, the transistion from one value to another
  * is legal).
  *      
  *@note

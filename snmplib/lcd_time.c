@@ -364,12 +364,12 @@ set_enginetime(const u_char * engineID,
             QUITFUN(SNMPERR_GENERR, set_enginetime_quit);
         }
 
-        e = calloc(1, sizeof(*e));
+        e = (Enginetime) calloc(1, sizeof(*e));
 
         e->next = etimelist[iindex];
         etimelist[iindex] = e;
 
-        e->engineID = calloc(1, engineID_len);
+        e->engineID = (u_char *) calloc(1, engineID_len);
         memcpy(e->engineID, engineID, engineID_len);
 
         e->engineID_len = engineID_len;
@@ -500,17 +500,17 @@ hash_engineID(const u_char * engineID, u_int engineID_len)
      */
 #ifndef NETSNMP_DISABLE_MD5
     rval = sc_hash(usmHMACMD5AuthProtocol,
-                   OID_LENGTH(usmHMACMD5AuthProtocol),
+                   sizeof(usmHMACMD5AuthProtocol) / sizeof(oid),
                    engineID, engineID_len, buf, &buf_len);
     if (rval == SNMPERR_SC_NOT_CONFIGURED) {
         /* fall back to sha1 */
         rval = sc_hash(usmHMACSHA1AuthProtocol,
-                   OID_LENGTH(usmHMACSHA1AuthProtocol),
+                   sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid),
                    engineID, engineID_len, buf, &buf_len);
     }
 #else
     rval = sc_hash(usmHMACSHA1AuthProtocol,
-                   OID_LENGTH(usmHMACSHA1AuthProtocol),
+                   sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid),
                    engineID, engineID_len, buf, &buf_len);
 #endif
     QUITFUN(rval, hash_engineID_quit);

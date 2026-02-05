@@ -440,7 +440,7 @@ tcpConnectionTable_indexes_set(tcpConnectionTable_rowreq_ctx * rowreq_ctx,
     /*
      * convert mib index to oid index
      */
-    rowreq_ctx->oid_idx.len = OID_LENGTH(rowreq_ctx->oid_tmp);
+    rowreq_ctx->oid_idx.len = sizeof(rowreq_ctx->oid_tmp) / sizeof(oid);
     if (0 != tcpConnectionTable_index_to_oid(&rowreq_ctx->oid_idx,
                                              &rowreq_ctx->tbl_idx)) {
         return MFD_ERROR;
@@ -962,7 +962,7 @@ The state of this TCP connection.
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transition from one value to another
+ * new value is legal (ie, the transistion from one value to another
  * is legal).
  *      
  *@note

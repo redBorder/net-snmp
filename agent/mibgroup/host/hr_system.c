@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -593,7 +593,7 @@ ns_set_time(int action,
             int minutes_from_utc= 0;
 
             if (var_val_len == 11) {
-                /* timezone information was present */
+                /* timezone inforamation was present */
                 hours_from_utc=(int)var_val[9];
                 minutes_from_utc=(int)var_val[10];
             }

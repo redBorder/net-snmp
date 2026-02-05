@@ -168,6 +168,7 @@ store_lookupResultsTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr = NULL;
+    size_t          tmpint;
     struct lookupResultsTable_data *StorageTmp = NULL;
     struct header_complex_index *hcindex = NULL;
 
@@ -198,11 +199,11 @@ store_lookupResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->lookupResultsIndex,
-                                       NULL);
+                                       &tmpint);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       lookupResultsAddressType, NULL);
+                                       lookupResultsAddressType, &tmpint);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->lookupResultsAddress,

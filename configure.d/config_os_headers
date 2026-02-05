@@ -7,6 +7,9 @@
 ##
 #   Standard checks:
 ##
+#  Core:
+AC_HEADER_STDC          #  <stdlib.h>, <stdarg.h>,   <string.h>  & <float.h>
+AC_HEADER_DIRENT        #  <dirent.h>, <sys/ndir.h>, <sys/dir.h> & <ndir.h>
 #  Apps:
 # Don't use <sys/wait.h> when using Windows sockets
 case x$with_socklib in
@@ -44,9 +47,8 @@ AC_INCLUDES_DEFAULT
 
 #  Library:
 AC_CHECK_HEADERS([crt_externs.h                        ] dnl
-                 [dirent.h         fcntl.h             ] dnl
-                 [io.h             kstat.h             ] dnl
-                 [limits.h         locale.h            ] dnl
+                 [fcntl.h    io.h       kstat.h        ] dnl
+                 [limits.h   locale.h                  ] dnl
                  [mach-o/dyld.h                        ] dnl
                  [sys/file.h       sys/ioctl.h         ] dnl
                  [sys/sockio.h     sys/stat.h          ] dnl
@@ -99,22 +101,8 @@ AC_CHECK_HEADERS([search.h   sgtty.h    xti.h      ] dnl
 # Valgrind
 AC_CHECK_HEADERS([valgrind/valgrind.h valgrind/memcheck.h])
 # OpenSSL
-AC_CHECK_HEADERS([				\
-openssl/aes.h					\
-openssl/bio.h					\
-openssl/des.h					\
-openssl/dh.h					\
-openssl/err.h					\
-openssl/evp.h					\
-openssl/hmac.h					\
-openssl/objects.h				\
-openssl/ossl_typ.h				\
-openssl/rand.h					\
-openssl/ssl.h					\
-openssl/x509.h					\
-openssl/x509_vfy.h				\
-openssl/x509v3.h				\
-])
+AC_CHECK_HEADERS([openssl/aes.h openssl/dh.h openssl/des.h openssl/err.h]dnl
+                 [openssl/evp.h openssl/hmac.h openssl/ssl.h])
 
 # RPM subdirectory path                   (Agent)
 if test "x$with_rpm" != "xno"; then

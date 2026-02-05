@@ -13,6 +13,17 @@ config_error(get_pid_from_inode is only suppored on linux);
 
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#else
+# define dirent direct
+# ifdef HAVE_SYS_NDIR_H
+#  include <sys/ndir.h>
+# endif
+# ifdef HAVE_SYS_DIR_H
+#  include <sys/dir.h>
+# endif
+# ifdef HAVE_NDIR_H
+#  include <ndir.h>
+# endif
 #endif
 
 #include <sys/types.h>

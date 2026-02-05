@@ -52,7 +52,7 @@ init_mteTriggerConf(void)
                                    parse_mteTThTable, NULL, NULL);
 
     /*
-     * ... and backwards compatibility with the previous implementation.
+     * ... and backwards compatability with the previous implementation.
      */
     snmpd_register_config_handler("mteTriggerTable",
                                    parse_mteTriggerTable, NULL, NULL);
@@ -117,7 +117,8 @@ _find_typed_mteTrigger_entry( const char *owner, char *tname, int type )
      *    same type, then throw an error and discard it.
      *  But allow combined Existence/Boolean/Threshold trigger.
      */
-    if ((entry->flags & MTE_TRIGGER_FLAG_VALID) &&
+    if ( entry &&
+        (entry->flags & MTE_TRIGGER_FLAG_VALID) &&
         (entry->mteTriggerTest & type )) {
         config_perror("duplicate trigger name");
         return NULL;
@@ -361,7 +362,7 @@ parse_mteMonitor(const char *token, const char *line)
                         /*
                          * "instance" flag:
                          *     either non-wildcarded mteTriggerValueID
-                         *       (backwards compatibility - see '-I')
+                         *       (backwards compatability - see '-I')
                          *     or exact payload OID
                          *       (c.f. notificationEvent config)
                          */

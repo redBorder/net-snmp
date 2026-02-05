@@ -292,7 +292,7 @@ config_require(ip-forward-mib/inetCidrRouteTable/inetCidrRouteTable_data_access)
                                                inetCidrRouteDest_val_ptr_len,
                                                u_long
                                                inetCidrRoutePfxLen_val,
-                                               const oid *
+                                               oid *
                                                inetCidrRoutePolicy_val_ptr,
                                                size_t
                                                inetCidrRoutePolicy_val_ptr_len,

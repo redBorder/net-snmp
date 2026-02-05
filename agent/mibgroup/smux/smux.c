@@ -127,7 +127,8 @@ smux_parse_peer_auth(const char *token, char *cptr)
     char           *password_cptr;
     int             rv;
 
-    if ((aptr = calloc(1, sizeof(smux_peer_auth))) == NULL) {
+    if ((aptr =
+         (smux_peer_auth *) calloc(1, sizeof(smux_peer_auth))) == NULL) {
         snmp_log_perror("smux_parse_peer_auth: malloc");
         return;
     }
@@ -331,7 +332,7 @@ smux_handler(netsnmp_mib_handler *handler,
             if (reqinfo->mode != MODE_SET_RESERVE1)
                 break;
             /* fall through if MODE_SET_RESERVE1 */
-	    NETSNMP_FALLTHROUGH;
+	    /* FALL THROUGH */
 
         default:
             /* SET processing */

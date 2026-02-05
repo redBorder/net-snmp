@@ -1314,7 +1314,7 @@ _etherStatsTable_check_column(etherStatsTable_rowreq_ctx * rowreq_ctx,
                                                 sizeof(rowreq_ctx->data.
                                                        etherStatsDataSource));
         if (SNMPERR_SUCCESS != rc) {
-            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsDataSource", "varbind validation failed (e.g. bad type or size)\n"));
+            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsDataSource", "varbind validation failed (eg bad type or size)\n"));
         } else {
             rc = etherStatsDataSource_check_value(rowreq_ctx,
                                                   (oid *) var->val.string,
@@ -1458,11 +1458,13 @@ _etherStatsTable_check_column(etherStatsTable_rowreq_ctx * rowreq_ctx,
         /*
          * check defined range(s). 
          */
-        if (rc == SNMPERR_SUCCESS && var->val_len > 127) {
+        if ((SNMPERR_SUCCESS == rc)
+            && (var->val_len > 127)
+            ) {
             rc = SNMP_ERR_WRONGLENGTH;
         }
         if (SNMPERR_SUCCESS != rc) {
-            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsOwner", "varbind validation failed (e.g. bad type or size)\n"));
+            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsOwner", "varbind validation failed (eg bad type or size)\n"));
         } else {
             rc = etherStatsOwner_check_value(rowreq_ctx,
                                              (char *) var->val.string,
@@ -1496,7 +1498,7 @@ _etherStatsTable_check_column(etherStatsTable_rowreq_ctx * rowreq_ctx,
             rc = SNMP_ERR_WRONGVALUE;
         }
         if (SNMPERR_SUCCESS != rc) {
-            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsStatus", "varbind validation failed (e.g. bad type or size)\n"));
+            DEBUGMSGTL(("etherStatsTable:_etherStatsTable_check_column:etherStatsStatus", "varbind validation failed (eg bad type or size)\n"));
         } else {
             rc = etherStatsStatus_check_value(rowreq_ctx,
                                               *((u_long *) var->val.
@@ -2211,7 +2213,7 @@ etherStatsTable_row_find_by_mib_index(etherStatsTable_mib_index * mib_idx)
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = OID_LENGTH(oid_tmp);
+    oid_idx.len = sizeof(oid_tmp) / sizeof(oid);
 
     /*
      * convert

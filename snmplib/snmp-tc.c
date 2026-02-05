@@ -30,7 +30,6 @@
 #endif
 
 #include <net-snmp/types.h>
-#include <net-snmp/library/snmp.h>
 #include <net-snmp/library/snmp-tc.h>   /* for "internal" definitions */
 #include <net-snmp/library/snmp_api.h>
 
@@ -384,7 +383,7 @@ check_rowstatus_transition(int oldValue, int newValue)
 
     switch (newValue) {
         /*
-         * these two end up being equivalent as far as checking the 
+         * these two end up being equivelent as far as checking the 
          * status goes, although the final states are based on the 
          * newValue. 
          */

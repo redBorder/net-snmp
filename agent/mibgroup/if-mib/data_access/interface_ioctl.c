@@ -81,11 +81,8 @@ _ioctl_get(int fd, int which, struct ifreq *ifrq, const char* name)
     return rc;
 }
 
-int netsnmp_convert_arphrd_type(int arphrd_type, const char *link_type)
+int netsnmp_convert_arphrd_type(int arphrd_type)
 {
-    if (link_type && strcmp(link_type, "vlan") == 0)
-        return IANAIFTYPE_L2VLAN;
-
     /*
      * arphrd defines vary greatly. ETHER seems to be the only common one
      */
@@ -206,7 +203,7 @@ netsnmp_access_interface_ioctl_physaddr_get(int fd,
         } else {
             memcpy(ifentry->paddr, ifrq.ifr_hwaddr.sa_data, IFHWADDRLEN);
             ifentry->type =
-                netsnmp_convert_arphrd_type(ifrq.ifr_hwaddr.sa_family, NULL);
+                netsnmp_convert_arphrd_type(ifrq.ifr_hwaddr.sa_family);
         }
     }
 

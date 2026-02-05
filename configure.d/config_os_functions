@@ -13,7 +13,7 @@
 ##
 #   Standard checks:
 ##
-
+AC_FUNC_ALLOCA          #  alloca()
 AC_PROG_GCC_TRADITIONAL
 
 AC_TYPE_SIGNAL
@@ -25,34 +25,15 @@ AC_TYPE_SIGNAL
 AC_CHECK_FUNCS([rand   random srand srandom lrand48 srand48])
 
 #  Library:
-AC_CHECK_FUNCS([asprintf        closedir        endnetgrent      ] dnl
-               [fgetc_unlocked                                   ] dnl
+AC_CHECK_FUNCS([asprintf        closedir        fgetc_unlocked   ] dnl
                [flockfile       funlockfile     getipnodebyname  ] dnl
                [gettimeofday    getlogin        getnetgrent      ] dnl
                [if_nametoindex  malloc_trim     mkstemp          ] dnl
                [opendir         readdir         regcomp          ] dnl
                [setenv          setitimer       setlocale        ] dnl
-               [setnetgrent                                      ] dnl
                [setsid          snprintf        strcasestr       ] dnl
                [strdup          strerror        strncasecmp      ] dnl
                [sysconf         times           vsnprintf        ] )
-
-if test x$ac_cv_func_setnetgrent = xyes; then
-AC_MSG_CHECKING([return type of setnetgrent()])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-        [[
-#ifdef HAVE_NETDB_H
-    #include <netdb.h>
-#endif
-#ifdef HAVE_NETGROUP_H
-    #include <netgroup.h>
-#endif
-]],[[return setnetgrent("")]]
-    )], [AC_MSG_RESULT([int])
-	 AC_DEFINE([SETNETGRENT_RETURNS_INT], [1],
-            [Define if the setnetgrent() return type is 'int'])],
-    [AC_MSG_RESULT([void])])
-fi
 
 AC_MSG_CHECKING([for _NSGetArgv()])
 AC_LINK_IFELSE(
@@ -192,14 +173,6 @@ AC_CHECK_FUNCS([cgetnext        chown          endfsent        ] dnl
 
 # Agent, Darwin (Apple):
 AC_CHECK_FUNCS([vm_region vm_region_64])
-
-AC_MSG_CHECKING([for FD_CLOEXEC])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-        [[#include <fcntl.h>]],[[return FD_CLOEXEC]]
-    )], [AC_MSG_RESULT([yes])
-	 AC_DEFINE([HAVE_FD_CLOEXEC], [1],
-            [Define if FD_CLOEXEC is defined in <fcntl.h>])],
-    [AC_MSG_RESULT([no])])
 
 #  Apps:
 AC_CHECK_FUNCS([getdtablesize                                  ] dnl
@@ -384,3 +357,25 @@ case x${host_cpu}-${host_vendor}-${host_os} in
 esac
 AC_DEFINE_UNQUOTED([NETSNMP_PRIz], ["$netsnmp_PRIz"],
                    [Size prefix to use to printf a size_t or ssize_t])
+
+# check to see if the openssl is good enough for DTLS
+# (BIO_dgram_get_peer is a macro, not a true function)
+if echo " $transport_result_list " | $GREP "DTLS" > /dev/null; then
+    AC_CACHE_VAL(
+       netsnmp_cv_bio_dgram_get_peer,
+       AC_MSG_CHECKING([[for BIO_dgram_get_peer]])
+       [
+        oldLIBS="$LIBS"
+        LIBS="$LIBS -lcrypto"
+        AC_LINK_IFELSE(
+          [AC_LANG_PROGRAM(
+            [[#include <openssl/bio.h>]],
+            [[BIO_dgram_get_peer(NULL, NULL);]])], [],
+          [AC_MSG_ERROR(DTLS support requires a newer version of OpenSSL)])
+
+        LIBS="$oldLIBS"
+       ]
+       AC_MSG_RESULT(yes)
+    )
+fi
+

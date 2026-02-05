@@ -1,7 +1,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include "hardware/fsys/fsys.h"
+#include <net-snmp/agent/hardware/fsys.h>
 #include "hardware/fsys/hw_fsys.h"
 #include "hardware/fsys/hw_fsys_private.h"
 
@@ -143,7 +143,7 @@ netsnmp_fsys_arch_load( void )
          * values!
          * This should be changed to a signed field.
          */
-        if (stats[i].f_bavail + 1 < 1)
+        if (stats[i].f_bavail < 0)
             entry->avail = 0;
         else
             entry->avail = stats[i].f_bavail;

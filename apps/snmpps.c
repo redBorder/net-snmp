@@ -386,15 +386,9 @@ collect_perf(netsnmp_session *ss, struct hrSWRunTable **fproc)
         proc.hrSWRunPerfMem = *vlp2->val.integer;
 
         count++;
-        {
-            struct hrSWRunTable *tmp_procs;
+        procs = realloc(procs, count*sizeof(procs[0]));
+        procs[count-1] = proc;
 
-            tmp_procs = realloc(procs, count * sizeof(procs[0]));
-            if (tmp_procs) {
-                procs = tmp_procs;
-                procs[count - 1] = proc;
-            }
-        }
         snmp_free_pdu(response);
         vlp2 = vlp;
         vlp = vlp->next_variable;
@@ -1023,6 +1017,6 @@ int main(int argc, char **argv)
 
     if (strcmp(progname, "snmpps") == 0) return snmpps(argc, argv);
     if (strcmp(progname, "snmptop") == 0) return snmptop(argc, argv);
-    fprintf(stderr, "%s: unknown program name\n", progname);
+    fprintf(stderr, "%s: unknown prognam name\n", progname);
     exit(1);
 }

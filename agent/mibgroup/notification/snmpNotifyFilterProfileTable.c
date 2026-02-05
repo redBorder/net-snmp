@@ -52,7 +52,7 @@ oid             snmpNotifyFilterProfileTable_variables_oid[] =
     { 1, 3, 6, 1, 6, 3, 13, 1, 2 };
 #ifndef NETSNMP_NO_WRITE_SUPPORT
 static const size_t table_offset =
-    OID_LENGTH(snmpNotifyFilterProfileTable_variables_oid) + 3 - 1;
+    sizeof(snmpNotifyFilterProfileTable_variables_oid)/sizeof(oid) + 3 - 1;
 #endif
 
 /*
@@ -246,7 +246,7 @@ write_snmpNotifyFilterProfileName(int action,
          */
         tmpvar = StorageTmp->snmpNotifyFilterProfileName;
         tmplen = StorageTmp->snmpNotifyFilterProfileNameLen;
-        StorageTmp->snmpNotifyFilterProfileName = calloc(1, var_val_len + 1);
+        StorageTmp->snmpNotifyFilterProfileName = (char*)calloc(1, var_val_len + 1);
         if (NULL == StorageTmp->snmpNotifyFilterProfileName)
             return SNMP_ERR_RESOURCEUNAVAILABLE;
         break;

@@ -13,10 +13,6 @@
 #ifndef _TOOLS_H
 #define _TOOLS_H
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h> /* PATH_MAX (Linux), MAXPATHLEN (BSD) */
-#endif
-
 #ifdef __cplusplus
 extern          "C" {
 #endif
@@ -24,7 +20,7 @@ extern          "C" {
 
 
     /*
-     * General macros and constants.
+     * General acros and constants.
      */
 #ifdef WIN32
 #  define SNMP_MAXPATH MAX_PATH
@@ -232,18 +228,11 @@ extern          "C" {
                                            size_t * out_len,
                                            int allow_realloc,
                                            const char *decimal);
+#define snmp_cstrcat(b,l,o,a,s) snmp_strcat(b,l,o,a,(const u_char *)s)
     NETSNMP_IMPORT
     int             snmp_strcat(u_char ** buf, size_t * buf_len,
                                 size_t * out_len, int allow_realloc,
                                 const u_char * s);
-    NETSNMP_STATIC_INLINE
-    int
-    snmp_cstrcat(u_char **buf, size_t *buf_len, size_t *out_len,
-                 int allow_realloc, const char *s)
-    {
-        return snmp_strcat(buf, buf_len, out_len, allow_realloc,
-                           (const u_char *)s);
-    }
     NETSNMP_IMPORT
     char           *netsnmp_strdup_and_null(const u_char * from,
                                             size_t from_len);

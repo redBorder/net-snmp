@@ -4,7 +4,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -103,7 +103,7 @@ netsnmp_feature_child_of(usm_scapi, usm_support);
 #endif
 #endif
 
-#endif /* NETSNMP_FEATURE_REMOVE_USM_SCAPI */
+#endif /* HAVE_OPENSSL */
 
 #ifdef NETSNMP_USE_INTERNAL_CRYPTO
 #endif
@@ -409,7 +409,7 @@ sc_get_proper_auth_length_bytype(int hashtype)
  * 
  * Given a type, return the OID and optionally set OID length.
  */
-const oid *
+oid *
 sc_get_auth_oid(int type, size_t *oid_len)
 {
     const netsnmp_auth_alg_info *ai;
@@ -450,7 +450,7 @@ sc_get_auth_name(int type)
  * 
  * Given a type, return the OID and optionally set OID length.
  */
-const oid *
+oid *
 sc_get_priv_oid(int type, size_t *oid_len)
 {
     const netsnmp_priv_alg_info *ai;
@@ -1001,9 +1001,7 @@ sc_hash_type_quit:
         if (*MAC_len < MD5_DIGEST_LENGTH)
             return (SNMPERR_GENERR);      /* the buffer isn't big enough */
         MD5_Init(&cmd5);
-        ret = !MD5_Update(&cmd5, buf, buf_len);
-        if (ret != 0)
-            return SNMPERR_GENERR;
+        MD5_Update(&cmd5, buf, buf_len);
         MD5_Final(MAC, &cmd5);
         *MAC_len = MD5_DIGEST_LENGTH;
     } else 
@@ -1012,9 +1010,7 @@ sc_hash_type_quit:
         if (*MAC_len < SHA_DIGEST_LENGTH)
             return (SNMPERR_GENERR);      /* the buffer isn't big enough */
         SHA1_Init(&csha1);
-        ret = !SHA1_Update(&csha1, buf, buf_len);
-        if (ret != 0)
-            return SNMPERR_GENERR;
+        SHA1_Update(&csha1, buf, buf_len);
         SHA1_Final(MAC, &csha1);
         *MAC_len = SHA_DIGEST_LENGTH;
             
@@ -1652,7 +1648,7 @@ sc_decrypt(const oid * privtype, size_t privtypelen,
  */
 
 /*
- * MD5_hmac(data, len, MD5): do a checksum on an arbitrary amount
+ * MD5_hmac(data, len, MD5): do a checksum on an arbirtrary amount
  * of data, and prepended with a secret in the standard fashion 
  */
 static int
@@ -1706,7 +1702,7 @@ MD5_hmac(const u_char * data, size_t len, u_char * mac, size_t maclen,
     if (((uintptr_t) data) % sizeof(long) != 0) {
         /*
          * this relies on the ability to use integer math and thus we
-         * must rely on data that aligns on 32-bit-word-boundaries 
+         * must rely on data that aligns on 32-bit-word-boundries 
          */
         newdata = netsnmp_memdup(data, len);
         cp = newdata;
@@ -1806,7 +1802,7 @@ SHA1_hmac(const u_char * data, size_t len, u_char * mac, size_t maclen,
     if (((uintptr_t) data) % sizeof(long) != 0) {
         /*
          * this relies on the ability to use integer math and thus we
-         * must rely on data that aligns on 32-bit-word-boundaries 
+         * must rely on data that aligns on 32-bit-word-boundries 
          */
         newdata = netsnmp_memdup(data, len);
         cp = newdata;

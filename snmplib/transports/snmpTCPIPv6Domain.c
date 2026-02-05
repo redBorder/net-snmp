@@ -41,7 +41,6 @@
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
 
-#include <net-snmp/library/snmp.h>
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/snmpSocketBaseDomain.h>
 #include <net-snmp/library/snmpTCPBaseDomain.h>
@@ -53,7 +52,7 @@
 
 #include "inet_ntop.h"
 
-const oid netsnmp_TCPIPv6Domain[] = { TRANSPORT_DOMAIN_TCP_IPV6 };
+oid netsnmp_TCPIPv6Domain[] = { TRANSPORT_DOMAIN_TCP_IPV6 };
 static netsnmp_tdomain tcp6Domain;
 
 /*
@@ -175,7 +174,7 @@ netsnmp_tcp6_transport(const struct netsnmp_ep *ep, int local)
     memcpy(t->data, addr, sizeof(struct sockaddr_in6));
 
     t->domain = netsnmp_TCPIPv6Domain;
-    t->domain_length = OID_LENGTH(netsnmp_TCPIPv6Domain);
+    t->domain_length = sizeof(netsnmp_TCPIPv6Domain) / sizeof(oid);
 
 #ifndef NETSNMP_NO_SYSTEMD
     /*
@@ -195,23 +194,12 @@ netsnmp_tcp6_transport(const struct netsnmp_ep *ep, int local)
 
     t->flags = NETSNMP_TRANSPORT_FLAG_STREAM;
 
-    /* for Linux VRF Traps we try to bind the iface if clientaddr is not set */
-    if (local == 0 && ep) {
-        rc = netsnmp_bindtodevice(t->sock, ep->iface);
-        if (rc)
-            DEBUGMSGTL(("netsnmp_tcp", "VRF: Could not bind socket %d to %s\n",
-                t->sock, ep->iface));
-        else
-            DEBUGMSGTL(("netsnmp_tcp", "VRF: Bound socket %d to %s\n",
-                t->sock, ep->iface));
-    }
-
     if (local) {
 #ifndef NETSNMP_NO_LISTEN_SUPPORT
         int opt = 1;
 
         /*
-         * This session is intended as a server, so we must bind on to the
+         * This session is inteneded as a server, so we must bind on to the
          * given IP address, which may include an interface address, or could
          * be INADDR_ANY, but certainly includes a port number.
          */
@@ -364,14 +352,10 @@ void
 netsnmp_tcpipv6_ctor(void)
 {
     tcp6Domain.name = netsnmp_TCPIPv6Domain;
-    tcp6Domain.name_length = OID_LENGTH(netsnmp_TCPIPv6Domain);
+    tcp6Domain.name_length = sizeof(netsnmp_TCPIPv6Domain) / sizeof(oid);
     tcp6Domain.f_create_from_tstring_new = netsnmp_tcp6_create_tstring;
     tcp6Domain.f_create_from_ostring     = netsnmp_tcp6_create_ostring;
-    tcp6Domain.prefix = calloc(4, sizeof(char *));
-    if (!tcp6Domain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    tcp6Domain.prefix = (const char**)calloc(4, sizeof(char *));
     tcp6Domain.prefix[0] = "tcp6";
     tcp6Domain.prefix[1] = "tcpv6";
     tcp6Domain.prefix[2] = "tcpipv6";

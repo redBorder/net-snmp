@@ -314,7 +314,7 @@ optProc(int argc, char *const *argv, int opt)
         break;                  /* End of '-Cx' switch */
 
         /*
-         *  Backward compatibility for the main display modes
+         *  Backward compatability for the main display modes
          *    (where this doesn't clash with standard SNMP flags)
          */
     case 'i':
@@ -472,7 +472,9 @@ main(int argc, char *argv[])
         case AF_INET:
             for (tp = protox; tp->pr_name; tp++)
                 printproto(tp, tp->pr_name);
-            NETSNMP_FALLTHROUGH;
+            /*
+             * FALL THROUGH
+             */
         case AF_INET6:
             for (tp = ip6protox; tp->pr_name; tp++)
                 printproto(tp, tp->pr_name);

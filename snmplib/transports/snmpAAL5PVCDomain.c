@@ -27,12 +27,11 @@
 #include <net-snmp/output_api.h>
 #include <net-snmp/config_api.h>
 
-#include <net-snmp/library/snmp.h>
 #include <net-snmp/library/snmp_transport.h>
 #include <net-snmp/library/tools.h>
 
 
-const oid netsnmp_AAL5PVCDomain[10] = { NETSNMP_ENTERPRISE_MIB, 3, 3, 3 };
+oid netsnmp_AAL5PVCDomain[10] = { NETSNMP_ENTERPRISE_MIB, 3, 3, 3 };
 static netsnmp_tdomain aal5pvcDomain;
 
 
@@ -229,7 +228,7 @@ netsnmp_aal5pvc_transport(const struct sockaddr_atmpvc *addr, int local)
          * Set up the QOS parameters.
          */
 
-        struct atm_qos qos = { };
+        struct atm_qos qos = { 0 };
         qos.aal = ATM_AAL5;
         qos.rxtp.traffic_class = ATM_UBR;
         qos.rxtp.max_sdu = SNMP_MAX_LEN;    /*  Hmm -- this is a bit small?  */
@@ -370,12 +369,8 @@ void
 netsnmp_aal5pvc_ctor(void)
 {
     aal5pvcDomain.name = netsnmp_AAL5PVCDomain;
-    aal5pvcDomain.name_length = OID_LENGTH(netsnmp_AAL5PVCDomain);
-    aal5pvcDomain.prefix = calloc(3, sizeof(char *));
-    if (!aal5pvcDomain.prefix) {
-        snmp_log(LOG_ERR, "calloc() failed - out of memory\n");
-        return;
-    }
+    aal5pvcDomain.name_length = sizeof(netsnmp_AAL5PVCDomain) / sizeof(oid);
+    aal5pvcDomain.prefix = (const char**)calloc(3, sizeof(char *));
     aal5pvcDomain.prefix[0] = "aal5pvc";
     aal5pvcDomain.prefix[1] = "pvc";
 

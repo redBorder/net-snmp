@@ -36,7 +36,7 @@ handle_ipv6IpDefaultHopLimit(netsnmp_mib_handler *handler,
                              netsnmp_agent_request_info *reqinfo,
                              netsnmp_request_info *requests);
 
-static uint32_t ipAddressSpinLockValue;
+static int ipAddressSpinLockValue;
 
 static int
 handle_ipAddressSpinLock(netsnmp_mib_handler *handler,
@@ -87,7 +87,7 @@ init_ip_scalars(void)
                              HANDLER_CAN_RWRITE));
 
     /* Initialize spin lock with random value */
-    ipAddressSpinLockValue = netsnmp_random() & INT32_MAX;
+    ipAddressSpinLockValue = netsnmp_random();
 
 }
 
@@ -447,7 +447,7 @@ handle_ipAddressSpinLock(netsnmp_mib_handler *handler,
             } else {
                 ipAddressSpinLockValue++;
                 /* and check it for overflow */
-                if (ipAddressSpinLockValue > INT32_MAX)
+                if (ipAddressSpinLockValue > 2147483647 || ipAddressSpinLockValue < 0)
                     ipAddressSpinLockValue = 0;
             }
             break;

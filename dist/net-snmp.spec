@@ -37,7 +37,7 @@
 %endif
 Summary: Tools and services for the SNMP protocol
 Name: net-snmp
-Version: 5.10.pre2
+Version: 5.9.5.2
 # update release for vendor release. (eg 1.fc6, 1.rh72, 1.ydl3, 1.ydl23)
 Release: 1
 URL: http://www.net-snmp.org/
@@ -57,7 +57,6 @@ BuildRequires: bzip2
 BuildRequires: gcc
 BuildRequires: perl
 BuildRequires: rpm-devel
-BuildRequires: libnl3-devel
 %if 0%{?netsnmp_embedded_perl}
 Requires: perl
 BuildRequires: perl(ExtUtils::Embed)

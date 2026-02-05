@@ -37,7 +37,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ******************************************************************/
 /*
- * portions Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * portions Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -68,11 +68,11 @@ SOFTWARE.
     /*
      * structure of a directory entry 
      */
-    typedef struct dirent {
+    typedef struct direct {
         long            d_ino;  /* inode number (not used by MS-DOS) */
         int             d_namlen;       /* Name length */
         char            d_name[257];    /* file name */
-    } _DIRENT;
+    } _DIRECT;
 
     /*
      * structure for dir operations 
@@ -82,13 +82,13 @@ SOFTWARE.
         char           *curr;   /* Current position */
         long            size;   /* Size of string table */
         long            nfiles; /* number if filenames in table */
-        struct dirent   dirstr; /* Directory structure to return */
+        struct direct   dirstr; /* Directory structure to return */
     } DIR;
 
     NETSNMP_IMPORT
     DIR            *opendir(const char *filename);
     NETSNMP_IMPORT
-    struct dirent  *readdir(DIR * dirp);
+    struct direct  *readdir(DIR * dirp);
     NETSNMP_IMPORT
     int             closedir(DIR * dirp);
 #endif /* HAVE_READDIR */

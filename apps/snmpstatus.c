@@ -68,31 +68,31 @@ SOFTWARE.
 #include <net-snmp/net-snmp-includes.h>
 
 oid             objid_sysDescr[] = { 1, 3, 6, 1, 2, 1, 1, 1, 0 };
-size_t          length_sysDescr = OID_LENGTH(objid_sysDescr);
+size_t          length_sysDescr = sizeof(objid_sysDescr) / sizeof(oid);
 oid             objid_sysUpTime[] = { 1, 3, 6, 1, 2, 1, 1, 3, 0 };
-size_t          length_sysUpTime = OID_LENGTH(objid_sysUpTime);
+size_t          length_sysUpTime = sizeof(objid_sysUpTime) / sizeof(oid);
 oid             objid_ifOperStatus[] = { 1, 3, 6, 1, 2, 1, 2, 2, 1, 8 };
 size_t          length_ifOperStatus =
-    OID_LENGTH(objid_ifOperStatus);
+    sizeof(objid_ifOperStatus) / sizeof(oid);
 oid             objid_ifInUCastPkts[] = { 1, 3, 6, 1, 2, 1, 2, 2, 1, 11 };
 size_t          length_ifInUCastPkts =
-    OID_LENGTH(objid_ifInUCastPkts);
+    sizeof(objid_ifInUCastPkts) / sizeof(oid);
 oid             objid_ifInNUCastPkts[] = { 1, 3, 6, 1, 2, 1, 2, 2, 1, 12 };
 size_t          length_ifInNUCastPkts =
-    OID_LENGTH(objid_ifInNUCastPkts);
+    sizeof(objid_ifInNUCastPkts) / sizeof(oid);
 oid             objid_ifOutUCastPkts[] = { 1, 3, 6, 1, 2, 1, 2, 2, 1, 17 };
 size_t          length_ifOutUCastPkts =
-    OID_LENGTH(objid_ifOutUCastPkts);
+    sizeof(objid_ifOutUCastPkts) / sizeof(oid);
 oid             objid_ifOutNUCastPkts[] =
     { 1, 3, 6, 1, 2, 1, 2, 2, 1, 18 };
 size_t          length_ifOutNUCastPkts =
-    OID_LENGTH(objid_ifOutNUCastPkts);
+    sizeof(objid_ifOutNUCastPkts) / sizeof(oid);
 oid             objid_ipInReceives[] = { 1, 3, 6, 1, 2, 1, 4, 3, 0 };
 size_t          length_ipInReceives =
-    OID_LENGTH(objid_ipInReceives);
+    sizeof(objid_ipInReceives) / sizeof(oid);
 oid             objid_ipOutRequests[] = { 1, 3, 6, 1, 2, 1, 4, 10, 0 };
 size_t          length_ipOutRequests =
-    OID_LENGTH(objid_ipOutRequests);
+    sizeof(objid_ipOutRequests) / sizeof(oid);
 
 #define NETSNMP_DS_APP_DONT_FIX_PDUS 0
 

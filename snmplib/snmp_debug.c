@@ -265,7 +265,7 @@ debug_enable_token_logs (const char *token) {
 }
 
 /*
- * Disable logs on a given token
+ * Diable logs on a given token
  */
 int
 debug_disable_token_logs (const char *token) {
@@ -553,18 +553,6 @@ snmp_get_do_debugging(void)
 }
 
 void
-snmp_set_do_debugoutputall(int val)
-{
-    debug_print_everything = val;
-}
-
-int
-snmp_get_do_debugoutputall(void)
-{
-    return debug_print_everything;
-}
-
-void
 snmp_debug_shutdown(void)
 {
     int i;
@@ -686,16 +674,6 @@ snmp_set_do_debugging(int val)
 
 int
 snmp_get_do_debugging(void)
-{
-    return 0;
-}
-
-void
-snmp_set_do_debugoutputall(int val)
-{ }
-
-int
-snmp_get_do_debugoutputall(void)
 {
     return 0;
 }

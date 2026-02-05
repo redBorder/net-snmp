@@ -262,7 +262,7 @@ init_vmstat_dynix(void)
  * Data collection function take_snapshot starts here 
  */
 /*
- * Get data from kernel and save into the snapshot structs 
+ * Get data from kernel and save into the snapshot strutcs 
  */
 /*
  * Argument is the snapshot struct to save to. Global anyway, but looks nicer 

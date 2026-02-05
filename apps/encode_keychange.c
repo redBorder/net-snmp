@@ -171,7 +171,7 @@ main(int argc, char **argv)
             break;
         case 'h':
             rval = 0;
-	    NETSNMP_FALLTHROUGH;
+	    /* fallthrough */
         default:
             usage_to_file(stdout);
             exit(rval);
@@ -541,7 +541,7 @@ get_user_passphrases(void)
         len = strlen(buf);
         if (len && buf[len - 1] == '\n')
             buf[--len] = '\0';
-        oldpass = calloc(1, len + 1);
+        oldpass = (char *) calloc(1, len + 1);
         if (oldpass)
             memcpy(oldpass, buf, len + 1);
     }
@@ -557,7 +557,7 @@ get_user_passphrases(void)
         len = strlen(buf);
         if (len && buf[len - 1] == '\n')
             buf[--len] = '\0';
-        newpass = calloc(1, len + 1);
+        newpass = (char *) calloc(1, len + 1);
         if (newpass)
             memcpy(newpass, buf, len + 1);
     }
@@ -749,7 +749,7 @@ snmp_getpassphrase(const char *prompt, int bvisible)
     if (len && buffer[len - 1] == '\n')
         buffer[--len] = '\0';
 
-    bufp = calloc(1, len + 1);
+    bufp = (char *) calloc(1, len + 1);
     if (bufp)
         memcpy(bufp, buffer, len + 1);
 

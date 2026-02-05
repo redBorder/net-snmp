@@ -299,7 +299,7 @@ input_variable(netsnmp_variable_list * vp)
     printf("Variable: ");
     fflush(stdout);
     if (!fgets(buf, sizeof(buf), stdin)) {
-        printf("Quitting,  Goodbye\n");
+        printf("Quitting,  Goobye\n");
         SOCK_CLEANUP;
         exit(0);
     }

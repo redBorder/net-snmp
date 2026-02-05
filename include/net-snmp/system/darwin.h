@@ -19,7 +19,10 @@
  * use new host resources files as well
  */
 #define NETSNMP_INCLUDE_HOST_RESOURCES
+#define NETSNMP_INCLUDE_HRSWINST_REWRITES
+#define NETSNMP_INCLUDE_HRSWRUN_REWRITES
 #undef NETSNMP_INCLUDE_HRSWRUN_WRITE_SUPPORT
+#define NETSNMP_CAN_GET_DISK_LABEL 1
 
 /*
  * Enabling this restricts the compiler to mostly public APIs.
@@ -52,6 +55,11 @@
  * VM statistics API.
  */
 #define USE_MACH_HOST_STATISTICS 1
+
+/*
+ * utility macro used in several darwin specific files
+ */
+#define SNMP_CFRelease(x) do { if (x) { CFRelease(x); x = NULL; } } while(0)
 
 /*
  * Mac OS X runs on both PPC and Intel hardware,

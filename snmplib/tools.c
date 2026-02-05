@@ -7,6 +7,8 @@
  * distributed with the Net-SNMP package.
  */
 
+#define NETSNMP_TOOLS_C 1 /* dont re-define malloc wrappers here */
+
 #ifdef HAVE_CRTDBG_H
 /*
  * Define _CRTDBG_MAP_ALLOC such that in debug builds (when _DEBUG has been
@@ -175,9 +177,9 @@ snmp_realloc(u_char ** buf, size_t * buf_len)
     }
 
     if (*buf == NULL) {
-        new_buf = malloc(new_buf_len);
+        new_buf = (u_char *) malloc(new_buf_len);
     } else {
-        new_buf = realloc(*buf, new_buf_len);
+        new_buf = (u_char *) realloc(*buf, new_buf_len);
     }
 
     if (new_buf != NULL) {
@@ -235,7 +237,7 @@ free_zero(void *buf, size_t size)
 
 #ifndef NETSNMP_FEATURE_REMOVE_USM_SCAPI
 /**
- * Returns pointer to allocated & set buffer on success, size contains
+ * Returns pointer to allocaed & set buffer on success, size contains
  * number of random bytes filled.  buf is NULL and *size set to KMT
  * error value upon failure.
  *
@@ -248,7 +250,7 @@ u_char         *
 malloc_random(size_t * size)
 {
     int             rval = SNMPERR_SUCCESS;
-    u_char         *buf = calloc(1, *size);
+    u_char         *buf = (u_char *) calloc(1, *size);
 
     if (buf) {
         rval = sc_random(buf, size);
@@ -293,7 +295,7 @@ void *netsnmp_memdup(const void *from, size_t size)
  * NOTE: the returned size DOES NOT include the extra byte for the NULL
  *       termination, just the raw data (i.e. from_size).
  *
- * This is mainly to protect against code that uses str* functions on
+ * This is mainly to protect agains code that uses str* functions on
  * a fixed buffer that may not have a terminating NULL.
  *
  * @param[in] from Pointer to copy memory from.
@@ -327,7 +329,7 @@ void *netsnmp_memdup_nt(const void *from, size_t from_size, size_t *to_size)
  * find the cause of undefined value errors if --track-origins=yes is not
  * sufficient. Does nothing when not running under Valgrind.
  *
- * Note: this requires a fairly recent Valgrind.
+ * Note: this requires a fairly recent valgrind.
  */
 void
 netsnmp_check_definedness(const void *packet, size_t length)
@@ -545,7 +547,7 @@ snmp_decimal_to_binary(u_char ** buf, size_t * buf_len, size_t * out_len,
  *
  * @param buf     address of a pointer (pointer to pointer) for the output buffer.
  *                If allow_realloc is set, the buffer may be grown via snmp_realloc
- *                to accommodate the data.
+ *                to accomodate the data.
  *
  * @param buf_len pointer to a size_t containing the initial size of buf.
  *
@@ -595,7 +597,7 @@ netsnmp_hex_to_binary(u_char ** buf, size_t * buf_len, size_t * offset,
             return 0;
         }
         /*
-         * if we don't have enough space, realloc.
+         * if we dont' have enough space, realloc.
          * (snmp_realloc will adjust buf_len to new size)
          */
         if ((*offset >= *buf_len) &&
@@ -855,7 +857,7 @@ dump_snmpEngineID(const u_char * estring, size_t * estring_len)
                                  */
         gotviolation = 1;
         s += sprintf(s, "!!! ");
-        NETSNMP_FALLTHROUGH;
+        /* FALLTHROUGH */
 
     default:                   /* Unknown encoding. */
 
@@ -916,7 +918,7 @@ dump_snmpEngineID(const u_char * estring, size_t * estring_len)
 marker_t
 atime_newMarker(void)
 {
-    marker_t        pm = calloc(1, sizeof(struct timeval));
+    marker_t        pm = (marker_t) calloc(1, sizeof(struct timeval));
     gettimeofday((struct timeval *) pm, NULL);
     return pm;
 }

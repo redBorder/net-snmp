@@ -72,8 +72,4 @@ snmp_free_pdu(pdu);
 OKF((rc == SNMPERR_SUCCESS),
     ("Building an INFORM PDU/packet should have succeed: %d", rc));
 
-free(packet);
-netsnmp_cleanup_session(&session);
-snmp_shutdown("testing");
-
 SOCK_CLEANUP;

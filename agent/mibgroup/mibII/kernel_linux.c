@@ -195,7 +195,7 @@ decode_icmp_msg(char *line, char *data, struct icmp4_msg_mib *msg)
         return -1;
 
     /*
-     * Since we are using strtok, there is a possibility of the original data
+     * Since we are using strtok, there is a possiblity of the orginal data
      * getting modified. So we take a local copy for this purpose even though
      * its expensive.
      */
@@ -438,6 +438,9 @@ linux_read_icmp_msg_stat(struct icmp_mib *icmpstat,
 
     if ((ret = linux_read_mibII_stats()) == -1) {
         return -1;
+    } else if (ret) {
+       memcpy(icmpmsgstat, &cached_icmp4_msg_mib, sizeof(*icmpmsgstat));
+       *flag = 1; /* We have a valid icmpmsg */
     }
 
     memcpy(icmpstat, &cached_icmp_mib, sizeof(*icmpstat));

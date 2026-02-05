@@ -5,6 +5,7 @@
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
+#undef NETSNMP_USE_ASSERT
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
@@ -408,7 +409,8 @@ _parse_storage_type(const char *arg)
     return;
 }
 
- __attribute__((noreturn)) static void usage(void)
+void
+usage(void)
 {
     fprintf(stderr, "USAGE: snmptls [-Cm mapTypeOID] [-Cd data] [-Cs storageType] ");
     snmp_parse_args_usage(stderr);

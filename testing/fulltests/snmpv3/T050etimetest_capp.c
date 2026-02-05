@@ -125,7 +125,7 @@ main(int argc, char **argv)
             break;
         case 'h':
             rval = 0;
-            NETSNMP_FALLTHROUGH;
+            /* fall through */
         default:
             usage(stdout);
             exit(rval);
@@ -165,7 +165,6 @@ main(int argc, char **argv)
         failcount += test_etime();
     }
 
-    snmp_shutdown("testing");
 
     fprintf(stdout, "1..%d\n", testcount);
     return 0;

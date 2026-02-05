@@ -330,7 +330,7 @@ ipIfStatsTable_container_load(netsnmp_container * container)
 
     /*
      * we just got a fresh copy of data. compare it to
-     * what we've already got, and make any adjustments...
+     * what we've already got, and make any adjustements...
      */
     CONTAINER_FOR_EACH(container, _check_for_updates, stats);
 

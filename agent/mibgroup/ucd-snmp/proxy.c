@@ -179,7 +179,7 @@ proxy_parse_config(const char *token, char *line)
         goto cleanup_session;
     }
 
-    newp = calloc(1, sizeof(struct simple_proxy));
+    newp = (struct simple_proxy *) calloc(1, sizeof(struct simple_proxy));
 
     newp->sess = ss;
     DEBUGMSGTL(("proxy_init", "name = %s\n", argv[arg]));
@@ -563,6 +563,17 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
     }
 
     switch (operation) {
+    case NETSNMP_CALLBACK_OP_RESEND:
+         /*
+         * Issue#147: Net-SNMP not responding when proxy requests times out
+         *
+         * When snmp_api issue a resend, the default case was hit and the 
+         * delagated cache was freed.
+         * As a result, the NETSNMP_CALLBACK_OP_TIMED_OUT never came in.
+         */
+        DEBUGMSGTL(("proxy", "pdu has been resent for request = %8p\n", requests));
+        return SNMP_ERR_NOERROR;
+
     case NETSNMP_CALLBACK_OP_TIMED_OUT:
         /*
          * WWWXXX: don't leave requests delayed if operation is
@@ -579,10 +590,7 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
         }
         netsnmp_free_delegated_cache(cache);
         return 0;
-    case NETSNMP_CALLBACK_OP_RESEND:
-	DEBUGMSGTL(("proxy", "resend on session %8p req=0x%x\n",
-                    sess, (unsigned)reqid));
-        return 0;
+
     case NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE:
         vars = pdu->variables;
 
@@ -593,7 +601,7 @@ proxy_got_response(int operation, netsnmp_session * sess, int reqid,
              *
              * 2005/06 rks: actually, it doesn't do the right thing for
              * a get-next request that returns NOSUCHNAME. If we do nothing,
-             * it passes that error back to the command initiator. What it should
+             * it passes that error back to the comman initiator. What it should
              * do is ignore the error and move on to the next tree. To
              * accomplish that, all we need to do is clear the delegated flag.
              * Not sure if any other error codes need the same treatment. Left

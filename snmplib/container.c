@@ -22,9 +22,6 @@
 #include <net-snmp/library/container_null.h>
 #include "factory.h"
 
-#ifdef HAVE_MALLOC_H
-#include <malloc.h>
-#endif
 #include <stdint.h>
 
 netsnmp_feature_child_of(container_all, libnetsnmp);
@@ -84,7 +81,7 @@ netsnmp_container_init_list(void)
         return;
 
     /*
-     * create a binary array container to hold container
+     * create a binary arry container to hold container
      * factories
      */
     containers = netsnmp_container_get_binary_array();
@@ -509,9 +506,6 @@ void CONTAINER_CLEAR(netsnmp_container *x, netsnmp_container_obj_func *f,
         x = x->prev;
     }
     x->clear(x, f, c);
-#ifdef HAVE_MALLOC_TRIM
-    malloc_trim(0);
-#endif
 }
 
 #ifndef NETSNMP_FEATURE_REMOVE_CONTAINER_FREE_ALL
@@ -661,7 +655,7 @@ netsnmp_ncompare_cstring(const void *lhs_arg, const void *rhs_arg)
 int
 netsnmp_compare_direct_cstring(const void * lhs, const void * rhs)
 {
-    return strcmp(lhs, rhs);
+    return strcmp((const char*)lhs, (const char*)rhs);
 }
 
 /*
@@ -679,7 +673,14 @@ netsnmp_compare_mem(const char * lhs, size_t lhs_len,
     int rc, min = SNMP_MIN(lhs_len, rhs_len);
 
     rc = memcmp(lhs, rhs, min);
-    return rc ? rc : lhs_len - rhs_len;
+    if((rc==0) && (lhs_len != rhs_len)) {
+        if(lhs_len < rhs_len)
+            rc = -1;
+        else
+            rc = 1;
+    }
+
+    return rc;
 }
 #endif /* NETSNMP_FEATURE_REMOVE_CONTAINER_COMPARE_MEM */
 
