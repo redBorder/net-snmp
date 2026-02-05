@@ -18,23 +18,28 @@ PARSEOBJS	=
 CPPFLAGS	= $(SNMPLIB_INCLUDES) @CPPFLAGS@
 CC		= @CC@ $(CPPFLAGS)
 
-all:
+help:
 	@echo "Select one of the following targets to run:"
 	@echo ""
 	@echo "  make test        -- default test suites"
 	@echo "  make testall     -- Run all available tests"
 	@echo "  make testfailed  -- Run only the tests that failed last time."
 	@echo "  make testsimple  -- Run tests directly with simple_run"
+	@echo "  make fuzz-tests  -- Run fuzzing related tests"
 	@echo ""
 	@echo "Set additional test parameters with TESTOPTS=args"
 	@echo ""
 	@echo "Also see the RUNFULLTESTS script for details"
 
+fuzz-tests:
+	(cd fuzzing && ./build.sh)
+
 test:
+	@$(srcdir)/check_for_pskill
 	@if test "x$(PERL)" = "x" \
 	         -o "x@PERL_SYSTEM_INVOKES_POSIX_SHELL@" != xyes \
 		 || { ! $(PERL) -e 'require TAP::Harness;' >/dev/null 2>&1 \
-		    && ! $(PERL) -e 'require Test::Harness;' >/dev/null 2>&1; };\
+		    && ! $(PERL) -e 'require Test::Harness; die if $$Test::Harness::VERSION < 1.21;' >/dev/null 2>&1; };\
 	then \
 		echo $(srcdir)/RUNTESTS ; \
 		$(srcdir)/RUNTESTS ; \
@@ -60,16 +65,16 @@ test-mibs:
 	cd $(srcdir)/rfc1213 ; ./run
 
 etest:    etimetest.o $(PARSEOBJS) $(USELIBS)
-	${CC} -o $@ etimetest.o $(PARSEOBJS) ${LDFLAGS} ${LIBS} 
+	${CC} ${LDFLAGS} -o $@ etimetest.o $(PARSEOBJS) ${LIBS}
 
 ktest:    keymanagetest.o $(PARSEOBJS) $(USELIBS)
-	${CC} -o $@ keymanagetest.o $(PARSEOBJS) ${LDFLAGS} ${LIBS} 
+	${CC} ${LDFLAGS} -o $@ keymanagetest.o $(PARSEOBJS) ${LIBS}
 
 misctest:    misctest.o $(PARSEOBJS) $(USELIBS)
-	${CC} -o $@ misctest.o $(PARSEOBJS) ${LDFLAGS} ${LIBS} 
+	${CC} ${LDFLAGS} -o $@ misctest.o $(PARSEOBJS) ${LIBS}
 
 stest:    scapitest.o $(PARSEOBJS) $(USELIBS)
-	${CC} -o $@ scapitest.o $(PARSEOBJS) ${LDFLAGS} ${LIBS} 
+	${CC} ${LDFLAGS} -o $@ scapitest.o $(PARSEOBJS) ${LIBS}
 
 clean: testclean
 	rm -f *.o core *.core $(TARG)

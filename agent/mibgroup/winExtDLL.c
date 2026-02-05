@@ -2,7 +2,7 @@
  * @brief winExtDLL Net-SNMP agent extension module.
  *
  * Copyright (c) 2006-2009 Alex Burger.
- * Copyright (c) 2009-2010 Bart Van Assche <bart.vanassche@gmail.com>.
+ * Copyright (c) 2009-2021 Bart Van Assche <bart.vanassche@gmail.com>.
  *
  * This Net-SNMP agent extension module loads Windows SNMP Extension Agent
  * DLLs in the Net-SNMP agent. Not only extension DLLs provided with Windows
@@ -84,6 +84,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 #include <net-snmp/agent/mib_module_config.h>
+#include <net-snmp/agent/mib_modules.h>
 
 #ifdef USING_WINEXTDLL_MODULE
 
@@ -94,8 +95,8 @@
 #include <string.h>
 #include <time.h>
 #include <windows.h>
+#include <winerror.h>
 #include "../../win32/Snmp-winExtDLL.h"
-#include "../../win32/MgmtApi-winExtDLL.h"
 
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/library/snmp_assert.h>
@@ -103,7 +104,7 @@
 #include "util_funcs.h"
 #include "winExtDLL.h"
 
-netsnmp_feature_require(oid_is_subtree)
+netsnmp_feature_require(oid_is_subtree);
 
 
 #define MAX_VALUE_NAME          16383
@@ -156,6 +157,9 @@ typedef         BOOL(WINAPI * PFNSNMPEXTENSIONTRAP) (AsnObjectIdentifier *
 
 typedef         VOID(WINAPI * PFNSNMPEXTENSIONCLOSE) (void);
 
+typedef BOOL (WINAPI *pfIsWow64Process)(HANDLE hProcess, BOOL *Wow64Process);
+
+
 /**
  * Extensible array, a data structure similar to the C++ STL class
  * std::vector<>.
@@ -179,6 +183,7 @@ typedef struct {
     HANDLE          dll_handle;                      /**< DLL handle. */
     PFNSNMPEXTENSIONINIT pfSnmpExtensionInit;
     PFNSNMPEXTENSIONINITEX pfSnmpExtensionInitEx;
+    PFNSNMPEXTENSIONCLOSE pfSnmpExtensionClose;
     PFNSNMPEXTENSIONQUERY pfSnmpExtensionQuery;
     PFNSNMPEXTENSIONQUERYEX pfSnmpExtensionQueryEx;
     PFNSNMPEXTENSIONTRAP pfSnmpExtensionTrap;
@@ -286,6 +291,9 @@ static void    *xarray_reserve(xarray * a, int reserved);
 #define WINEXTDLL_VIEW(i)       ((winextdll_view*)s_winextdll_view.p)[i]
 #define TRAPEVENT(i)            ((HANDLE*)s_trapevent.p)[i]
 #define TRAPEVENT_TO_DLLINFO(i) ((winextdll**)s_trapevent_to_dllinfo.p)[i]
+static const oid mibii_system_mib[] = { 1, 3, 6, 1, 2, 1, 1 };
+static const oid lmmib2_mib[] = { 1, 3, 6, 1, 4, 1, 77 };
+static OSVERSIONINFO s_versioninfo = { sizeof(s_versioninfo) };
 static xarray   s_winextdll = { 0, sizeof(winextdll) };
 static xarray   s_winextdll_view = { 0, sizeof(winextdll_view) };
 static xarray   s_trapevent = { 0, sizeof(HANDLE) };
@@ -301,10 +309,19 @@ static context_info *context_info_head;
 void
 init_winExtDLL(void)
 {
-    BOOL            result;
+    BOOL            result, is_wow64_process = FALSE;
     int             i;
+    uint32_t        uptime_reference;
+    pfIsWow64Process IsWow64Process;
 
     DEBUGMSG(("winExtDLL", "init_winExtDLL started.\n"));
+
+    GetVersionEx(&s_versioninfo);
+
+    IsWow64Process = (pfIsWow64Process)(uintptr_t)
+	GetProcAddress(GetModuleHandle("kernel32"), "IsWow64Process");
+    if (IsWow64Process)
+        (*IsWow64Process)(GetCurrentProcess(), &is_wow64_process);
 
     SnmpSvcInitUptime();
 
@@ -323,11 +340,29 @@ init_winExtDLL(void)
         winextdll      *const ext_dll_info = &WINEXTDLL(i);
         AsnObjectIdentifier view;
         winextdll_view  ext_dll_view_info;
+        const char *dll_basename, *last_slash, *last_backslash;
 
         netsnmp_assert(ext_dll_info);
         if (!ext_dll_info->dll_name)
             continue;
 
+        last_slash = strrchr(ext_dll_info->dll_name, '/');
+        last_backslash = strrchr(ext_dll_info->dll_name, '\\');
+        if (last_slash && last_backslash)
+            dll_basename = last_slash > last_backslash ? last_slash + 1:
+                last_backslash + 1;
+        else if (last_slash)
+            dll_basename = last_slash + 1;
+        else if (last_backslash)
+            dll_basename = last_backslash + 1;
+        else
+            dll_basename = ext_dll_info->dll_name;
+        DEBUGMSG(("winExtDLL", "dll_basename = %s\n", dll_basename));
+        if (!should_init(dll_basename)) {
+            DEBUGMSG(("winExtDLL", "Skipping DLL %s.\n",
+                      ext_dll_info->dll_name));
+            continue;
+        }
         DEBUGMSG(("winExtDLL", "loading DLL %s.\n",
                   ext_dll_info->dll_name));
         ext_dll_info->dll_handle = LoadLibrary(ext_dll_info->dll_name);
@@ -351,8 +386,7 @@ init_winExtDLL(void)
                     *p = '\0';
             }
             snmp_log(LOG_ERR,
-                     "init_winExtDLL: could not load SNMP extension"
-                     " DLL %s: %s\n",
+                     "init_winExtDLL: could not load SNMP extension DLL %s: %s\n",
                      ext_dll_info->dll_name, lpMsgBuf ? lpMsgBuf : "(?)");
             if (lpMsgBuf)
                 LocalFree(lpMsgBuf);
@@ -362,17 +396,19 @@ init_winExtDLL(void)
         /*
          * Store DLL name and functions in s_extension_dll_info array. 
          */
-        ext_dll_info->pfSnmpExtensionInit = (PFNSNMPEXTENSIONINIT)
+        ext_dll_info->pfSnmpExtensionInit = (PFNSNMPEXTENSIONINIT)(uintptr_t)
             GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionInit");
-        ext_dll_info->pfSnmpExtensionInitEx = (PFNSNMPEXTENSIONINITEX)
-            GetProcAddress(ext_dll_info->dll_handle,
-                           "SnmpExtensionInitEx");
-        ext_dll_info->pfSnmpExtensionQuery = (PFNSNMPEXTENSIONQUERY)
+        ext_dll_info->pfSnmpExtensionInitEx =
+	    (PFNSNMPEXTENSIONINITEX)(uintptr_t)
+            GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionInitEx");
+        ext_dll_info->pfSnmpExtensionClose = (PFNSNMPEXTENSIONCLOSE)
+            GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionClose");
+        ext_dll_info->pfSnmpExtensionQuery = (PFNSNMPEXTENSIONQUERY)(uintptr_t)
             GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionQuery");
-        ext_dll_info->pfSnmpExtensionQueryEx = (PFNSNMPEXTENSIONQUERYEX)
-            GetProcAddress(ext_dll_info->dll_handle,
-                           "SnmpExtensionQueryEx");
-        ext_dll_info->pfSnmpExtensionTrap = (PFNSNMPEXTENSIONTRAP)
+        ext_dll_info->pfSnmpExtensionQueryEx =
+	    (PFNSNMPEXTENSIONQUERYEX)(uintptr_t)
+            GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionQueryEx");
+        ext_dll_info->pfSnmpExtensionTrap = (PFNSNMPEXTENSIONTRAP)(uintptr_t)
             GetProcAddress(ext_dll_info->dll_handle, "SnmpExtensionTrap");
 
 
@@ -387,27 +423,26 @@ init_winExtDLL(void)
          * Init and get first supported view from Windows SNMP extension DLL.
          * Note: although according to the documentation of SnmpExtensionInit()
          * the first argument of this function should be ignored by extension
-         * DLLs, passing the value GetTickCount() / 10 is necessary to make
-         * inetmib1.dll work correctly. Passing zero as the first argument
-         * causes inetmib1.dll to report an incorrect value for sysUpTime.0
-         * and also causes the same DLL not to send linkUp or linkDown traps.
+         * DLLs, passing a correct value for this first argument is necessary
+         * to make inetmib1.dll work correctly. Passing zero as the first
+         * argument causes inetmib1.dll to report an incorrect value for
+         * sysUpTime.0 and also causes the same DLL not to send linkUp or
+         * linkDown traps.
          */
         ext_dll_info->subagentTrapEvent = NULL;
         view.idLength = 0;
-        view.ids = 0;
+        view.ids = NULL;
+        if (!is_wow64_process && s_versioninfo.dwMajorVersion >= 6)
+            uptime_reference = GetTickCount() - 10 * SnmpSvcGetUptime();
+        else
+            uptime_reference = GetTickCount() / 10;
         result =
-            ext_dll_info->pfSnmpExtensionInit(GetTickCount() / 10,
+            ext_dll_info->pfSnmpExtensionInit(uptime_reference,
                                               &ext_dll_info->
                                               subagentTrapEvent, &view);
-
-        if (!result) {
-            snmp_log(LOG_ERR,
-                     "init_winExtDLL: initialization of DLL %s failed.\n",
-                     ext_dll_info->dll_name);
-            FreeLibrary(ext_dll_info->dll_handle);
-            ext_dll_info->dll_handle = 0;
-            continue;
-        }
+        DEBUGMSG(("winExtDLL",
+                  "init_winExtDLL: DLL %s initialization result %d\n",
+                  ext_dll_info->dll_name, result));
 
         if (ext_dll_info->subagentTrapEvent != NULL) {
             xarray_push_back(&s_trapevent,
@@ -417,15 +452,24 @@ init_winExtDLL(void)
 
         memset(&ext_dll_view_info, 0, sizeof(ext_dll_view_info));
         ext_dll_view_info.winextdll_info = ext_dll_info;
-        copy_oid_n_w(ext_dll_view_info.name, &ext_dll_view_info.name_length,
-                     view.ids, view.idLength);
-        xarray_push_back(&s_winextdll_view, &ext_dll_view_info);
+        DEBUGMSG(("winExtDLL",
+                  "init_winExtDLL: DLL %s view length %d\n",
+                  ext_dll_info->dll_name, view.idLength));
+        if (view.idLength) {
+            copy_oid_n_w(ext_dll_view_info.name,
+                         &ext_dll_view_info.name_length,
+                         view.ids, view.idLength);
+            xarray_push_back(&s_winextdll_view, &ext_dll_view_info);
+        }
 
         /*
          * Loop looking for more supported views. 
          */
         while (ext_dll_info->pfSnmpExtensionInitEx
                && ext_dll_info->pfSnmpExtensionInitEx(&view)) {
+            DEBUGMSG(("winExtDLL",
+                      "init_winExtDLL: DLL %s view length %d\n",
+                      ext_dll_info->dll_name, view.idLength));
             memset(&ext_dll_view_info, 0, sizeof(ext_dll_view_info));
             ext_dll_view_info.winextdll_info = ext_dll_info;
             copy_oid_n_w(ext_dll_view_info.name,
@@ -485,16 +529,22 @@ shutdown_winExtDLL(void)
 
     for (i = s_winextdll.size - 1; i >= 0; i--) {
         winextdll      *const ext_dll_info = &WINEXTDLL(i);
-        /*
-         * Freeing the Broadcom SNMP extension libraries triggers a deadlock,
-         * so skip bcmif.dll and baspmgnt.dll. 
-         */
-        if (ext_dll_info->dll_handle != 0
-            && !basename_equals(ext_dll_info->dll_name, "bcmif.dll")
-            && !basename_equals(ext_dll_info->dll_name, "baspmgnt.dll")) {
-            DEBUGMSG(("winExtDLL", "unloading %s.\n",
-                      ext_dll_info->dll_name));
-            FreeLibrary(ext_dll_info->dll_handle);
+        if (ext_dll_info->dll_handle) {
+            if (ext_dll_info->pfSnmpExtensionClose) {
+                DEBUGMSG(("winExtDLL", "closing %s.\n",
+                          ext_dll_info->dll_name));
+                ext_dll_info->pfSnmpExtensionClose();
+            }
+            /*
+             * Freeing the Broadcom SNMP extension libraries triggers
+             * a deadlock, so skip bcmif.dll and baspmgnt.dll.
+             */
+            if (!basename_equals(ext_dll_info->dll_name, "bcmif.dll")
+                && !basename_equals(ext_dll_info->dll_name, "baspmgnt.dll")) {
+                DEBUGMSG(("winExtDLL", "unloading %s.\n",
+                          ext_dll_info->dll_name));
+                FreeLibrary(ext_dll_info->dll_handle);
+            }
         }
         free(ext_dll_info->dll_name);
     }
@@ -524,7 +574,7 @@ basename_equals(const char *path, const char *basename)
 
     return path_len >= basename_len + 1
         && path[path_len - basename_len - 1] == '\\'
-        && stricmp(path + path_len - basename_len, basename) == 0;
+        && strcasecmp(path + path_len - basename_len, basename) == 0;
 }
 
 /**
@@ -568,7 +618,7 @@ register_netsnmp_handler(winextdll_view * const ext_dll_view_info)
         memset(ext_dll_view_info, 0, sizeof(*ext_dll_view_info));
         return 1;
     } else {
-        // Create handler registration
+        /* Create handler registration */
         ext_dll_view_info->my_handler
             = netsnmp_create_handler_registration(ext_dll_info->dll_name,
                                                   var_winExtDLL,
@@ -595,7 +645,9 @@ register_netsnmp_handler(winextdll_view * const ext_dll_view_info)
                 }
                 return 1;
             } else {
-                snmp_log(LOG_ERR, "handler registration failed.\n");
+                snmp_log(LOG_ERR,
+                         "winExtDLL: handler registration failed for %s.\n",
+                         ext_dll_info->dll_name);
                 ext_dll_view_info->my_handler = 0;
             }
         } else {
@@ -682,6 +734,79 @@ get_context_info(const int index)
     return NULL;
 }
 
+/*
+ * Translate Net-SNMP request mode into an SnmpExtensionQuery() PDU type
+ * or into an SnmpExtensionQueryEx() request type.
+ */
+static int
+get_request_type(int mode, int request_type, UINT *nRequestType)
+{
+    switch (request_type) {
+    case 0:
+        /* SnmpExtensionQuery() PDU type */
+        switch (mode) {
+        case MODE_GET:
+            *nRequestType = SNMP_PDU_GET;
+            return 1;
+        case MODE_GETNEXT:
+            *nRequestType = SNMP_PDU_GETNEXT;
+            return 1;
+        case MODE_SET_RESERVE1:
+            return 0;
+        case MODE_SET_RESERVE2:
+            return 0;
+        case MODE_SET_ACTION:
+            return 0;
+        case MODE_SET_UNDO:
+            return 0;
+        case MODE_SET_COMMIT:
+            *nRequestType = SNMP_PDU_SET;
+            return 1;
+        case MODE_SET_FREE:
+            return 0;
+        default:
+            DEBUGMSG(("winExtDLL", "internal error: invalid mode %d.\n", mode));
+            netsnmp_assert(0);
+            return 0;
+        }
+    case 1:
+        /* SnmpExtensionQueryEx() request type */
+        switch (mode) {
+        case MODE_GET:
+            *nRequestType = SNMP_EXTENSION_GET;
+            return 1;
+        case MODE_GETNEXT:
+            *nRequestType = SNMP_EXTENSION_GET_NEXT;
+            return 1;
+        case MODE_SET_RESERVE1:
+            *nRequestType = SNMP_EXTENSION_SET_TEST;
+            return 1;
+        case MODE_SET_RESERVE2:
+            return 0;
+        case MODE_SET_ACTION:
+            return 0;
+        case MODE_SET_UNDO:
+            *nRequestType = SNMP_EXTENSION_SET_UNDO;
+            return 1;
+        case MODE_SET_COMMIT:
+            *nRequestType = SNMP_EXTENSION_SET_COMMIT;
+            return 1;
+        case MODE_SET_FREE:
+            *nRequestType = SNMP_EXTENSION_SET_CLEANUP;
+            return 1;
+        default:
+            DEBUGMSG(("winExtDLL", "internal error: invalid mode %d.\n", mode));
+            netsnmp_assert(0);
+            return 0;
+        }
+    default:
+        DEBUGMSG(("winExtDLL", "internal error: invalid argument %d.\n",
+                  request_type));
+        netsnmp_assert(0);
+        return 0;
+    }
+}
+
 static int
 var_winExtDLL(netsnmp_mib_handler *handler,
               netsnmp_handler_registration *reginfo,
@@ -708,35 +833,8 @@ var_winExtDLL(netsnmp_mib_handler *handler,
         return SNMP_ERR_GENERR;
     }
 
-    switch (reqinfo->mode) {
-    case MODE_GET:
-        nRequestType = SNMP_EXTENSION_GET;
-        netsnmp_assert(!context_info_head);
-        break;
-    case MODE_GETNEXT:
-        nRequestType = SNMP_EXTENSION_GET_NEXT;
-        netsnmp_assert(!context_info_head);
-        break;
-    case MODE_SET_RESERVE1:
-        nRequestType = SNMP_EXTENSION_SET_TEST;
-        break;
-    case MODE_SET_RESERVE2:
-        return SNMP_ERR_NOERROR;
-    case MODE_SET_ACTION:
-        return SNMP_ERR_NOERROR;
-    case MODE_SET_UNDO:
-        nRequestType = SNMP_EXTENSION_SET_UNDO;
-        break;
-    case MODE_SET_COMMIT:
-        nRequestType = SNMP_EXTENSION_SET_COMMIT;
-        break;
-    case MODE_SET_FREE:
-        nRequestType = SNMP_EXTENSION_SET_CLEANUP;
-        break;
-    default:
-        DEBUGMSG(("winExtDLL",
-                  "internal error: invalid mode %d.\n", reqinfo->mode));
-        netsnmp_assert(0);
+    if (!get_request_type(reqinfo->mode, !!ext_dll_info->pfSnmpExtensionQueryEx,
+                          &nRequestType)) {
         return SNMP_ERR_NOERROR;
     }
 
@@ -745,12 +843,15 @@ var_winExtDLL(netsnmp_mib_handler *handler,
     for (request = requests; request; request = request->next) {
         netsnmp_variable_list *varbind;
         SnmpVarBindList win_varbinds;
+        AsnOctetString  tmp_context_info;
+        AsnOctetString *pContextInfo = NULL;
         AsnInteger32    ErrorStatus;
         AsnInteger32    ErrorIndex;
         BOOL            result;
         BOOL            copy_value;
 
         memset(&win_varbinds, 0, sizeof(win_varbinds));
+        memset(&tmp_context_info, 0, sizeof(tmp_context_info));
 
         if (request->processed || rc != SNMP_ERR_NOERROR)
             goto free_win_varbinds;
@@ -758,17 +859,29 @@ var_winExtDLL(netsnmp_mib_handler *handler,
         if (reqinfo->mode == MODE_SET_RESERVE1)
             alloc_context_info(request->index);
 
+        if (ext_dll_info->pfSnmpExtensionQueryEx) {
+            /*
+             * Only SNMP set operations need per-varbind context information.
+             * For GET/GETNEXT requests, pass an empty context buffer.
+             */
+            if (reqinfo->mode == MODE_GET || reqinfo->mode == MODE_GETNEXT)
+                pContextInfo = &tmp_context_info;
+            else
+                pContextInfo = get_context_info(request->index);
+        }
+
         varbind = request->requestvb;
         netsnmp_assert(varbind);
 
+retry:
         /*
          * Convert the Net-SNMP varbind to a Windows SNMP varbind list.
          */
         rc = convert_to_windows_varbind_list(&win_varbinds, varbind);
         if (rc != SNMP_ERR_NOERROR) {
             DEBUGMSG(("winExtDLL",
-                      "converting varbind list to Windows format failed with"
-                      " error code %d.\n", request->status));
+                      "converting varbind list to Windows format failed with error code %d.\n",
+                      request->status));
             netsnmp_request_set_error(requests, rc);
             goto free_win_varbinds;
         }
@@ -784,6 +897,30 @@ var_winExtDLL(netsnmp_mib_handler *handler,
                                     win_varbinds.list[0].name.idLength,
                                     reginfo->rootoid,
                                     reginfo->rootoid_len) < 0) {
+            DEBUGIF("winExtDLL") {
+                size_t          oid1_namelen = 0, oid2_namelen = 0, outlen1 = 0,
+                                outlen2 = 0;
+                char           *oid1_name = NULL, *oid2_name = NULL;
+                int             overflow1 = 0, overflow2 = 0;
+
+                netsnmp_static_assert(sizeof(oid) == sizeof(UINT));
+                netsnmp_sprint_realloc_objid((u_char **) & oid1_name,
+                                             &oid1_namelen, &outlen1, 1,
+                                             &overflow1, (const oid *)
+                                             win_varbinds.list[0].name.ids,
+                                             win_varbinds.list[0].name.idLength);
+                netsnmp_sprint_realloc_objid((u_char **) & oid2_name,
+                                             &oid2_namelen, &outlen2, 1,
+                                             &overflow2, reginfo->rootoid,
+                                             reginfo->rootoid_len);
+                DEBUGMSG(("winExtDLL",
+                          "extension DLL %s: replacing OID %s%s by OID %s%s.\n",
+                          ext_dll_info->dll_name,
+                          oid1_name, overflow1 ? " [TRUNCATED]" : "",
+                          oid2_name, overflow2 ? " [TRUNCATED]" : ""));
+                free(oid2_name);
+                free(oid1_name);
+            }
 
             SnmpUtilOidFree(&win_varbinds.list[0].name);
             memset(&win_varbinds.list[0].name, 0,
@@ -797,7 +934,7 @@ var_winExtDLL(netsnmp_mib_handler *handler,
             result = ext_dll_info->pfSnmpExtensionQueryEx(nRequestType,
                                                           1,
                                                           &win_varbinds,
-                                                          get_context_info(request->index),
+                                                          pContextInfo,
                                                           &ErrorStatus,
                                                           &ErrorIndex);
         } else if (ext_dll_info->pfSnmpExtensionQuery) {
@@ -823,15 +960,52 @@ var_winExtDLL(netsnmp_mib_handler *handler,
 
         rc = convert_win_snmp_err(ErrorStatus);
         if (rc != SNMP_ERR_NOERROR) {
-            DEBUGMSG(("winExtDLL",
-                      "extension DLL %s: SNMP query function returned error code %lu (Windows) / %d (Net-SNMP).\n",
-                      ext_dll_info->dll_name, ErrorStatus, rc));
+            copy_oid_n_w(varbind->name, &varbind->name_length,
+                         win_varbinds.list[0].name.ids,
+                         win_varbinds.list[0].name.idLength);
+
+            DEBUGIF("winExtDLL") {
+                size_t          oid_namelen = 0, outlen = 0;
+                char           *oid_name = NULL;
+                int             overflow = 0;
+
+                netsnmp_sprint_realloc_objid((u_char **) & oid_name,
+                                             &oid_namelen,
+                                             &outlen, 1, &overflow,
+                                             varbind->name,
+                                             varbind->name_length);
+                DEBUGMSG(("winExtDLL",
+                          "extension DLL %s: SNMP query function returned error code %u (Windows) / %d (Net-SNMP) for request type %d, OID %s%s, ASN type %d and value %d.\n",
+                          ext_dll_info->dll_name, (unsigned int)ErrorStatus, rc,
+                          nRequestType, oid_name,
+                          overflow ? " [TRUNCATED]" : "",
+                          win_varbinds.list[0].value.asnType,
+                          (unsigned int)win_varbinds.list[0].value.asnValue.number));
+                free(oid_name);
+            }
             netsnmp_assert(ErrorIndex == 1);
-            netsnmp_request_set_error(requests, rc);
-            if (rc == SNMP_NOSUCHOBJECT || rc == SNMP_NOSUCHINSTANCE
-                || rc == SNMP_ERR_NOSUCHNAME)
-                rc = SNMP_ERR_NOERROR;
-            goto free_win_varbinds;
+            if (rc == SNMP_ERR_GENERR &&
+                reqinfo->mode == MODE_GETNEXT &&
+                varbind->name_length > 0 &&
+                (snmp_oid_compare(varbind->name, varbind->name_length,
+                                  mibii_system_mib,
+                                  sizeof(mibii_system_mib) /
+                                  sizeof(mibii_system_mib[0])) == 0 ||
+                 snmp_oidtree_compare(varbind->name, varbind->name_length,
+				      lmmib2_mib,
+				      sizeof(lmmib2_mib) /
+				      sizeof(lmmib2_mib[0])) == 0)) {
+                // Quirk: ignore 'generic error' for the MIB-II system MIB OID.
+                DEBUGMSG(("winExtDLL", "Ignoring the above error\n"));
+                varbind->name[varbind->name_length - 1]++;
+                goto retry;
+            } else {
+                netsnmp_request_set_error(requests, rc);
+                if (rc == SNMP_NOSUCHOBJECT || rc == SNMP_NOSUCHINSTANCE ||
+                    rc == SNMP_ERR_NOSUCHNAME)
+                    rc = SNMP_ERR_NOERROR;
+                goto free_win_varbinds;
+            }
         }
 
         copy_value = FALSE;
@@ -991,10 +1165,7 @@ read_extension_dll_path_from_registry(const TCHAR * keyName)
     if (retCode != ERROR_SUCCESS)
         return 0;
 
-    retCode = RegQueryValueExA(hKey,
-                               "Pathname",
-                               NULL,
-                               &key_value_type,
+    retCode = RegQueryValueExA(hKey, "Pathname", NULL, &key_value_type,
                                (BYTE *) valueName, &key_value_size);
 
     if (retCode != ERROR_SUCCESS) {
@@ -1054,8 +1225,7 @@ subagentTrapCheck(unsigned int clientreg, void *clientarg)
 
         if (!ext_dll_info->pfSnmpExtensionTrap) {
             snmp_log(LOG_ERR,
-                     "internal error in SNMP extension DLL %s: a trap is ready"
-                     " but the function SnmpExtensionTrap() is missing.\n",
+                     "internal error in SNMP extension DLL %s: a trap is ready but the function SnmpExtensionTrap() is missing.\n",
                      ext_dll_info->dll_name);
             return;
         }
@@ -1305,7 +1475,7 @@ append_windows_varbind(netsnmp_variable_list ** const net_snmp_varbinds,
                                     sizeof(win_varbind->value.asnValue.
                                            ticks));
         break;
-    case MS_ASN_OPAQUE:        // AsnOctetString
+    case MS_ASN_OPAQUE:        /* AsnOctetString */
         snmp_varlist_add_variable_w(net_snmp_varbinds, win_varbind->name.ids,
                                     win_varbind->name.idLength,
                                     ASN_OPAQUE,
@@ -1391,7 +1561,7 @@ convert_to_windows_varbind_list(SnmpVarBindList * pVarBindList,
 
     switch (varbind->type) {
     case ASN_BOOLEAN:
-        // There is no equivalent type in Microsoft's <snmp.h>.
+        /* There is no equivalent type in Microsoft's <snmp.h>. */
         netsnmp_assert(0);
         win_varbind->value.asnType = MS_ASN_INTEGER;
         win_varbind->value.asnValue.number = *(varbind->val.integer);
@@ -1436,7 +1606,7 @@ convert_to_windows_varbind_list(SnmpVarBindList * pVarBindList,
         win_varbind->value.asnValue.string.dynamic = TRUE;
         break;
     case ASN_SET:
-        // There is no equivalent type in Microsoft's <snmp.h>.
+        /* There is no equivalent type in Microsoft's <snmp.h>. */
         netsnmp_assert(0);
         win_varbind->value.asnType = MS_ASN_INTEGER;
         win_varbind->value.asnValue.number = *(varbind->val.integer);

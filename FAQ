@@ -1,7 +1,6 @@
       Frequently Asked Questions (FAQ) for the UCD/Net-SNMP package
       =============================================================
-		       FAQ Author: Dave Shield
-			Net-SNMP Version: 5.7.2.1
+			Net-SNMP Version: 5.10.pre2
 	    Net-SNMP/UCD-SNMP Project Leader: Wes Hardaker
 	     Email: net-snmp-coders@lists.sourceforge.net
 
@@ -190,13 +189,11 @@ Where can I get it?
 
   Download:
     - http://www.net-snmp.org/download/
-    - ftp://ftp.net-snmp.org/pub/sourceforge/net-snmp/
   Web page:
     - http://www.net-snmp.org/
   Sourceforge Project page:
     - http://www.net-snmp.org/project/
   Mirrors (note that sourceforge download servers are mirrored themselves):
-    - US:          ftp://ftp.freesnmp.com/mirrors/net-snmp/
     - Greece:      ftp://ftp.ntua.gr/pub/net/snmp/net-snmp/
 
 
@@ -237,8 +234,6 @@ Are there binaries available?
 
   These binaries are also available on the project FTP site,
   with a link on the same web page.
-
-  There is also a mirror at ftp://ftp.freesnmp.org/mirrors/net-snmp/
 
 
 
@@ -610,7 +605,6 @@ Where can I find more information about network management?
 
       http://www.simpleweb.org/
       http://www.snmplink.org/
-      http://www.mibdepot.com/
 
   The SNMP Usenet newsgroup is now mostly defunct, but although the
   FAQ hasn't been updated for a while, it still contains a large
@@ -3978,7 +3972,7 @@ How can I register a MIB module in a different (SNMPv3) context?
                                my_variables, sizeof(variable1),
                                sizeof(my_variables)/sizeof(variable1),
                                my_variables_oid,
-                               sizeof(my_variables_oid)/sizeof(oid),
+                               OID_LENGTH(my_variables_oid),
                                DEFAULT_MIB_PRIORITY, 0, 0, NULL,
                                "my_context", -1, 0);
 

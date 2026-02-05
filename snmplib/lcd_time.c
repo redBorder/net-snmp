@@ -13,16 +13,16 @@
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -32,11 +32,8 @@
 #include <netinet/in.h>
 #endif
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -53,8 +50,8 @@
 
 #include <net-snmp/library/transform_oids.h>
 
-netsnmp_feature_child_of(usm_support, libnetsnmp)
-netsnmp_feature_child_of(usm_lcd_time, usm_support)
+netsnmp_feature_child_of(usm_support, libnetsnmp);
+netsnmp_feature_child_of(usm_lcd_time, usm_support);
 
 #ifndef NETSNMP_FEATURE_REMOVE_USM_LCD_TIME
 
@@ -367,12 +364,12 @@ set_enginetime(const u_char * engineID,
             QUITFUN(SNMPERR_GENERR, set_enginetime_quit);
         }
 
-        e = (Enginetime) calloc(1, sizeof(*e));
+        e = calloc(1, sizeof(*e));
 
         e->next = etimelist[iindex];
         etimelist[iindex] = e;
 
-        e->engineID = (u_char *) calloc(1, engineID_len);
+        e->engineID = calloc(1, engineID_len);
         memcpy(e->engineID, engineID, engineID_len);
 
         e->engineID_len = engineID_len;
@@ -503,11 +500,17 @@ hash_engineID(const u_char * engineID, u_int engineID_len)
      */
 #ifndef NETSNMP_DISABLE_MD5
     rval = sc_hash(usmHMACMD5AuthProtocol,
-                   sizeof(usmHMACMD5AuthProtocol) / sizeof(oid),
+                   OID_LENGTH(usmHMACMD5AuthProtocol),
                    engineID, engineID_len, buf, &buf_len);
+    if (rval == SNMPERR_SC_NOT_CONFIGURED) {
+        /* fall back to sha1 */
+        rval = sc_hash(usmHMACSHA1AuthProtocol,
+                   OID_LENGTH(usmHMACSHA1AuthProtocol),
+                   engineID, engineID_len, buf, &buf_len);
+    }
 #else
     rval = sc_hash(usmHMACSHA1AuthProtocol,
-                   sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid),
+                   OID_LENGTH(usmHMACSHA1AuthProtocol),
                    engineID, engineID_len, buf, &buf_len);
 #endif
     QUITFUN(rval, hash_engineID_quit);
@@ -538,7 +541,7 @@ hash_engineID(const u_char * engineID, u_int engineID_len)
 void
 dump_etimelist_entry(Enginetime e, int count)
 {
-    u_int           buflen;
+    size_t          buflen;
     char            tabs[SNMP_MAXBUF], *t = tabs, *s;
 
 
@@ -550,13 +553,9 @@ dump_etimelist_entry(Enginetime e, int count)
 
 
     buflen = e->engineID_len;
-#ifdef NETSNMP_ENABLE_TESTING_CODE
     if (!(s = dump_snmpEngineID(e->engineID, &buflen))) {
-#endif
         binary_to_hex(e->engineID, e->engineID_len, &s);
-#ifdef NETSNMP_ENABLE_TESTING_CODE
     }
-#endif
 
     DEBUGMSGTL(("dump_etimelist", "%s\n", tabs));
     DEBUGMSGTL(("dump_etimelist", "%s%s (len=%d) <%d,%d>\n", tabs,

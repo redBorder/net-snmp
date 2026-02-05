@@ -5,6 +5,10 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 /*
  * include our parent header 
  */
@@ -38,7 +42,8 @@ etherstats_interface_name_list_get (struct ifname *list_head, int *retval)
     for (p = addrs; p; p = p->ifa_next) {
 
         if (!list_head) {
-            if ( (list_head = (struct ifname *) malloc (sizeof(struct ifname))) < 0) {
+            list_head = malloc(sizeof(struct ifname));
+            if (!list_head) {
                 DEBUGMSGTL(("access:etherStatsTable:interface_name_list_get",
                             "memory allocation failed\n"));
                 snmp_log (LOG_ERR, "access:etherStatsTable,interface_name_list_get, memory allocation failed\n");
@@ -57,7 +62,8 @@ etherstats_interface_name_list_get (struct ifname *list_head, int *retval)
         if (nameptr1)
             continue;
 
-        if ( (nameptr2->ifn_next = (struct ifname *) malloc (sizeof(struct ifname))) < 0) {
+        nameptr2->ifn_next = malloc(sizeof(struct ifname));
+        if (!nameptr2->ifn_next) {
             DEBUGMSGTL(("access:etherStatsTable:interface_name_list_get",
                         "memory allocation failed\n"));
             snmp_log (LOG_ERR, "access:etherStatsTable,interface_name_list_get, memory allocation failed\n");
@@ -124,8 +130,8 @@ etherstats_interface_ioctl_ifindex_get (int fd, const char *name) {
     rc = _etherStats_ioctl_get(fd, SIOCGIFINDEX, &ifrq, name);
     if (rc < 0) {
         DEBUGMSGTL(("access:etherStats:ioctl",
-                    "ifindex_get error on inerface '%s'\n", name));
-        snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, ifindex_get error on inerface '%s'\n", name);
+                    "ifindex_get error on interface '%s'\n", name));
+        snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, ifindex_get error on interface '%s'\n", name);
         return 0;
 
     }
@@ -137,7 +143,7 @@ etherstats_interface_ioctl_ifindex_get (int fd, const char *name) {
 /*
  * @retval  0 success
  * @retval -1 cannot get ETHTOOL_DRVINFO failed 
- * @retval -2 n_stats zero - no statistcs available
+ * @retval -2 n_stats zero - no statistics available
  * @retval -3 memory allocation for holding the statistics failed
  * @retval -4 cannot get ETHTOOL_GSTRINGS information
  * @retval -5 cannot get ETHTOOL_GSTATS information
@@ -240,9 +246,69 @@ interface_ioctl_etherstats_get (etherStatsTable_rowreq_ctx *rowreq_ctx , int fd,
         strlcpy(s, (const char *) &eth_strings->data[i * ETH_GSTRING_LEN],
                 sizeof(s));
         
+        if (ETHERSTATSOCTETS(s)) {
+            data->etherStatsOctets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSOCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS(s)) {
+            data->etherStatsPkts += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS_FLAG;
+        }
+        if (ETHERSTATSBROADCASTPKTS(s)) {
+            data->etherStatsBroadcastPkts += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSBROADCASTPKTS_FLAG;
+        }
+        if (ETHERSTATSMULTICASTPKTS(s)) {
+            data->etherStatsMulticastPkts = (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSMULTICASTPKTS_FLAG;
+        }
+        if (ETHERSTATSCRCALIGNERRORS(s)) {
+            data->etherStatsCRCAlignErrors += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSCRCALIGNERRORS_FLAG;
+        }
+        if (ETHERSTATSUNDERSIZEPKTS(s)) {
+            data->etherStatsUndersizePkts += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSUNDERSIZEPKTS_FLAG;
+        }
+        if (ETHERSTATSOVERSIZEPKTS(s)) {
+            data->etherStatsOversizePkts += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSOVERSIZEPKTS_FLAG;
+        }
+        if (ETHERSTATSFRAGMENTS(s)) {
+            data->etherStatsFragments += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSFRAGMENTS_FLAG;
+        }
         if (ETHERSTATSJABBERS(s)) {
-            data->etherStatsJabbers = (u_long)eth_stats->data[i];
+            data->etherStatsJabbers += (u_long)eth_stats->data[i];
             rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSJABBERS_FLAG;
+        }
+        if (ETHERSTATSCOLLISIONS(s)) {
+            data->etherStatsCollisions += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSCOLLISIONS_FLAG;
+        }
+        if (ETHERSTATSPKTS64OCTETS(s)) {
+            data->etherStatsPkts64Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS64OCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS65TO127OCTETS(s)) {
+            data->etherStatsPkts65to127Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS65TO127OCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS128TO255OCTETS(s)) {
+            data->etherStatsPkts128to255Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS128TO255OCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS256TO511OCTETS(s)) {
+            data->etherStatsPkts256to511Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS256TO511OCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS512TO1023OCTETS(s)) {
+            data->etherStatsPkts512to1023Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS512TO1023OCTETS_FLAG;
+        }
+        if (ETHERSTATSPKTS1024TO1518OCTETS(s)) {
+            data->etherStatsPkts1024to1518Octets += (u_long)eth_stats->data[i];
+            rowreq_ctx->column_exists_flags |= COLUMN_ETHERSTATSPKTS1024TO1518OCTETS_FLAG;
         }
     }
     free(eth_strings);
@@ -280,8 +346,8 @@ _etherStats_ioctl_get(int fd, int which, struct ifreq *ifrq, const char* name)
      */
     if(NULL == name) {
         DEBUGMSGTL(("access:etherStatsTable:ioctl",
-                    "_etherStats_ioctl_get invalid ifname '%s'\n", name));
-        snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, _etherStats_ioctl_get error on inerface '%s'\n", name);
+                    "_etherStats_ioctl_get interface name is NULL"));
+        snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, _etherStats_ioctl_get interface name is NULL");
         return -1;
     }
 
@@ -293,7 +359,7 @@ _etherStats_ioctl_get(int fd, int which, struct ifreq *ifrq, const char* name)
         if(ourfd < 0) {
             DEBUGMSGTL(("access:etherStatsTable:ioctl",
                         "_etherStats_ioctl_get couldn't create a socket\n"));
-            snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, _etherStats_ioctl_get error on inerface '%s'\n", name);
+            snmp_log (LOG_ERR, "access:etherStatsTable:ioctl, _etherStats_ioctl_get error on interface '%s'\n", name);
 
             return -2;
         }

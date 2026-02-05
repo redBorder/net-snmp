@@ -121,6 +121,8 @@ _load4(netsnmp_container *container, u_int load_flags)
     int             rc = 0;
     FILE           *in;
     char            line[160];
+    enum            { rbufsize = 65536 };
+    void           *rbuf = alloca(rbufsize);
     
     netsnmp_assert(NULL != container);
 
@@ -130,7 +132,8 @@ _load4(netsnmp_container *container, u_int load_flags)
         return -2;
     }
     
-    fgets(line, sizeof(line), in); /* skip header */
+    setvbuf(in, rbuf, _IOFBF, rbufsize);
+    NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), in)); /* skip header */
 
     /*
      *   sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -150,6 +153,8 @@ _load4(netsnmp_container *container, u_int load_flags)
             DEBUGMSGT(("access:tcpconn:container",
                        "error parsing line (%d != 6)\n", rc));
             DEBUGMSGT(("access:tcpconn:container"," line '%s'\n", line));
+	    snmp_log(LOG_ERR, "tcp:_load4: bad line in " PROCFILE ": %s\n", line);
+	    rc = 0;
             continue;
         }
         DEBUGMSGT(("verbose:access:tcpconn:container"," line '%s'\n", line));
@@ -237,7 +242,9 @@ _load4(netsnmp_container *container, u_int load_flags)
          * add entry to container
          */
         entry->arbitrary_index = CONTAINER_SIZE(container) + 1;
-        CONTAINER_INSERT(container, entry);
+        if (CONTAINER_INSERT(container, entry) < 0) {
+            netsnmp_access_tcpconn_entry_free(entry);
+        }
     }
 
     fclose(in);
@@ -259,7 +266,9 @@ _load6(netsnmp_container *container, u_int load_flags)
 {
     int             rc = 0;
     FILE           *in;
-    char            line[180];
+    char            line[360];
+    enum            { rbufsize = 65536 };
+    void           *rbuf = alloca(rbufsize);
 
     netsnmp_assert(NULL != container);
 
@@ -270,7 +279,8 @@ _load6(netsnmp_container *container, u_int load_flags)
         return -2;
     }
 
-    fgets(line, sizeof(line), in); /* skip header */
+    setvbuf(in, rbuf, _IOFBF, rbufsize);
+    NETSNMP_IGNORE_RESULT(fgets(line, sizeof(line), in)); /* skip header */
 
     /*
      * Note: PPC (big endian)
@@ -292,6 +302,8 @@ _load6(netsnmp_container *container, u_int load_flags)
             DEBUGMSGT(("access:tcpconn:container",
                        "error parsing line (%d != 6)\n", rc));
             DEBUGMSGT(("access:tcpconn:container"," line '%s'\n", line));
+	    snmp_log(LOG_ERR, "tcp:_load6: bad line in " PROCFILE ": %s\n", line);
+	    rc = 0;
             continue;
         }
         DEBUGMSGT(("verbose:access:tcpconn:container"," line '%s'\n", line));
@@ -379,7 +391,9 @@ _load6(netsnmp_container *container, u_int load_flags)
          * add entry to container
          */
         entry->arbitrary_index = CONTAINER_SIZE(container) + 1;
-        CONTAINER_INSERT(container, entry);
+        if (CONTAINER_INSERT(container, entry) < 0) {
+            netsnmp_access_tcpconn_entry_free(entry);
+        }
     }
 
     fclose(in);

@@ -1,3 +1,4 @@
+#define __NetBSD_Version__ 1
 #include "netbsd.h"
 
 #define netbsd1 netbsd1         /* we're really close to this */
@@ -6,7 +7,6 @@
 
 #undef MBPOOL_SYMBOL
 #undef MCLPOOL_SYMBOL
-#undef TOTAL_MEMORY_SYMBOL
 
 /* at least OpenBSD/SPARC 3.7 doesn't define this */
 #ifndef UINT32_MAX
@@ -15,4 +15,3 @@
 
 /* define the extra mib modules that are supported */
 #define NETSNMP_INCLUDE_HOST_RESOURCES
-#define NETSNMP_INCLUDE_IFTABLE_REWRITES

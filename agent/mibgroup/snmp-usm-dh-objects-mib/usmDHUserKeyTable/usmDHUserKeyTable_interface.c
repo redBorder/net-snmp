@@ -47,9 +47,9 @@
 
 #include <ctype.h>
 
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(check_all_requests_error);
 
 /**********************************************************************
  **********************************************************************
@@ -266,10 +266,12 @@ _usmDHUserKeyTable_initialize_interface(usmDHUserKeyTable_registration *
         netsnmp_handler_registration_create("usmDHUserKeyTable", handler,
                                             usmDHUserKeyTable_oid,
                                             usmDHUserKeyTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_DISABLE_SET_SUPPORT */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table usmDHUserKeyTable\n");
@@ -871,7 +873,7 @@ _mfd_usmDHUserKeyTable_get_values(netsnmp_mib_handler *handler,
 
         /*
          * if the buffer wasn't used previously for the old data (i.e. it
-         * was allcoated memory)  and the get routine replaced the pointer,
+         * was allocated memory)  and the get routine replaced the pointer,
          * we need to free the previous pointer.
          */
         if (old_string && (old_string != requests->requestvb->buf) &&
@@ -1406,7 +1408,7 @@ _mfd_usmDHUserKeyTable_commit(netsnmp_mib_handler *handler,
 
     if (rowreq_ctx->rowreq_flags & MFD_ROW_DIRTY) {
         /*
-         * if we successfully commited this row, set the dirty flag. Use the
+         * if we successfully committed this row, set the dirty flag. Use the
          * current value + 1 (i.e. dirty = # rows changed).
          * this is checked in post_request...
          */
@@ -1665,8 +1667,7 @@ _cache_free(netsnmp_cache * cache, void *magic)
  * @internal
  */
 static void
-_container_item_free(usmDHUserKeyTable_rowreq_ctx * rowreq_ctx,
-                     void *context)
+_container_item_free(void *rowreq_ctx, void *context)
 {
     DEBUGMSGTL(("internal:usmDHUserKeyTable:_container_item_free",
                 "called\n"));
@@ -1699,9 +1700,7 @@ _container_free(netsnmp_container * container)
     /*
      * free all items. inefficient, but easy.
      */
-    CONTAINER_CLEAR(container,
-                    (netsnmp_container_obj_func *) _container_item_free,
-                    NULL);
+    CONTAINER_CLEAR(container, _container_item_free, NULL);
 }                               /* _container_free */
 
 /**
@@ -1772,7 +1771,7 @@ usmDHUserKeyTable_row_find_by_mib_index(usmDHUserKeyTable_mib_index *
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = sizeof(oid_tmp) / sizeof(oid);
+    oid_idx.len = OID_LENGTH(oid_tmp);
 
     /*
      * convert

@@ -200,7 +200,7 @@ netSnmpHostsTable_loop_free(void *loopctx, netsnmp_iterator_info *iinfo)
 /** If the implemented set_* functions don't operate directly on the
    real-live data (which is actually recommended), then this function
    can be used to take a given my_data_context pointer and "commit" it
-   to whereever the modified data needs to be put back to.  For
+   to wherever the modified data needs to be put back to.  For
    example, if this was a routing table you could publish the modified
    routes back into the kernel at this point.
 
@@ -225,8 +225,10 @@ netSnmpHostsTable_commit_row(void **my_data_context, int new_or_del)
     if ((out = fopen(HOSTS_FILE ".snmp", "w")) == NULL)
         return SNMP_ERR_COMMITFAILED;
     
-    if ((in = fopen(HOSTS_FILE, "r")) == NULL)
+    if ((in = fopen(HOSTS_FILE, "r")) == NULL) {
+        fclose(out);
         return SNMP_ERR_COMMITFAILED;
+    }
 
     while(fgets(line, sizeof(line), in)) {
         copy_nword(line,myaddr,sizeof(myaddr));

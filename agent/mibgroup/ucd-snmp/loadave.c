@@ -1,39 +1,39 @@
 #include <net-snmp/net-snmp-config.h>
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_FCNTL_H
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 #include <signal.h>
-#if HAVE_MACHINE_PARAM_H
+#ifdef HAVE_MACHINE_PARAM_H
 #include <machine/param.h>
 #endif
-#if HAVE_SYS_PARAM_H
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#if HAVE_SYS_VMMETER_H
+#ifdef HAVE_SYS_VMMETER_H
 #if !(defined(bsdi2) || defined(netbsd1))
 #include <sys/vmmeter.h>
 #endif
 #endif
-#if HAVE_SYS_CONF_H
+#ifdef HAVE_SYS_CONF_H
 #include <sys/conf.h>
 #endif
-#if HAVE_ASM_PAGE_H
+#ifdef HAVE_ASM_PAGE_H
 #include <asm/page.h>
 #endif
-#if HAVE_SYS_SWAP_H
+#ifdef HAVE_SYS_SWAP_H
 #include <sys/swap.h>
 #endif
-#if HAVE_SYS_FS_H
+#ifdef HAVE_SYS_FS_H
 #include <sys/fs.h>
 #else
-#if HAVE_UFS_FS_H
+#ifdef HAVE_UFS_FS_H
 #include <ufs/fs.h>
 #else
 #ifdef HAVE_SYS_STAT_H
@@ -50,59 +50,59 @@
 #ifdef HAVE_UFS_UFS_INODE_H
 #include <ufs/ufs/inode.h>
 #endif
-#if HAVE_UFS_FFS_FS_H
+#ifdef HAVE_UFS_FFS_FS_H
 #include <ufs/ffs/fs.h>
 #endif
 #endif
 #endif
-#if HAVE_MTAB_H
+#ifdef HAVE_MTAB_H
 #include <mtab.h>
 #endif
 #include <errno.h>
-#if HAVE_FSTAB_H
+#ifdef HAVE_FSTAB_H
 #include <fstab.h>
 #endif
-#if HAVE_SYS_STATFS_H
+#ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
-#if HAVE_SYS_STATVFS_H
+#ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
-#if HAVE_SYS_VFS_H
+#ifdef HAVE_SYS_VFS_H
 #include <sys/vfs.h>
 #endif
 #if (!defined(HAVE_STATVFS)) && defined(HAVE_STATFS)
-#if HAVE_SYS_MOUNT_H
+#ifdef HAVE_SYS_MOUNT_H
 #include <sys/mount.h>
 #endif
-#if HAVE_SYS_SYSCTL_H
+#ifdef HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
 #define statvfs statfs
 #endif
-#if HAVE_VM_VM_H
+#ifdef HAVE_VM_VM_H
 #include <vm/vm.h>
 #endif
-#if HAVE_VM_SWAP_PAGER_H
+#ifdef HAVE_VM_SWAP_PAGER_H
 #include <vm/swap_pager.h>
 #endif
-#if HAVE_SYS_FIXPOINT_H
+#ifdef HAVE_SYS_FIXPOINT_H
 #include <sys/fixpoint.h>
 #endif
-#if HAVE_SYS_LOADAVG_H
+#ifdef HAVE_SYS_LOADAVG_H
 #include <sys/loadavg.h>
 #endif
-#if HAVE_MALLOC_H
+#ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -120,7 +120,7 @@
 #endif
 #include <libperfstat.h>
 #endif
-#if HAVE_SYS_SYSGET_H
+#ifdef HAVE_SYS_SYSGET_H
 #include <sys/sysget.h>
 #endif
 
@@ -235,7 +235,10 @@ loadave_parse_config(const char *token, char *cptr)
         if (cptr != NULL)
             maxload[i] = atof(cptr);
         else
-            maxload[i] = maxload[i - 1];
+            if (i > 0)
+                maxload[i] = maxload[i - 1];
+            else
+                maxload[i] = NETSNMP_DEFMAXLOADAVE;
         cptr = skip_not_white(cptr);
         cptr = skip_white(cptr);
     }
@@ -258,12 +261,6 @@ loadave_free_config(void)
 int
 try_getloadavg(double *r_ave, size_t s_ave)
 {
-#if defined(HAVE_GETLOADAVG) || defined(linux) || defined(ultrix) \
-    || defined(sun) || defined(__alpha) || defined(dynix) \
-    || !defined(cygwin) && defined(NETSNMP_CAN_USE_NLIST) \
-       && defined(LOADAVE_SYMBOL)
-    double         *pave = r_ave;
-#endif
 #ifndef HAVE_GETLOADAVG
 #ifdef HAVE_SYS_FIXPOINT_H
     fix             favenrun[3];
@@ -278,7 +275,6 @@ try_getloadavg(double *r_ave, size_t s_ave)
 #endif
 #endif
 #if defined(aix4) || defined(aix5) || defined(aix6) || defined(aix7)
-    int             favenrun[3];
     perfstat_cpu_total_t cs;
 #endif
 #if defined(hpux10) || defined(hpux11)
@@ -291,7 +287,7 @@ try_getloadavg(double *r_ave, size_t s_ave)
 #endif	/* !HAVE_GETLOADAVG */
 
 #ifdef HAVE_GETLOADAVG
-    if (getloadavg(pave, s_ave) == -1)
+    if (getloadavg(r_ave, s_ave) == -1)
         return (-1);
 #elif defined(linux)
     {
@@ -300,7 +296,7 @@ try_getloadavg(double *r_ave, size_t s_ave)
             NETSNMP_LOGONCE((LOG_ERR, "snmpd: cannot open /proc/loadavg\n"));
             return (-1);
         }
-        fscanf(in, "%lf %lf %lf", pave, (pave + 1), (pave + 2));
+        fscanf(in, "%lf %lf %lf", r_ave, (r_ave + 1), (r_ave + 2));
         fclose(in);
     }
 #elif (defined(ultrix) || defined(sun) || defined(__alpha) || defined(dynix))
@@ -308,7 +304,7 @@ try_getloadavg(double *r_ave, size_t s_ave)
         0)
         return (-1);
     for (i = 0; i < s_ave; i++)
-        *(pave + i) = FIX_TO_DBL(favenrun[i]);
+        *(r_ave + i) = FIX_TO_DBL(favenrun[i]);
 #elif defined(hpux10) || defined(hpux11)
     if (pstat_getdynamic(&pst_buf, sizeof(struct pst_dynamic), 1, 0) < 0)
         return(-1);
@@ -330,7 +326,7 @@ try_getloadavg(double *r_ave, size_t s_ave)
     DEBUGMSGTL(("ucd-snmp/loadave", "irix6: %d %d %d\n", favenrun[0], favenrun[1], favenrun[2]));
 #elif !defined(cygwin)
 #if defined(NETSNMP_CAN_USE_NLIST) && defined(LOADAVE_SYMBOL)
-    if (auto_nlist(LOADAVE_SYMBOL, (char *) pave, sizeof(double) * s_ave)
+    if (auto_nlist(LOADAVE_SYMBOL, (char *) r_ave, sizeof(double) * s_ave)
         == 0)
 #endif
         return (-1);
@@ -482,10 +478,9 @@ var_extensible_loadave(struct variable * vp,
             maxload[name[*length - 1] - 1]) {
             snprintf(errmsg, sizeof(errmsg),
                      "%d min Load Average too high (= %.2f)",
-                    (name[*length - 1] ==
-                     1) ? 1 : ((name[*length - 1] == 2) ? 5 : 15),
-                    avenrun[name[*length - 1] - 1]);
-            errmsg[sizeof(errmsg) - 1] = '\0';
+                     name[*length - 1] == 1 ? 1 :
+                     name[*length - 1] == 2 ? 5 : 15,
+                     avenrun[name[*length - 1] - 1]);
         } else {
             errmsg[0] = 0;
         }

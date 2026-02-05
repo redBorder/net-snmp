@@ -36,16 +36,15 @@ if [ "x$TESTCONF_SH_EVALED" != "xyes" ]; then
     TESTCONF_SH_EVALED=yes
 
 #
-# set cpu and memory limits to prevent major damage
+# set cpu limit to 1h.
 #
 # defaults: 1h CPU, 500MB VMEM
 #
-[ "x$SNMP_LIMIT_VMEM" = "x" ] && SNMP_LIMIT_VMEM=512000
-[ "x$SNMP_LIMIT_CPU" = "x" ] && SNMP_LIMIT_CPU=3600
-# ulimit will fail if existing limit is lower -- ignore because it's ok
-ulimit -S -t $SNMP_LIMIT_CPU 2>/dev/null
-# not all sh-alikes support "ulimit -v" -- play safe
-[ "x$BASH_VERSION" != "x" ] && ulimit -S -v $SNMP_LIMIT_VMEM 2>/dev/null
+if [ "x$SNMP_NO_RUNTIME_LIMITS" = "x" ]; then
+    [ "x$SNMP_LIMIT_CPU" = "x" ] && SNMP_LIMIT_CPU=3600
+    # ulimit will fail if existing limit is lower -- ignore because it's ok
+    ulimit -S -t $SNMP_LIMIT_CPU 2>/dev/null
+fi
 
 #
 # Set up an NL suppressing echo command
@@ -196,6 +195,12 @@ elif test -x /cygdrive/c/windows/system32/netstat ; then
 elif test -x /c/Windows/System32/netstat ; then
     # MinGW + MSYS
     NETSTAT=/c/Windows/System32/netstat
+elif test -x /usr/sbin/ss ; then
+    # Fedora24, RHEL7 does not install netstat as standard
+    NETSTAT=/usr/sbin/ss
+elif test -x /usr/bin/ss ; then
+    # Debian 10 (buster) put ss in /usr/bin/ss
+    NETSTAT=/usr/bin/ss
 else
     NETSTAT=""
 fi
@@ -211,7 +216,7 @@ fi
 
 PROBE_FOR_PORT() {
     BASE_PORT=$1
-    MAX_RETRIES=10
+    MAX_RETRIES=30
     if test -x "$NETSTAT" ; then
         if test -z "$RANDOM"; then
             RANDOM=2
@@ -231,6 +236,10 @@ PROBE_FOR_PORT() {
                 exit 255
             fi
         done
+    else
+	echo "ERROR: Cannot probe for port - netstat not found." >&2
+	echo "NOPORT"
+	exit 255
     fi
 }
 

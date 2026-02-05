@@ -5,10 +5,14 @@
 
 #include <dirent.h>
 #include <unistd.h>
-#include <mach/mach_host.h>
+
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/ps/IOPowerSources.h>
 
 /*
  * Retained from UCD implementation
@@ -24,7 +28,6 @@
  * Apple, please give us a better way! :)
  */
 int pages_swapped(void) {
-     boolean_t       retval;
      kern_return_t   error;
      processor_set_t *psets, pset;
      task_t          *tasks;
@@ -44,8 +47,7 @@ int pages_swapped(void) {
      mach_port = mach_host_self();
      error = host_processor_sets(mach_port, &psets, &pcnt);
      if (error != KERN_SUCCESS) {
-        snprintf(errmsg, sizeof(errmsg), "Error in host_processor_sets(): %s\n", mach_error_string(error));
-        snmp_log_perror(errmsg);
+        snmp_log(LOG_ERR, "Error in host_processor_sets(): %s\n", mach_error_string(error));
         return(0);
      }
 
@@ -73,9 +75,22 @@ int pages_swapped(void) {
 
             swapped_pages = 0;
             for (address = 0;; address += size) {
+                kern_return_t ret = KERN_FAILURE;
+
                 /* Get memory region. */
                 count = VM_REGION_EXTENDED_INFO_COUNT; 
-                if (vm_region(tasks[j], &address, &size, VM_REGION_EXTENDED_INFO, (vm_region_extended_info_t)&info, &count, &object_name) != KERN_SUCCESS) {
+#ifdef HAVE_VM_REGION_64
+                ret = vm_region_64(tasks[j], &address, &size,
+                                 VM_REGION_EXTENDED_INFO, (void *)&info, &count,
+                                 &object_name);
+#elif defined(HAVE_VM_REGION)
+                ret = vm_region(tasks[j], &address, &size,
+                              VM_REGION_EXTENDED_INFO, (void *)&info, &count,
+                              &object_name);
+#else
+#error How to query memory protection information?
+#endif
+                if (ret != KERN_SUCCESS) {
                     /* No more memory regions. */
                     break;
                 }
@@ -101,8 +116,6 @@ int pages_swapped(void) {
 off_t 
 swapsize(void)
 {
-    int		pagesize;
-    int		i, n;
     DIR		*dirp;
     struct dirent *dp;
     struct stat	buf;
@@ -114,12 +127,12 @@ swapsize(void)
     swapSize = -1;
 
 #if defined(SWAPFILE_DIR) && defined(SWAPFILE_PREFIX)
-    dirp = opendir((const char *) SWAPFILE_DIR);
+    dirp = opendir(SWAPFILE_DIR);
     while((dp = readdir(dirp)) != NULL) {
 	/* if the file starts with the same as SWAPFILE_PREFIX
 	 * we want to stat the file to get it's size
 	 */
-	if(strspn(dp->d_name,(char *) SWAPFILE_PREFIX) == strlen((char *) SWAPFILE_PREFIX)) {
+	if(strspn(dp->d_name, SWAPFILE_PREFIX) == strlen(SWAPFILE_PREFIX)) {
                 snprintf(full_name, sizeof(full_name),"%s/%s",SWAPFILE_DIR,dp->d_name);
 		/* we need to stat each swapfile to get it's size */
 		if(stat(full_name,&buf) != 0) {

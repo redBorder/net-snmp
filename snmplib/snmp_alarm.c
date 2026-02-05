@@ -7,7 +7,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -18,34 +18,30 @@
  */
 #include <net-snmp/net-snmp-config.h>
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <signal.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #include <sys/types.h>
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #endif
 
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
 # endif
-#endif
-
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -309,8 +305,7 @@ set_an_alarm(void)
 
     if (nextalarm && !netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
 					NETSNMP_DS_LIB_ALARM_DONT_USE_SIG)) {
-#ifndef WIN32
-# ifdef HAVE_SETITIMER
+#if defined(HAVE_SETITIMER)
         struct itimerval it;
 
         it.it_value = delta;
@@ -319,18 +314,14 @@ set_an_alarm(void)
         signal(SIGALRM, alarm_handler);
         setitimer(ITIMER_REAL, &it, NULL);
         DEBUGMSGTL(("snmp_alarm", "schedule alarm %d in %ld.%03ld seconds\n",
-                    nextalarm, (long) delta.tv_sec, (delta.tv_usec / 1000)));
-# else  /* HAVE_SETITIMER */
-#  ifdef SIGALRM
+                    nextalarm, (long) delta.tv_sec, (long)(delta.tv_usec / 1000)));
+#elif defined(SIGALRM)
         signal(SIGALRM, alarm_handler);
         alarm(delta.tv_sec);
         DEBUGMSGTL(("snmp_alarm",
                     "schedule alarm %d in roughly %ld seconds\n", nextalarm,
                     delta.tv_sec));
-#  endif  /* SIGALRM */
-# endif  /* HAVE_SETITIMER */
-#endif  /* WIN32 */
-
+#endif
     } else {
         DEBUGMSGTL(("snmp_alarm", "no alarms found to schedule\n"));
     }
@@ -446,7 +437,7 @@ snmp_alarm_register_hr(struct timeval t, unsigned int flags,
 
     DEBUGMSGTL(("snmp_alarm",
                 "registered alarm %d, t = %ld.%03ld, flags=0x%02x\n",
-                (*s)->clientreg, (long) (*s)->t.tv_sec, ((*s)->t.tv_usec / 1000),
+                (*s)->clientreg, (long) (*s)->t.tv_sec, (long)((*s)->t.tv_usec / 1000),
                 (*s)->flags));
 
     if (start_alarms) {

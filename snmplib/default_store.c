@@ -7,7 +7,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -65,7 +65,7 @@
        - \#define NETSNMP_DS_LIB_MIB_REPLACE         7 replace objects from latest module 
        - \#define NETSNMP_DS_LIB_PRINT_NUMERIC_ENUM  8 print only numeric enum values
        - \#define NETSNMP_DS_LIB_PRINT_NUMERIC_OIDS  9 print only numeric enum values 
-       - \#define NETSNMP_DS_LIB_DONT_BREAKDOWN_OIDS 10 dont print oid indexes specially 
+       - \#define NETSNMP_DS_LIB_DONT_BREAKDOWN_OIDS 10 don't print oid indexes specially 
        - \#define NETSNMP_DS_LIB_ALARM_DONT_USE_SIG  11 don't use the alarm() signal 
        - \#define NETSNMP_DS_LIB_PRINT_FULL_OID      12 print fully qualified oids 
        - \#define NETSNMP_DS_LIB_QUICK_PRINT         13 print very brief output for parsing
@@ -87,7 +87,7 @@
        - \#define NETSNMP_DS_LIB_DONT_PRINT_UNITS    29 don't print UNITS suffix
        - \#define NETSNMP_DS_LIB_NO_DISPLAY_HINT     30 don't apply DISPLAY-HINTs
        - \#define NETSNMP_DS_LIB_16BIT_IDS           31 restrict requestIDs, etc to 16-bit values
-       - \#define NETSNMP_DS_LIB_DONT_PERSIST_STATE  32 don't save/load any persistant state
+       - \#define NETSNMP_DS_LIB_DONT_PERSIST_STATE  32 don't save/load any persistent state
        - \#define NETSNMP_DS_LIB_2DIGIT_HEX_OUTPUT   33 print a leading 0 on hex values <= 'f'
 
 
@@ -128,26 +128,23 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 #include <sys/types.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #include <net-snmp/types.h>
@@ -158,9 +155,9 @@
 
 #include <net-snmp/library/snmp_api.h>
 
-netsnmp_feature_child_of(default_store_all, libnetsnmp)
+netsnmp_feature_child_of(default_store_all, libnetsnmp);
 
-netsnmp_feature_child_of(default_store_void, default_store_all)
+netsnmp_feature_child_of(default_store_void, default_store_all);
 
 #ifndef NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID
 #endif /* NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID */
@@ -185,11 +182,6 @@ static char *netsnmp_ds_strings[NETSNMP_DS_MAX_IDS][NETSNMP_DS_MAX_SUBIDS];
 #ifndef NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID
 static void *netsnmp_ds_voids[NETSNMP_DS_MAX_IDS][NETSNMP_DS_MAX_SUBIDS];
 #endif /* NETSNMP_FEATURE_REMOVE_DEFAULT_STORE_VOID */
-
-/*
- * Prototype definitions 
- */
-void            netsnmp_ds_handle_config(const char *token, char *line);
 
 /**
  * Stores "true" or "false" given an int value for value into
@@ -298,11 +290,13 @@ netsnmp_ds_set_string(int storeid, int which, const char *value)
      */
     if (netsnmp_ds_strings[storeid][which] == value)
         return SNMPERR_SUCCESS;
-    
+
+    snmp_res_lock(MT_LIBRARY_ID, MT_LIB_SESSION);
     if (netsnmp_ds_strings[storeid][which] != NULL) {
         free(netsnmp_ds_strings[storeid][which]);
 	netsnmp_ds_strings[storeid][which] = NULL;
     }
+    snmp_res_unlock(MT_LIBRARY_ID, MT_LIB_SESSION);
 
     if (value) {
         netsnmp_ds_strings[storeid][which] = strdup(value);
@@ -361,6 +355,8 @@ netsnmp_ds_parse_boolean(char *line)
     char           *st;
 
     value = strtok_r(line, " \t\n", &st);
+    if (!value)
+        goto invalid;
     if (strcasecmp(value, "yes") == 0 || 
 	strcasecmp(value, "true") == 0) {
         return 1;
@@ -369,12 +365,14 @@ netsnmp_ds_parse_boolean(char *line)
         return 0;
     } else {
         itmp = strtol(value, &endptr, 10);
-        if (*endptr != 0 || itmp < 0 || itmp > 1) {
-            config_perror("Should be yes|no|true|false|0|1");
-            return -1;
-	}
+        if (*endptr != 0 || itmp < 0 || itmp > 1)
+            goto invalid;
         return itmp;
     }
+
+invalid:
+    config_perror("Should be yes|no|true|false|0|1");
+    return -1;
 }
 
 void
@@ -408,13 +406,17 @@ netsnmp_ds_handle_config(const char *token, char *line)
 
         case ASN_INTEGER:
             value = strtok_r(line, " \t\n", &st);
-            itmp = strtol(value, &endptr, 10);
-            if (*endptr != 0) {
-                config_perror("Bad integer value");
-	    } else {
-                netsnmp_ds_set_int(drsp->storeid, drsp->which, itmp);
-	    }
-            DEBUGMSGTL(("netsnmp_ds_handle_config", "int: %d\n", itmp));
+            if (!value) {
+                config_perror("Missing value");
+            } else {
+                itmp = strtol(value, &endptr, 10);
+                if (*endptr != 0) {
+                    config_perror("Bad integer value");
+                } else {
+                    netsnmp_ds_set_int(drsp->storeid, drsp->which, itmp);
+                }
+                DEBUGMSGTL(("netsnmp_ds_handle_config", "int: %d\n", itmp));
+            }
             break;
 
         case ASN_OCTET_STR:
@@ -545,6 +547,7 @@ netsnmp_ds_shutdown(void)
     netsnmp_ds_read_config *drsp;
     int             i, j;
 
+    snmp_res_lock(MT_LIBRARY_ID, MT_LIB_SESSION);
     for (drsp = netsnmp_ds_configs; drsp; drsp = netsnmp_ds_configs) {
         netsnmp_ds_configs = drsp->next;
 
@@ -568,5 +571,6 @@ netsnmp_ds_shutdown(void)
             }
         }
     }
+    snmp_res_unlock(MT_LIBRARY_ID, MT_LIB_SESSION);
 }
 /**  @} */

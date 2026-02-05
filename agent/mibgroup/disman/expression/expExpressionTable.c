@@ -22,10 +22,10 @@
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -46,9 +46,9 @@
 #include "expObjectTable.h"
 #include "expValueTable.h"
 
-netsnmp_feature_require(tdomain_support)
+netsnmp_feature_require(tdomain_support);
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*
@@ -97,8 +97,6 @@ struct variable2 expExpressionTable_variables[] = {
  */
 
 struct header_complex_index *expExpressionTableStorage = NULL;
-extern struct header_complex_index *expObjectTableStorage;
-extern struct header_complex_index *expValueTableStorage;
 
 oid             mmTimeInstance[] = { 1, 3, 6, 1, 2, 1, 1, 3, 0 };
 
@@ -321,7 +319,6 @@ store_expExpressionTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
-    size_t          tmpint;
     struct expExpressionTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -357,7 +354,7 @@ store_expExpressionTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->expExpressionValueType,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->expExpressionComment,
@@ -367,7 +364,7 @@ store_expExpressionTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        expExpressionDeltaInterval,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OBJECT_ID, cptr,
                                        &StorageTmp->expExpressionPrefix,
@@ -376,28 +373,28 @@ store_expExpressionTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->expExpressionErrors,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       expExpressionEntryStatus, &tmpint);
+                                       expExpressionEntryStatus, NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->have_copied_auth_info,
-                                       &tmpint);
+                                       NULL);
             if (StorageTmp->have_copied_auth_info) {
                 cptr =
                     read_config_store_data(ASN_INTEGER, cptr,
                                            &StorageTmp->pdu_version,
-                                           &tmpint);
+                                           NULL);
                 cptr =
                     read_config_store_data(ASN_INTEGER, cptr,
                                            &StorageTmp->pdu_securityModel,
-                                           &tmpint);
+                                           NULL);
                 cptr =
                     read_config_store_data(ASN_INTEGER, cptr,
                                            &StorageTmp->pdu_securityLevel,
-                                           &tmpint);
+                                           NULL);
                 cptr =
                     read_config_store_data(ASN_OBJECT_ID, cptr,
                                            (void *) (&StorageTmp->
@@ -515,7 +512,7 @@ write_expExpression(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(expExpressionTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(expExpressionTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("expExpressionTable",
@@ -543,7 +540,7 @@ write_expExpression(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -559,12 +556,14 @@ write_expExpression(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expExpression;
         tmplen = StorageTmp->expExpressionLen;
-        memdup((u_char **) & StorageTmp->expExpression, var_val,
-               var_val_len);
+        StorageTmp->expExpression = malloc(var_val_len + 1);
+        if (StorageTmp->expExpression)
+            snprintf(StorageTmp->expExpression, var_val_len + 1, "%.*s",
+                     (int)var_val_len, var_val);
         StorageTmp->expExpressionLen = var_val_len;
         break;
 
@@ -605,7 +604,7 @@ write_expExpressionValueType(int action,
     struct expExpressionTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (sizeof(expExpressionTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(expExpressionTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("expExpressionTable",
@@ -634,7 +633,7 @@ write_expExpressionValueType(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -650,7 +649,7 @@ write_expExpressionValueType(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expExpressionValueType;
         StorageTmp->expExpressionValueType = *((long *) var_val);
@@ -690,7 +689,7 @@ write_expExpressionComment(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(expExpressionTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(expExpressionTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("expExpressionTable",
@@ -718,7 +717,7 @@ write_expExpressionComment(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -734,12 +733,11 @@ write_expExpressionComment(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expExpressionComment;
         tmplen = StorageTmp->expExpressionCommentLen;
-        memdup((u_char **) & StorageTmp->expExpressionComment, var_val,
-               var_val_len);
+        StorageTmp->expExpressionComment = netsnmp_memdup(var_val, var_val_len);
         StorageTmp->expExpressionCommentLen = var_val_len;
         break;
 
@@ -780,7 +778,7 @@ write_expExpressionDeltaInterval(int action,
     struct expExpressionTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (sizeof(expExpressionTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(expExpressionTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("expExpressionTable",
@@ -809,7 +807,7 @@ write_expExpressionDeltaInterval(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -825,7 +823,7 @@ write_expExpressionDeltaInterval(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expExpressionDeltaInterval;
         StorageTmp->expExpressionDeltaInterval = *((long *) var_val);
@@ -864,7 +862,7 @@ write_expExpressionEntryStatus(int action,
     static struct expExpressionTable_data *StorageNew, *StorageDel;
     size_t          newlen =
         name_len -
-        (sizeof(expExpressionTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(expExpressionTable_variables_oid) + 3 - 1);
     static int      old_value;
     int             set_value;
     static netsnmp_variable_list *vars, *vp;
@@ -956,7 +954,7 @@ write_expExpressionEntryStatus(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         if (StorageTmp == NULL) {
             /*
@@ -973,7 +971,7 @@ write_expExpressionEntryStatus(int action,
             if (header_complex_parse_oid
                 (&
                  (name
-                  [sizeof(expExpressionTable_variables_oid) / sizeof(oid) +
+                  [OID_LENGTH(expExpressionTable_variables_oid) +
                    2]), newlen, vars) != SNMPERR_SUCCESS) {
                 /*
                  * XXX: free, zero vars 
@@ -1026,12 +1024,12 @@ write_expExpressionEntryStatus(int action,
         /*
          * The variable has been stored in set_value for you to
          * use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in
+         * it.  Note that anything done here must be reversible in
          * the UNDO case 
          */
 
 
-        if (StorageTmp == NULL) {
+        if (StorageTmp == NULL && set_value != RS_DESTROY) {
             /*
              * row creation, so add it 
              */
@@ -1040,7 +1038,7 @@ write_expExpressionEntryStatus(int action,
             /*
              * XXX: ack, and if it is NULL? 
              */
-        } else if (set_value != RS_DESTROY) {
+        } else if (StorageTmp && set_value != RS_DESTROY) {
             /*
              * set the flag? 
              */
@@ -1159,9 +1157,8 @@ write_expExpressionEntryStatus(int action,
                 }
                 if (pdu->securityName) {
                     StorageTmp->pdu_securityName =
-                        calloc(1, pdu->securityNameLen + 1);
-                    memcpy(StorageTmp->pdu_securityName, pdu->securityName,
-                           pdu->securityNameLen);
+                        netsnmp_memdup(pdu->securityName,
+                                       pdu->securityNameLen + 1);
                     StorageTmp->pdu_securityNameLen = pdu->securityNameLen;
                 } else {
                     StorageTmp->pdu_securityName = NULL;

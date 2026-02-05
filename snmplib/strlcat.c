@@ -20,7 +20,7 @@
 
 #ifndef HAVE_STRLCAT
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -37,7 +37,7 @@
  * If retval >= siz, truncation occurred.
  */
 size_t
-strlcat(char * __restrict dst, const char * __restrict src, size_t siz)
+strlcat(char *dst, const char *src, size_t siz)
 {
 	char *d = dst;
 	const char *s = src;

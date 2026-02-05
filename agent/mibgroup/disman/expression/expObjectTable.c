@@ -23,10 +23,10 @@
  */
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -36,7 +36,7 @@
 #endif
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 /*
@@ -99,12 +99,6 @@ struct variable2 expObjectTable_variables[] = {
 };
 
 
-/*
- * global storage of our data, saved in and configured by header_complex() 
- */
-extern struct header_complex_index *expExpressionTableStorage;
-extern struct header_complex_index *expValueTableStorage;
-
 struct header_complex_index *expObjectTableStorage = NULL;
 
 /*
@@ -156,11 +150,10 @@ create_expObjectTable_data(void)
 
     StorageNew->expObjectIDWildcard = EXPOBJCETIDWILDCARD_FALSE;
     StorageNew->expObjectSampleType = EXPOBJCETSAMPLETYPE_ABSOLUTEVALUE;
-    memdup((unsigned char **)
-           &(StorageNew->expObjectDeltaDiscontinuityID),
-           (unsigned char *) TimeInstance, sizeof(TimeInstance));
+    StorageNew->expObjectDeltaDiscontinuityID =
+        netsnmp_memdup(TimeInstance, sizeof(TimeInstance));
     StorageNew->expObjectDeltaDiscontinuityIDLen =
-        sizeof(TimeInstance) / sizeof(oid);
+        OID_LENGTH(TimeInstance);
 
 
 
@@ -328,7 +321,6 @@ store_expObjectTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
-    size_t          tmpint;
     struct expObjectTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -360,7 +352,7 @@ store_expObjectTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->expObjectIndex,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OBJECT_ID, cptr,
                                        &StorageTmp->expObjectID,
@@ -368,11 +360,11 @@ store_expObjectTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->expObjectIDWildcard,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->expObjectSampleType,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OBJECT_ID, cptr,
                                        &StorageTmp->
@@ -383,12 +375,12 @@ store_expObjectTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        expObjectDiscontinuityIDWildcard,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        expObjectDiscontinuityIDType,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OBJECT_ID, cptr,
                                        &StorageTmp->expObjectConditional,
@@ -398,11 +390,11 @@ store_expObjectTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        expObjectConditionalWildcard,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->expObjectEntryStatus,
-                                       &tmpint);
+                                       NULL);
             snmpd_store_config(line);
         }
     }
@@ -505,7 +497,7 @@ write_expObjectID(int action,
     struct expObjectTable_data *StorageTmp = NULL;
     static size_t   tmplen;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -532,7 +524,7 @@ write_expObjectID(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -548,12 +540,11 @@ write_expObjectID(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectID;
         tmplen = StorageTmp->expObjectIDLen;
-        memdup((u_char **) & StorageTmp->expObjectID, var_val,
-               var_val_len);
+        StorageTmp->expObjectID = netsnmp_memdup(var_val, var_val_len);
         StorageTmp->expObjectIDLen = var_val_len / sizeof(oid);
         break;
 
@@ -595,7 +586,7 @@ write_expObjectIDWildcard(int action,
     static int      tmpvar;
     struct expObjectTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -624,7 +615,7 @@ write_expObjectIDWildcard(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -640,7 +631,7 @@ write_expObjectIDWildcard(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectIDWildcard;
         StorageTmp->expObjectIDWildcard = *((long *) var_val);
@@ -677,7 +668,7 @@ write_expObjectSampleType(int action,
     static int      tmpvar;
     struct expObjectTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -706,7 +697,7 @@ write_expObjectSampleType(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -722,7 +713,7 @@ write_expObjectSampleType(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectSampleType;
         StorageTmp->expObjectSampleType = *((long *) var_val);
@@ -762,7 +753,7 @@ write_expObjectDeltaDiscontinuityID(int action,
     struct expObjectTable_data *StorageTmp = NULL;
     static size_t   tmplen;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -791,7 +782,7 @@ write_expObjectDeltaDiscontinuityID(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -807,12 +798,12 @@ write_expObjectDeltaDiscontinuityID(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectDeltaDiscontinuityID;
         tmplen = StorageTmp->expObjectDeltaDiscontinuityIDLen;
-        memdup((u_char **) & StorageTmp->expObjectDeltaDiscontinuityID,
-               var_val, var_val_len);
+        StorageTmp->expObjectDeltaDiscontinuityID =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->expObjectDeltaDiscontinuityIDLen =
             var_val_len / sizeof(oid);
         break;
@@ -858,7 +849,7 @@ write_expObjectDiscontinuityIDWildcard(int action,
     static int      tmpvar;
     struct expObjectTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -887,7 +878,7 @@ write_expObjectDiscontinuityIDWildcard(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -903,7 +894,7 @@ write_expObjectDiscontinuityIDWildcard(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectDiscontinuityIDWildcard;
         StorageTmp->expObjectDiscontinuityIDWildcard = *((long *) var_val);
@@ -942,7 +933,7 @@ write_expObjectDiscontinuityIDType(int action,
     static int      tmpvar;
     struct expObjectTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -971,7 +962,7 @@ write_expObjectDiscontinuityIDType(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -987,7 +978,7 @@ write_expObjectDiscontinuityIDType(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectDiscontinuityIDType;
         StorageTmp->expObjectDiscontinuityIDType = *((long *) var_val);
@@ -1026,7 +1017,7 @@ write_expObjectConditional(int action,
     struct expObjectTable_data *StorageTmp = NULL;
     static size_t   tmplen;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -1055,7 +1046,7 @@ write_expObjectConditional(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -1071,12 +1062,11 @@ write_expObjectConditional(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectConditional;
         tmplen = StorageTmp->expObjectConditionalLen;
-        memdup((u_char **) & StorageTmp->expObjectConditional, var_val,
-               var_val_len);
+        StorageTmp->expObjectConditional = netsnmp_memdup(var_val, var_val_len);
         StorageTmp->expObjectConditionalLen = var_val_len / sizeof(oid);
         break;
 
@@ -1122,7 +1112,7 @@ write_expObjectConditionalWildcard(int action,
     static int      tmpvar;
     struct expObjectTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
 
 
@@ -1151,7 +1141,7 @@ write_expObjectConditionalWildcard(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -1167,7 +1157,7 @@ write_expObjectConditionalWildcard(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->expObjectConditionalWildcard;
         StorageTmp->expObjectConditionalWildcard = *((long *) var_val);
@@ -1206,7 +1196,7 @@ write_expObjectEntryStatus(int action,
     struct expObjectTable_data *StorageTmp = NULL;
     static struct expObjectTable_data *StorageNew, *StorageDel;
     size_t          newlen =
-        name_len - (sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(expObjectTable_variables_oid) +
                     3 - 1);
     static int      old_value;
     int             set_value;
@@ -1299,7 +1289,7 @@ write_expObjectEntryStatus(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         if (StorageTmp == NULL) {
             /*
@@ -1317,7 +1307,7 @@ write_expObjectEntryStatus(int action,
             if (header_complex_parse_oid
                 (&
                  (name
-                  [sizeof(expObjectTable_variables_oid) / sizeof(oid) +
+                  [OID_LENGTH(expObjectTable_variables_oid) +
                    2]), newlen, vars) != SNMPERR_SUCCESS) {
                 /*
                  * XXX: free, zero vars 
@@ -1372,12 +1362,12 @@ write_expObjectEntryStatus(int action,
         /*
          * The variable has been stored in set_value for you to
          * use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in
+         * it.  Note that anything done here must be reversible in
          * the UNDO case 
          */
 
 
-        if (StorageTmp == NULL) {
+        if (StorageTmp == NULL && set_value != RS_DESTROY) {
             /*
              * row creation, so add it 
              */
@@ -1386,7 +1376,7 @@ write_expObjectEntryStatus(int action,
             /*
              * XXX: ack, and if it is NULL? 
              */
-        } else if (set_value != RS_DESTROY) {
+        } else if (StorageTmp != NULL && set_value != RS_DESTROY) {
             /*
              * set the flag? 
              */

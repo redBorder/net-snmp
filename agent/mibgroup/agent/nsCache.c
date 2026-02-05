@@ -13,7 +13,7 @@
 #include <net-snmp/agent/cache_handler.h>
 #include "agent/nsCache.h"
 
-netsnmp_feature_require(cache_get_head)
+netsnmp_feature_require(cache_get_head);
 
 
 /*
@@ -26,7 +26,7 @@ extern netsnmp_cache *netsnmp_cache_get_head(void);
 #define nsCache 1, 3, 6, 1, 4, 1, 8072, 1, 5
 
 /*
- * OIDs for the cacheging control scalar objects
+ * OIDs for the caching control scalar objects
  *
  * Note that these we're registering the full object rather
  *  than the (sole) valid instance in each case, in order
@@ -96,6 +96,7 @@ init_nsCache(void)
      */
     iinfo      = SNMP_MALLOC_TYPEDEF(netsnmp_iterator_info);
     if (!iinfo) {
+        SNMP_FREE(table_info);
         return;
     }
     iinfo->get_first_data_point = get_first_cache_entry;
@@ -304,7 +305,8 @@ handle_nsCacheTable(netsnmp_mib_handler *handler,
 		}
 		status = (cache_entry->enabled ?
 	                   (cache_entry->timestampM ?
-                             (!netsnmp_ready_monotonic(cache_entry->timestampM,
+                             (cache_entry->timeout >= 0 &&
+                              !netsnmp_ready_monotonic(cache_entry->timestampM,
                                                        1000*cache_entry->timeout) ?
 	                        NSCACHE_STATUS_ACTIVE:
 	                        NSCACHE_STATUS_EXPIRED) :

@@ -7,10 +7,10 @@
  * include important headers 
  */
 #include <net-snmp/net-snmp-config.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -133,7 +133,7 @@ oid             example_variables_oid[] = { 1, 3, 6, 1, 4, 1, 2021, 254 };
      *  to do any initializations that might be required.
      *
      * In theory it is optional and can be omitted if no
-     *  initialization is needed.  In practise, every module
+     *  initialization is needed.  In practice, every module
      *  will need to register itself (or the objects being
      *  implemented will not appear in the MIB tree), and this
      *  registration is typically done here.
@@ -370,8 +370,12 @@ var_example(struct variable *vp,
         /*
          * we're returning 127.0.0.1 
          */
-        long_ret = ntohl(INADDR_LOOPBACK);
-        return (u_char *) & long_ret;
+        {
+            in_addr_t addr = ntohl(INADDR_LOOPBACK);
+            memcpy(string, &addr, sizeof(addr));
+            *var_len = sizeof(addr);
+        }
+        return (u_char *) string;
 
     case EXAMPLECOUNTER:
         long_ret = 42;
@@ -405,7 +409,7 @@ var_example(struct variable *vp,
         /*
          *  This will only be triggered if there's a problem with
          *   the coding of the module.  SNMP requests that reference
-         *   a non-existant OID will be directed elsewhere.
+         *   a non-existent OID will be directed elsewhere.
          *  If this branch is reached, log an error, so that
          *   the problem can be investigated.
          */
@@ -462,7 +466,7 @@ write_exampleint(int action,
 
     case RESERVE2:
         /*
-         *  This is conventially where any necesary
+         *  This is conventionally where any necessary
          *   resources are allocated (e.g. calls to malloc)
          *  Here, we are using static variables
          *   so don't need to worry about this.
@@ -599,13 +603,13 @@ write_exampletrap(int action,
  * 
  * The SNMPv2-Trap PDU contains at least a pair of object names and
  * values: - sysUpTime.0 whose value is the time in hundredths of a
- * second since the netwok management portion of system was last
+ * second since the network management portion of system was last
  * reinitialized.  - snmpTrapOID.0 which is part of the trap group SNMPv2
  * MIB whose value is the object-id of the specific trap you have defined
- * in your own MIB.  Other variables can be added to caracterize the
+ * in your own MIB.  Other variables can be added to characterize the
  * trap.
  * 
- * The function send_v2trap adds automaticallys the two objects but the
+ * The function send_v2trap adds automatically the two objects but the
  * value of snmpTrapOID.0 is 0.0 by default. If you want to add your trap
  * name, you have to reconstruct this object and to add your own
  * variable.
@@ -624,7 +628,7 @@ write_exampletrap2(int action,
     long            intval;
 
     /*
-     * these variales will be used when we send the trap 
+     * these variables will be used when we send the trap
      */
     oid             objid_snmptrap[] = { 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0 };     /* snmpTrapOID.0 */
     oid             demo_trap[] = { 1, 3, 6, 1, 4, 1, 2021, 13, 990 };  /*demo-trap */
@@ -700,7 +704,7 @@ write_exampletrap2(int action,
 
         var_trap.next_variable = &var_obj;      /* next variable */
         var_trap.name = objid_snmptrap; /* snmpTrapOID.0 */
-        var_trap.name_length = sizeof(objid_snmptrap) / sizeof(oid);    /* number of sub-ids */
+        var_trap.name_length = OID_LENGTH(objid_snmptrap);    /* number of sub-ids */
         var_trap.type = ASN_OBJECT_ID;
         var_trap.val.objid = demo_trap; /* demo-trap objid */
         var_trap.val_len = sizeof(demo_trap);   /* length in bytes (not number of subids!) */
@@ -713,9 +717,9 @@ write_exampletrap2(int action,
 
         var_obj.next_variable = NULL;   /* No more variables after this one */
         var_obj.name = example_string_oid;
-        var_obj.name_length = sizeof(example_string_oid) / sizeof(oid); /* number of sub-ids */
+        var_obj.name_length = OID_LENGTH(example_string_oid); /* number of sub-ids */
         var_obj.type = ASN_OCTET_STR;   /* type of variable */
-        var_obj.val.string = (unsigned char *) example_str;       /* value */
+        var_obj.val.string = (u_char *)example_str;       /* value */
         var_obj.val_len = strlen(example_str);
         DEBUGMSGTL(("example", "write_exampletrap2 sending the v2 trap\n"));
         send_v2trap(&var_trap);

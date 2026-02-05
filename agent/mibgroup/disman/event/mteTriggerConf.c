@@ -15,7 +15,7 @@
 
 #include <ctype.h>
 
-netsnmp_feature_require(iquery)
+netsnmp_feature_require(iquery);
 
 /** Initializes the mteTriggerConf module */
 void
@@ -52,7 +52,7 @@ init_mteTriggerConf(void)
                                    parse_mteTThTable, NULL, NULL);
 
     /*
-     * ... and backwards compatability with the previous implementation.
+     * ... and backwards compatibility with the previous implementation.
      */
     snmpd_register_config_handler("mteTriggerTable",
                                    parse_mteTriggerTable, NULL, NULL);
@@ -117,8 +117,7 @@ _find_typed_mteTrigger_entry( const char *owner, char *tname, int type )
      *    same type, then throw an error and discard it.
      *  But allow combined Existence/Boolean/Threshold trigger.
      */
-    if ( entry &&
-        (entry->flags & MTE_TRIGGER_FLAG_VALID) &&
+    if ((entry->flags & MTE_TRIGGER_FLAG_VALID) &&
         (entry->mteTriggerTest & type )) {
         config_perror("duplicate trigger name");
         return NULL;
@@ -167,7 +166,7 @@ parse_mteMonitor(const char *token, const char *line)
     int    seen_name = 0;
     char   oid_name_buf[SPRINT_MAX_LEN];
     oid    name_buf[MAX_OID_LEN];
-    size_t name_buf_len;
+    size_t name_buf_len = 0;
     u_char op    = 0;
     long   value = 0;
 
@@ -188,6 +187,7 @@ parse_mteMonitor(const char *token, const char *line)
     memset( buf,   0, sizeof(buf));
     memset( tname, 0, sizeof(tname));
     memset( ename, 0, sizeof(ename));
+    memset(name_buf, 0, sizeof(name_buf));
     for (cp = copy_nword_const(line, buf, SPRINT_MAX_LEN);
          ;
          cp = copy_nword_const(cp,   buf, SPRINT_MAX_LEN)) {
@@ -361,7 +361,7 @@ parse_mteMonitor(const char *token, const char *line)
                         /*
                          * "instance" flag:
                          *     either non-wildcarded mteTriggerValueID
-                         *       (backwards compatability - see '-I')
+                         *       (backwards compatibility - see '-I')
                          *     or exact payload OID
                          *       (c.f. notificationEvent config)
                          */
@@ -507,13 +507,12 @@ parse_mteMonitor(const char *token, const char *line)
                     memcpy(oid_name_buf, buf, SPRINT_MAX_LEN);
                     memset(         buf,   0, SPRINT_MAX_LEN);
                     cp  = copy_nword_const(cp, buf, SPRINT_MAX_LEN);
-                        value = strtol(buf, NULL, 0);
+                    value = strtol(buf, NULL, 0);
     
                     /*
                      * ... then save the rest of the line for later.
                      */
-                    memset( buf, 0,  strlen(buf));
-                    memcpy( buf, cp, strlen(cp));
+                    strlcpy(buf, cp, sizeof(buf));
                     cp = NULL;  /* To terminate the processing loop */
                     DEBUGMSGTL(("disman:event:conf", "%s: Thresh (%s, %ld, %s)\n",
                                               tname, oid_name_buf, value, buf));

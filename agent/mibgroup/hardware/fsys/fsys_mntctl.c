@@ -1,24 +1,24 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/agent/hardware/fsys.h>
+#include "hardware/fsys/fsys.h"
 
 #include <stdio.h>
-#if HAVE_SYS_MNTCTL_H
+#ifdef HAVE_SYS_MNTCTL_H
 #include <sys/mntctl.h>
 #endif
-#if HAVE_SYS_VMOUNT_H
+#ifdef HAVE_SYS_VMOUNT_H
 #include <sys/vmount.h>
 #endif
-#if HAVE_SYS_STATFS_H
+#ifdef HAVE_SYS_STATFS_H
 #include <sys/statfs.h>
 #endif
-#if HAVE_SYS_STATVFS_H
+#ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
 
 
-int
+static int
 _fsys_remote( char *device, int type, char *host )
 {
     if (( type == NETSNMP_FS_TYPE_NFS) ||
@@ -28,7 +28,7 @@ _fsys_remote( char *device, int type, char *host )
         return 0;
 }
 
-int
+static int
 _fsys_type( int type)
 {
     DEBUGMSGTL(("fsys:type", "Classifying %d\n", type));
@@ -43,8 +43,9 @@ _fsys_type( int type)
 
         case  MNT_NFS:
         case  MNT_NFS3:
-        case  MNT_AUTOFS:
             return NETSNMP_FS_TYPE_NFS;
+        case  MNT_AUTOFS:
+            return NETSNMP_FS_TYPE_AUTOFS;
 
     /*
      *  The following code covers selected filesystems
@@ -58,6 +59,9 @@ _fsys_type( int type)
 #endif
 #ifdef MNT_PROCFS
         case MNT_PROCFS:
+#endif
+#ifdef MNT_ACFS
+        case MNT_ACFS:
 #endif
         case MNT_SFS:
         case MNT_CACHEFS:
@@ -93,7 +97,7 @@ netsnmp_fsys_arch_load( void )
     /*
      * Retrieve information about the currently mounted filesystems...
      */
-    ret = mntctl(MCTL_QUERY, sizeof(uint), &size);
+    ret = mntctl(MCTL_QUERY, sizeof(uint), (void *) &size);
     if ( ret != 0 || size<=0 ) {
         snmp_log_perror( "initial mntctl failed" );
         return;
@@ -105,7 +109,7 @@ netsnmp_fsys_arch_load( void )
         return;
     }
 
-    ret = mntctl(MCTL_QUERY, size, aixmnt );
+    ret = mntctl(MCTL_QUERY, size, (void *) aixmnt);
     if ( ret <= 0 ) {
         free(aixmnt);
         snmp_log_perror( "main mntctl failed" );
@@ -148,19 +152,22 @@ netsnmp_fsys_arch_load( void )
             entry->flags |= NETSNMP_FS_FLAG_BOOTABLE;
 
         /*
-         *  XXX - identify removeable disks
+         *  XXX - identify removable disks
          */
 
         /*
-         *  Optionally skip retrieving statistics for remote mounts
+         *  Skip retrieving statistics for AUTOFS and optionally for remote
+         *  mounts.
          */
         if ( (entry->flags & NETSNMP_FS_FLAG_REMOTE) &&
             netsnmp_ds_get_boolean(NETSNMP_DS_APPLICATION_ID,
                                    NETSNMP_DS_AGENT_SKIPNFSINHOSTRESOURCES))
             continue;
+        if (entry->type == NETSNMP_FS_TYPE_AUTOFS)
+            continue;
 
         if ( statfs( entry->path, &stat_buf ) < 0 ) {
-            snprintf( tmpbuf, sizeof(tmpbuf), "Cannot statfs %s\n", entry->path );
+            snprintf( tmpbuf, sizeof(tmpbuf), "Cannot statfs %s", entry->path );
             snmp_log_perror( tmpbuf );
             continue;
         }

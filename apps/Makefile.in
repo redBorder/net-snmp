@@ -3,7 +3,6 @@
 # snmptrapd, snmptable, snmpset, snmpgetnext, and other utilities.
 #
 
-top_builddir=..
 mysubdir=apps
 
 # use GNU vpath, if available, to only set a path for source and headers
@@ -42,6 +41,14 @@ mysubdir=apps
 @NETSNMP_BUILD_SET_PROG_FALSE@SNMPVACMINSTALLBINPROG = 
 @NETSNMP_BUILD_SET_PROG_TRUE@SNMPVACMFEATUREPROG = snmpvacm.ft
 @NETSNMP_BUILD_SET_PROG_FALSE@SNMPVACMFEATUREPROG = 
+@NETSNMP_BUILD_SET_PROG_TRUE@SNMPPINGINSTALLBINPROG = snmpping$(EXEEXT)
+@NETSNMP_BUILD_SET_PROG_FALSE@SNMPPINGINSTALLBINPROG =
+@NETSNMP_BUILD_SET_PROG_TRUE@SNMPPINGFEATUREPROG = snmpping.ft
+@NETSNMP_BUILD_SET_PROG_FALSE@SNMPPINGFEATUREPROG =
+@NETSNMP_BUILD_PCAP_PROG_TRUE@SNMPPCAPINSTALLBINPROG = snmppcap$(EXEEXT)
+@NETSNMP_BUILD_PCAP_PROG_FALSE@SNMPPCAPINSTALLBINPROG =
+@NETSNMP_BUILD_PCAP_PROG_TRUE@SNMPPCAPFEATUREPROG = snmppcap.ft
+@NETSNMP_BUILD_PCAP_PROG_FALSE@SNMPPCAPFEATUREPROG =
 
 @NETSNMP_HAVE_AGENTX_LIBS_TRUE@AGENTXTRAP = agentxtrap$(EXEEXT)
 @NETSNMP_HAVE_AGENTX_LIBS_FALSE@AGENTXTRAP =
@@ -59,10 +66,13 @@ INSTALLBINPROGS	= snmpget$(EXEEXT) 			\
 		snmpdelta$(EXEEXT) 			\
 		snmptest$(EXEEXT)			\
 		snmpdf$(EXEEXT) 			\
+		snmpps$(EXEEXT)				\
+		$(SNMPPINGINSTALLBINPROG)               \
 		$(AGENTXTRAP)				\
 		$(SNMPVACMINSTALLBINPROG)	        \
                 $(SSHINSTALLBINPROG) $(TLSINSTALLBINPROG) \
-		$(USMINSTALLBINPROG) $(EKCSTALLBINPROG)
+		$(USMINSTALLBINPROG) $(EKCSTALLBINPROG) \
+		$(SNMPPCAPINSTALLBINPROG)
 
 INSTALLSBINPROGS = snmptrapd$(EXEEXT)
 
@@ -83,8 +93,6 @@ MIBLIB          = ../agent/libnetsnmpmibs.$(LIB_EXTENSION)$(LIB_VERSION)
 USEAGENTLIBS	= $(MIBLIB) $(AGENTLIB) $(USELIBS)
 MYSQL_LIBS	= @MYSQL_LIBS@
 MYSQL_INCLUDES	= @MYSQL_INCLUDES@
-RDKAFKA_LIBS	= @RDKAFKA_LIBS@
-RDKAFKA_INCLUDES	= @RDKAFKA_INCLUDES@
 
 VAL_LIBS	= @VAL_LIBS@
 LIBS		= $(USELIBS) $(VAL_LIBS) @LIBS@
@@ -93,8 +101,8 @@ PERLLDOPTS_FOR_LIBS = @PERLLDOPTS_FOR_LIBS@
 
 #
 # hack for compiling trapd when agent is disabled
-TRAPDWITHAGENT  = $(USETRAPLIBS) $(MYSQL_LIBS) $(VAL_LIBS) $(RDKAFKA_LIBS) @AGENTLIBS@
-TRAPDWITHOUTAGENT = $(LIBS) $(MYSQL_LIBS) $(VAL_LIBS) $(RDKAFKA_LIBS)
+TRAPDWITHAGENT  = $(USETRAPLIBS) $(MYSQL_LIBS) $(VAL_LIBS) @AGENTLIBS@
+TRAPDWITHOUTAGENT = $(LIBS) $(MYSQL_LIBS) $(VAL_LIBS)
 
 # these will be set by configure to one of the above 2 lines
 TRAPLIBS	= @TRAPLIBS@ $(PERLLDOPTS_FOR_APPS)
@@ -107,11 +115,11 @@ CPPFLAGS	= $(TOP_INCLUDES) -I. $(AGENT_INCLUDES) $(HELPER_INCLUDES) \
 OSUFFIX		= lo
 TRAPD_OBJECTS   = snmptrapd.$(OSUFFIX) @other_trapd_objects@
 LIBTRAPD_OBJS   = snmptrapd_handlers.o  snmptrapd_log.o \
-		  snmptrapd_auth.o snmptrapd_sql.o snmptrapd_kafka.o
+		  snmptrapd_auth.o snmptrapd_sql.o
 LLIBTRAPD_OBJS  = snmptrapd_handlers.lo snmptrapd_log.lo \
-		  snmptrapd_auth.lo snmptrapd_sql.lo snmptrapd_kafka.lo
+		  snmptrapd_auth.lo snmptrapd_sql.lo
 LIBTRAPD_FTS    = snmptrapd_handlers.ft snmptrapd_log.ft \
-		  snmptrapd_auth.ft snmptrapd_sql.ft snmptrapd_kafka.ft
+		  snmptrapd_auth.ft snmptrapd_sql.ft
 OBJS  = *.o
 LOBJS = *.lo
 FTOBJS=$(LIBTRAPD_FTS) \
@@ -128,85 +136,106 @@ FTOBJS=$(LIBTRAPD_FTS) \
        snmptrap.ft \
        $(SNMPSETFEATUREPROG) \
        $(SNMPVACMFEATUREPROG) \
+       $(SNMPPINGFEATUREPROG) \
+       $(SNMPPCAPFEATUREPROG) \
        $(USMFEATUREPROG) \
        $(TLSFEATUREPROG) \
        agentxtrap.ft \
        snmpgetnext.ft \
        $(EKCFEATUREPROG) \
        snmpdf.ft \
+       snmpps.ft \
        $(SSHFEATUREPROG)
 
 all: standardall
 
-OTHERINSTALL=snmpinforminstall snmptrapdperlinstall
-OTHERUNINSTALL=snmpinformuninstall snmptrapdperluninstall
+OTHERINSTALL_LIBCURSES_TRUE=snmptopinstall
+OTHERUNINSTALL_LIBCURSES_TRUE=snmptopuninstall
+
+OTHERINSTALL=snmpinforminstall snmptrapdperlinstall		\
+	$(OTHERINSTALL_LIBCURSES_@HAVE_LIBCURSES@)
+OTHERUNINSTALL=snmpinformuninstall snmptrapdperluninstall	\
+	$(OTHERUNINSTALL_LIBCURSES_@HAVE_LIBCURSES@)
 
 #
 # build rules
 #
 snmpwalk$(EXEEXT):    snmpwalk.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpwalk.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpwalk.$(OSUFFIX) ${LIBS}
 
 snmpbulkwalk$(EXEEXT):    snmpbulkwalk.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpbulkwalk.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpbulkwalk.$(OSUFFIX) ${LIBS}
 
 snmpbulkget$(EXEEXT):    snmpbulkget.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpbulkget.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpbulkget.$(OSUFFIX) ${LIBS}
 
 snmptranslate$(EXEEXT):    snmptranslate.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmptranslate.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmptranslate.$(OSUFFIX) ${LIBS}
 
 snmpstatus$(EXEEXT):    snmpstatus.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpstatus.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpstatus.$(OSUFFIX) ${LIBS}
 
 snmpget$(EXEEXT):    snmpget.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpget.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpget.$(OSUFFIX) ${LIBS}
 
 snmpdelta$(EXEEXT):    snmpdelta.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpdelta.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpdelta.$(OSUFFIX) ${LIBS}
 
 snmptable$(EXEEXT):    snmptable.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmptable.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmptable.$(OSUFFIX) ${LIBS}
 
 snmptest$(EXEEXT):    snmptest.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmptest.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmptest.$(OSUFFIX) ${LIBS}
 
 snmptrapd$(EXEEXT):    $(TRAPD_OBJECTS) $(USETRAPLIBS) $(INSTALLLIBS)
-	$(LINK) ${CFLAGS} -o $@ $(TRAPD_OBJECTS) $(INSTALLLIBS) ${LDFLAGS} ${TRAPLIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ $(TRAPD_OBJECTS) $(INSTALLLIBS) ${TRAPLIBS}
 
 snmptrap$(EXEEXT):    snmptrap.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmptrap.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmptrap.$(OSUFFIX) ${LIBS}
 
 snmpinform$(EXEEXT): snmptrap$(EXEEXT)
 	rm -f snmpinform
 	$(LN_S) snmptrap$(EXEEXT) snmpinform$(EXEEXT)
 
+snmptop$(EXEEXT): snmpps$(EXEEXT)
+	rm -f snmptop
+	$(LN_S) snmpps$(EXEEXT) snmptop$(EXEEXT)
+
 snmpset$(EXEEXT):    snmpset.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpset.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpset.$(OSUFFIX) ${LIBS}
 
 snmpusm$(EXEEXT):    snmpusm.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpusm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpusm.$(OSUFFIX) ${LIBS}
 
 snmpvacm$(EXEEXT):    snmpvacm.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpvacm.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpvacm.$(OSUFFIX) ${LIBS}
 
 snmptls$(EXEEXT):    snmptls.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmptls.$(OSUFFIX) ${LDFLAGS} ${LIBS} 
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmptls.$(OSUFFIX) ${LIBS}
 
 agentxtrap$(EXEEXT):    agentxtrap.$(OSUFFIX) $(USEAGENTLIBS)
-	$(LINK) ${CFLAGS} -o $@ agentxtrap.$(OSUFFIX) ${LDFLAGS} $(USEAGENTLIBS) $(PERLLDOPTS_FOR_APPS) ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ agentxtrap.$(OSUFFIX) $(USEAGENTLIBS) $(PERLLDOPTS_FOR_APPS) ${LIBS}
 
 snmpgetnext$(EXEEXT):    snmpgetnext.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpgetnext.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpgetnext.$(OSUFFIX) ${LIBS}
 
 encode_keychange$(EXEEXT):    encode_keychange.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ encode_keychange.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ encode_keychange.$(OSUFFIX) ${LIBS}
 
 snmpdf$(EXEEXT):    snmpdf.$(OSUFFIX) $(USELIBS)
-	$(LINK) ${CFLAGS} -o $@ snmpdf.$(OSUFFIX) ${LDFLAGS} ${LIBS}
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpdf.$(OSUFFIX) ${LIBS}
+
+snmpps$(EXEEXT):    snmpps.$(OSUFFIX) $(USELIBS)
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpps.$(OSUFFIX) @LIBCURSES@ ${LIBS}
+
+snmpping$(EXEEXT):    snmpping.$(OSUFFIX) $(USELIBS)
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmpping.$(OSUFFIX) ${LIBS} -lm
+
+snmppcap$(EXEEXT):    snmppcap.$(OSUFFIX) $(USEAGENTLIBS)
+	$(LINK) ${CFLAGS} ${LDFLAGS} -o $@ snmppcap.$(OSUFFIX) ${USEAGENTLIBS} ${LIBS} -lpcap
 
 libnetsnmptrapd.$(LIB_EXTENSION)$(LIB_VERSION): $(LLIBTRAPD_OBJS)
-	$(LIB_LD_CMD) $@ ${LLIBTRAPD_OBJS} $(MIBLIB) $(USELIBS) $(PERLLDOPTS_FOR_LIBS) $(LIB_LD_LIBS)
+	$(LIB_LD_CMD) $@ $(LDFLAGS) ${LLIBTRAPD_OBJS} $(MIBLIB) $(MYSQL_LIBS) $(USELIBS) $(PERLLDOPTS_FOR_LIBS)
 	$(RANLIB) $@
 
 snmpinforminstall:
@@ -215,6 +244,13 @@ snmpinforminstall:
 
 snmpinformuninstall:
 	rm -f $(INSTALL_PREFIX)$(bindir)/snmpinform$(EXEEXT)
+
+snmptopinstall:
+	rm -f $(INSTALL_PREFIX)$(bindir)/snmptop$(EXEEXT)
+	$(LN_S) snmpps$(EXEEXT) $(INSTALL_PREFIX)$(bindir)/snmptop$(EXEEXT)
+
+snmptopuninstall:
+	rm -f $(INSTALL_PREFIX)$(bindir)/snmptop$(EXEEXT)
 
 snmptrapdperlinstall: installdirs
 	  @$(INSTALL_DATA) $(srcdir)/snmp_perl_trapd.pl $(INSTALL_PREFIX)$(snmplibdir)/snmp_perl_trapd.pl

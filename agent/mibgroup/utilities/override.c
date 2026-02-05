@@ -6,7 +6,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -14,6 +14,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
+#include "override.h"
 
 typedef struct override_data_s {
     int             type;
@@ -33,7 +34,9 @@ override_handler(netsnmp_mib_handler *handler,
 {
 
     override_data  *data = (override_data*)handler->myvoid;
+#ifndef NETSNMP_NO_WRITE_SUPPORT
     void *tmpptr;
+#endif
 
     if (!data) {
         netsnmp_set_request_error(reqinfo, requests, SNMP_ERR_GENERR);
@@ -57,9 +60,9 @@ override_handler(netsnmp_mib_handler *handler,
         break;
 
     case MODE_SET_RESERVE2:
-        if (memdup((u_char **) &data->set_space,
-                   requests->requestvb->val.string,
-                   requests->requestvb->val_len) == SNMPERR_GENERR)
+        data->set_space = netsnmp_memdup(requests->requestvb->val.string,
+                                         requests->requestvb->val_len);
+        if (!data->set_space)
             netsnmp_set_request_error(reqinfo, requests,
                                       SNMP_ERR_RESOURCEUNAVAILABLE);
         break;
@@ -253,6 +256,7 @@ netsnmp_parse_override(const char *token, char *line)
     if (!the_reg->rootoid || !the_reg->handler || !the_reg->handlerName) {
         if (the_reg->handler)
             SNMP_FREE(the_reg->handler->handler_name);
+        SNMP_FREE(the_reg->rootoid);
         SNMP_FREE(the_reg->handler);
         SNMP_FREE(the_reg->handlerName);
         SNMP_FREE(the_reg);

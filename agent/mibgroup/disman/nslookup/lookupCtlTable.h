@@ -56,6 +56,9 @@ struct lookupResultsTable_data {
     int             storagetype;
 };
 
+extern struct header_complex_index *lookupCtlTableStorage;
+extern struct header_complex_index *lookupResultsTableStorage;
+
 /*
  * function declarations 
  */
@@ -67,8 +70,6 @@ SNMPCallback    store_lookupCtlTable;
 #ifndef NETSNMP_NO_WRITE_SUPPORT 
 WriteMethod     write_lookupCtlTargetAddressType;
 WriteMethod     write_lookupCtlTargetAddress;
-WriteMethod     write_lookupCtlRowStatus;
-
 WriteMethod     write_lookupCtlRowStatus;
 #endif /* !NETSNMP_NO_WRITE_SUPPORT */
 

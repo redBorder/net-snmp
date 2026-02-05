@@ -1,4 +1,4 @@
-/* HEADER Testing 64-bit integer operations (U64). */
+/* HEADER Testing 64-bit integer operations (struct counter64). */
 
 int i, j;
 char buf[22];
@@ -15,7 +15,7 @@ static const int64_t intval[] = {
 };
 
 for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
-    U64 a, b;
+    struct counter64 a, b;
     a.low = (uint32_t)intval[i];
     a.high = (uint32_t)(intval[i] >> 32);
     printI64(buf, &a);
@@ -27,7 +27,7 @@ for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
 
 for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
     for (j = i; j < sizeof(intval)/sizeof(intval[0]); ++j) {
-        U64 a, b;
+        struct counter64 a, b;
         uint64_t d;
         a.low = (uint32_t)intval[i];
         a.high = (uint32_t)(intval[i] >> 32);
@@ -35,15 +35,15 @@ for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
         b.high = (uint32_t)(intval[j] >> 32);
         u64Incr(&a, &b);
         d = (uint64_t)a.high << 32 | a.low;
-        OKF(intval[i] + intval[j] == d,
+        OKF((uint64_t)intval[i] + (uint64_t)intval[j] == d,
             ("%" PRId64 " + %" PRId64 " = %" PRId64 " <> %" PRId64, intval[i],
-             intval[j], intval[i] + intval[j], d));
+             intval[j], (uint64_t)intval[i] + (uint64_t)intval[j], d));
     }
 }
         
 for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
     for (j = i; j < sizeof(intval)/sizeof(intval[0]); ++j) {
-        U64 a, b, c;
+        struct counter64 a, b, c;
         uint64_t d;
         a.low = (uint32_t)intval[i];
         a.high = (uint32_t)(intval[i] >> 32);
@@ -51,14 +51,14 @@ for (i = 0; i < sizeof(intval)/sizeof(intval[0]); ++i) {
         b.high = (uint32_t)(intval[j] >> 32);
         u64Subtract(&a, &b, &c);
         d = (uint64_t)c.high << 32 | c.low;
-        OKF(intval[i] - intval[j] == d,
+        OKF((uint64_t)intval[i] - (uint64_t)intval[j] == d,
             ("%" PRId64 " - %" PRId64 " = %" PRId64 " <> %" PRId64, intval[i],
-             intval[j], intval[i] - intval[j], d));
+             intval[j], (uint64_t)intval[i] - (uint64_t)intval[j], d));
     }
 }
         
 {
-    U64 old_val, new_val;
+    struct counter64 old_val, new_val;
     old_val.low = 7;
     old_val.high = 0;
     new_val = old_val;

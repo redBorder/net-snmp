@@ -5,12 +5,15 @@
 #define NET_SNMP_CONFIG_H
 
 /* _MSC_VER values
-   1600 = 10.0 (2010)
-   1500 =  9.0 (2008)
-   1400 =  8.0 (2005)
-   1310 =  7.1 (2003)
-   1300 =  7.0 (2002)
-   1200 =  6.0
+   1900 = MSCV++ 14.0 (Visual Studio 2015)
+   1800 = MSVC++ 12.0 (Visual Studio 2013)
+   1700 = MSVC++ 11.0 (Visual Studio 2012)
+   1600 = MSVC++ 10.0 (Visual Studio 2010)
+   1500 = MSVC++  9.0 (Visual Studio 2008)
+   1400 = MSVC++  8.0 (Visual Studio 2005)
+   1310 = MSVC++  7.1 (Visual Studio 2003)
+   1300 = MSVC++  7.0 (Visual Studio 2002)
+   1200 = MSVC++  6.0
 */
 
 #ifdef _MSC_VER
@@ -36,17 +39,6 @@
 /* Define NETSNMP_ENABLE_IPV6 to enable IPv6.  IPv6 is only available on
  * Windows XP and higher.  */
 /* #undef NETSNMP_ENABLE_IPV6 */
-
-/* Only use Windows API functions available on Windows 2000 SP4 or later.  
- * We need at least SP1 for some IPv6 defines in ws2ipdef.h
- */
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x501 /*_WIN32_WINNT_WIN2K*/
-#else
-#if _WIN32_WINNT < 0x501
-#error _WIN32_WINNT is too low - it should be set to at least 0x501.
-#endif
-#endif
 
 #define INSTALL_BASE "c:/usr"
 
@@ -88,6 +80,13 @@
 
 /* define if you are using the codeS11 library ...*/
 /* #undef NETSNMP_USE_PKCS11 */
+
+/* Used to make the compiler issue a warning about deprecated functions and
+   variables */
+#define NETSNMP_ATTRIBUTE_DEPRECATED
+
+/* Used to suppress compiler warnings about unused functions and variables */
+#define NETSNMP_ATTRIBUTE_UNUSED
 
 /* add in recent CMU library extensions (not complete) */
 /* #undef CMU_COMPATIBLE */
@@ -157,8 +156,20 @@
 /* Use libwrap to handle allow/deny hosts? */
 /* #undef NETSNMP_USE_LIBWRAP */
 
-/* Use dmalloc to do malloc debugging? */
-/* #undef HAVE_DMALLOC_H */
+/* Define if _beginthreadex() is defined in <process.h> */
+#define HAVE__BEGINTHREADEX 1
+
+/* Define if _cputs() is defined in <conio.h> */
+#define HAVE__CPUTS 1
+
+/* Define if _getch() is defined in <conio.h> */
+#define HAVE__GETCH 1
+
+/* Define if _get_osfhandle() is defined in <io.h> */
+#define HAVE__GET_OSFHANDLE 1
+
+/* Define if _open_osfhandle() is defined in <io.h> */
+#define HAVE__OPEN_OSFHANDLE 1
 
 /* location of UNIX kernel */
 #define KERNEL_LOC "unknown"
@@ -187,6 +198,9 @@
 
 /* If we don't want to use kmem. */
 /* #undef NETSNMP_NO_KMEM_USAGE */
+
+/* Should evaluate to the name of the current function if defined */
+#define NETSNMP_FUNCTION __FUNCTION__
 
 /* If you don't want the agent to report on variables it doesn't have data for */
 #define NETSNMP_NO_DUMMY_VALUES 1
@@ -223,6 +237,9 @@
 /* Define if SNMPv2c code should not be included */
 /* #undef NETSNMP_DISABLE_SNMPV2C */
 
+/* Define if AES-192/AES-256 encryption should be supported */
+/* #undef NETSNMP_DRAFT_BLUMENTHAL_AES_04 */
+
 /* Define to 1 if you have the `AES_cfb128_encrypt' function. */
 /* #undef HAVE_AES_CFB128_ENCRYPT */
 
@@ -247,6 +264,21 @@
 
 /* Define to 1 if you have the <direct.h> header file. */
 #define HAVE_DIRECT_H 1
+
+/* Define to 1 if you have the `DH_get0_key' function. */
+#define HAVE_DH_GET0_KEY 1
+
+/* Define to 1 if you have the `DH_get0_pqg' function. */
+#define HAVE_DH_GET0_PQG 1
+
+/* Define to 1 if you have the `X509_get_signature_nid' function. */
+#define HAVE_X509_GET_SIGNATURE_NID 1
+
+/* Define to 1 if you have the `X509_NAME_ENTRY_get_data' function. */
+#define HAVE_X509_NAME_ENTRY_GET_DATA 1
+
+/* Define to 1 if you have the `X509_NAME_ENTRY_get_object' function. */
+#define HAVE_X509_NAME_ENTRY_GET_OBJECT 1
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -277,7 +309,7 @@
 /* #undef HAVE_FSTAB_H */
 
 /* Define to 1 if you have the `getaddrinfo' function. */
-/* #undef HAVE_GETADDRINFO */
+#define HAVE_GETADDRINFO 1
 
 /* Define to 1 if you have the `getdtablesize' function. */
 /* #undef HAVE_GETDTABLESIZE */
@@ -377,9 +409,6 @@
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
 /* #undef HAVE_LIBCRYPTO */
 
-/* Define to 1 if you have the `efence' library (-lefence). */
-/* #undef HAVE_LIBEFENCE */
-
 /* Define to 1 if you have the `elf' library (-lelf). */
 /* #undef HAVE_LIBELF */
 
@@ -419,6 +448,9 @@
 /* Define to 1 if you have the <linux/tasks.h> header file. */
 /* #undef HAVE_LINUX_TASKS_H */
 
+/* Define to 1 if you have the <lm.h> header file. */
+#define HAVE_LM_H 1
+
 /* Define to 1 if you have the <locale.h> header file. */
 #define HAVE_LOCALE_H 1
 
@@ -451,9 +483,6 @@
 
 /* Define to 1 if you have the <mtab.h> header file. */
 /* #undef HAVE_MTAB_H */
-
-/* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
-/* #undef HAVE_NDIR_H */
 
 /* Define to 1 if you have the <netdb.h> header file. */
 /* #undef HAVE_NETDB_H */
@@ -560,21 +589,6 @@
 /* Define to 1 if you have the <nlist.h> header file. */
 /* #undef HAVE_NLIST_H */
 
-/* Define to 1 if you have the <openssl/aes.h> header file. */
-/* #undef HAVE_OPENSSL_AES_H */
-
-/* Define to 1 if you have the <openssl/des.h> header file. */
-/* #undef HAVE_OPENSSL_DES_H */
-
-/* Define to 1 if you have the <openssl/dh.h> header file. */
-/* #undef HAVE_OPENSSL_DH_H */
-
-/* Define to 1 if you have the <openssl/evp.h> header file. */
-/* #undef HAVE_OPENSSL_EVP_H */
-
-/* Define to 1 if you have the <openssl/hmac.h> header file. */
-/* #undef HAVE_OPENSSL_HMAC_H */
-
 /* Define to 1 if you have the <osreldate.h> header file. */
 /* #undef HAVE_OSRELDATE_H */
 
@@ -596,8 +610,11 @@
 /* Define to 1 if you have the `rand' function. */
 #define HAVE_RAND 1
 
+/* Define to 1 if you have the `srand' function. */
+#define HAVE_SRAND 1
+
 /* Define to 1 if you have the `random' function. */
-#define HAVE_RAND 1
+#undef HAVE_RANDOM
 
 /* Define to 1 if you have the `regcomp' function. */
 /* #undef HAVE_REGCOMP */
@@ -616,9 +633,6 @@
 
 /* Define to 1 if you have the <search.h> header file. */
 #define HAVE_SEARCH_H 1
-
-/* Define to 1 if you have the <security/cryptoki.h> header file. */
-/* #undef HAVE_SECURITY_CRYPTOKI_H */
 
 /* Define to 1 if you have the `select' function. */
 /* #undef HAVE_SELECT */
@@ -681,7 +695,7 @@
 /* #undef HAVE_STATVFS */
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || (defined(_MSC_VER) && (_MSC_VER >= 1600))
 #define HAVE_STDINT_H 1
 #endif
 
@@ -775,10 +789,6 @@
 
 /* Define to 1 if you have the <sys/mount.h> header file. */
 /* #undef HAVE_SYS_MOUNT_H */
-
-/* Define to 1 if you have the <sys/ndir.h> header file, and it defines `DIR'.
-   */
-/* #undef HAVE_SYS_NDIR_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 /* #undef HAVE_SYS_PARAM_H */
@@ -930,6 +940,9 @@
 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_VSNPRINTF 1
 
+/* Define to 1 if you have the <windows.h> header file. */
+#define HAVE_WINDOWS_H 1
+
 /* Define to 1 if you have the <winsock.h> header file. */
 #define HAVE_WINSOCK_H 1
 
@@ -939,8 +952,17 @@
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #define HAVE_WS2TCPIP_H 1
 
+/* Set if IP_PKTINFO is usable */
+#define HAVE_IP_PKTINFO 1
+
 /* Define to 1 if you have the <xti.h> header file. */
 /* #undef HAVE_XTI_H */
+
+/* Type of the fifth argument of select() */
+#define NETSNMP_SELECT_TIMEVAL struct timeval
+
+/* Type of the third argument of ioctlsocket() */
+#define NETSNMP_IOCTLSOCKET_ARG u_long
 
 /* Define to the address where bug reports for this package should be sent. */
 /* #undef PACKAGE_BUGREPORT */
@@ -964,35 +986,8 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
-/* The size of a `int', as computed by sizeof. */
-#define SIZEOF_INT 4
-
-/* The size of a `long', as computed by sizeof. */
-#define SIZEOF_LONG 4
-
-/* The size of a `intmax_t', as computed by sizeof. */
-#define SIZEOF_INTMAX_T 8
-
-/* The size of a `short', as computed by sizeof. */
-#define SIZEOF_SHORT 2
-
-/* If using the C implementation of alloca, define if you know the
-   direction of stack growth for your system; otherwise it will be
-   automatically deduced at run-time.
-        STACK_DIRECTION > 0 => grows toward higher addresses
-        STACK_DIRECTION < 0 => grows toward lower addresses
-        STACK_DIRECTION = 0 => direction of growth unknown */
-/* #undef STACK_DIRECTION */
-
-/* Define to 1 if you have the ANSI C header files. */
-#define STDC_HEADERS 1
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 /* #undef TIME_WITH_SYS_TIME */
-
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
 
 /* Define to 1 if on AIX 3.
    System headers sometimes define this.
@@ -1141,10 +1136,21 @@
 /* #undef NETSNMP_CAN_USE_SYSCTL */
 
 /* type check for in_addr_t */
-/* #undef in_addr_t */
+#define in_addr_t unsigned long
 
 /* define if SIOCGIFADDR exists in sys/ioctl.h */
 /* #undef SYS_IOCTL_H_HAS_SIOCGIFADDR */
+
+#if defined(_M_PPC) || defined(_M_MPPC)
+# define NETSNMP_BIGENDIAN 1
+#elif defined(_M_IX86) || defined(_M_X64) || defined(_M_ARM64)
+# define NETSNMP_BIGENDIAN 0
+#else
+#  error Unknown byte order
+#endif
+
+#define NETSNMP_FALLTHROUGH do { } while (0)
+#define NETSNMP_NONNULL(...) /* nonnull */
 
 /* Mib-2 tree Info */
 /* These are the system information variables. */
@@ -1259,8 +1265,6 @@
 
 /* The assigned enterprise number for sysObjectID. */
 #define NETSNMP_SYSTEM_MIB		1,3,6,1,4,1,8072,3,2,OSTYPE
-#define NETSNMP_SYSTEM_DOT_MIB		1.3.6.1.4.1.8072.3.2.OSTYPE
-#define NETSNMP_SYSTEM_DOT_MIB_LENGTH	10
 
 /* The assigned enterprise number for notifications. */
 #define NETSNMP_NOTIFICATION_MIB		1,3,6,1,4,1,8072,4
@@ -1355,11 +1359,53 @@
 
 #ifdef NETSNMP_USE_OPENSSL
 
-/* Define to 1 if you have the <openssl/dh.h> header file. */
-#define HAVE_OPENSSL_DH_H 1
+#define HAVE_LIBSSL 1
+
+#define HAVE_LIBSSL_DTLS 1
+
+#define SECOND_APPVERIFY_COOKIE_CB_ARG_QUALIFIER const
 
 /* Define to 1 if you have the <openssl/aes.h> header file. */
 #define HAVE_OPENSSL_AES_H 1
+
+/* Define to 1 if you have the <openssl/des.h> header file. */
+#define HAVE_OPENSSL_DES_H 1
+
+/* Define to 1 if you have the <openssl/dh.h> header file. */
+#define HAVE_OPENSSL_DH_H 1
+
+/* Define to 1 if you have the <openssl/evp.h> header file. */
+#define HAVE_OPENSSL_EVP_H 1
+
+/* Define to 1 if you have the <openssl/hmac.h> header file. */
+#define HAVE_OPENSSL_HMAC_H 1
+
+/* Define to 1 if you have the `AES_cfb128_encrypt' function. */
+#define HAVE_AES_CFB128_ENCRYPT 1
+
+/* Define to 1 if you have the `ASN1_STRING_get0_data' function. */
+#define HAVE_ASN1_STRING_GET0_DATA 1
+
+/* Define to 1 if you have the `DH_get0_key' function. */
+#define HAVE_DH_GET0_KEY 1
+
+/* Define to 1 if you have the `DH_get0_pqg' function. */
+#define HAVE_DH_GET0_PQG 1
+
+/* Define to 1 if you have the `DH_set0_pqg' function. */
+#define HAVE_DH_SET0_PQG 1
+
+/* Define to 1 if you have the `DTLSv1_method' function. */
+#define HAVE_DTLSV1_METHOD 1
+
+/* Define to 1 if you have the `DTLS_method' function. */
+#define HAVE_DTLS_METHOD 1
+
+/* Define to 1 if you have the `EVP_MD_CTX_free' function. */
+#define HAVE_EVP_MD_CTX_FREE 1
+
+/* Define to 1 if you have the `EVP_MD_CTX_new' function. */
+#define HAVE_EVP_MD_CTX_NEW 1
 
 /* Define to 1 if you have the `EVP_MD_CTX_create' function. */
 #define HAVE_EVP_MD_CTX_CREATE 1
@@ -1367,12 +1413,33 @@
 /* Define to 1 if you have the `EVP_MD_CTX_destroy' function. */
 #define HAVE_EVP_MD_CTX_DESTROY 1
 
-/* Define to 1 if you have the `AES_cfb128_encrypt' function. */
-#define HAVE_AES_CFB128_ENCRYPT 1
+/* Define if you have EVP_sha224/256 in openssl */
+#define HAVE_EVP_SHA224 /**/
+
+/* Define if you have EVP_sha384/512 in openssl */
+#define HAVE_EVP_SHA384 /**/
+
+/* Define to 1 if you have the `TLSv1_method' function. */
+#define HAVE_TLSV1_METHOD 1
+
+/* Define to 1 if you have the `TLS_method' function. */
+#define HAVE_TLS_METHOD 1
+
+/* Define to 1 if you have the `X509_get_signature_nid' function. */
+#define HAVE_X509_GET_SIGNATURE_NID 1
+
+/* Define to 1 if you have the `X509_NAME_ENTRY_get_data' function. */
+#define HAVE_X509_NAME_ENTRY_GET_DATA 1
+
+/* Define to 1 if you have the `X509_NAME_ENTRY_get_object' function. */
+#define HAVE_X509_NAME_ENTRY_GET_OBJECT 1
 
 #if defined(HAVE_OPENSSL_AES_H) && defined(HAVE_AES_CFB128_ENCRYPT)
 #define HAVE_AES 1
 #endif
+
+/* Define to 1 if you have the `ERR_get_error_all' function. */
+#define HAVE_ERR_GET_ERROR_ALL 1
 
 #else /* ! NETSNMP_USE_OPENSSL */
 
@@ -1381,20 +1448,6 @@
 
 #endif /* ! NETSNMP_USE_OPENSSL */
 
-
-/* define random functions */
-
-#ifndef HAVE_RANDOM
-#ifdef HAVE_LRAND48
-#define random lrand48
-#define srandom(s) srand48(s)
-#else
-#ifdef HAVE_RAND
-#define random rand
-#define srandom(s) srand(s)
-#endif
-#endif
-#endif
 
 /* define signal if DNE */
 
@@ -1458,10 +1511,6 @@
     available.  */
 /* #undef NETSNMP_TRANSPORT_TCPIPV6_DOMAIN */
 
-/*  This is defined if support for the TLS transport domain is
-    available.   */
-/* #undef NETSNMP_TRANSPORT_TLSBASE_DOMAIN */
-
 /*  This is defined if support for the Alias transport domain is
     available.   */
 /* #undef NETSNMP_TRANSPORT_ALIAS_DOMAIN */
@@ -1470,13 +1519,21 @@
     available.   */
 /* #undef NETSNMP_TRANSPORT_SSH_DOMAIN */
 
+#ifdef NETSNMP_USE_OPENSSL
+
+/*  This is defined if support for the TLS transport domain is
+    available.   */
+#define NETSNMP_TRANSPORT_TLSBASE_DOMAIN 1
+
 /*  This is defined if support for the DTLS/UDP transport domain is
     available.   */
-/* #undef NETSNMP_TRANSPORT_DTLSUDP_DOMAIN */
+#define NETSNMP_TRANSPORT_DTLSUDP_DOMAIN 1
 
 /*  This is defined if support for the TLS/TCP transport domain is
     available.   */
-/* #undef NETSNMP_TRANSPORT_TLSTCP_DOMAIN */
+#define NETSNMP_TRANSPORT_TLSTCP_DOMAIN 1
+
+#endif
 
 /*  This is defined if support for stdin/out transport domain is available.   */
 /* #undef NETSNMP_TRANSPORT_STD_DOMAIN */
@@ -1519,23 +1576,10 @@
 #endif
 
 /*
- * this must be before the system/machine includes, to allow them to
- * override and turn off inlining. To do so, they should do the
- * following:
- *
- *    #undef NETSNMP_ENABLE_INLINE
- *    #define NETSNMP_ENABLE_INLINE 0
- *
- * A user having problems with their compiler can also turn off
+ * A user having problems with their compiler can turn off
  * the use of inline by defining NETSNMP_NO_INLINE via their cflags:
  *
  *    -DNETSNMP_NO_INLINE
- *
- * Header and source files should only test against NETSNMP_USE_INLINE:
- *
- *   #ifdef NETSNMP_USE_INLINE
- *   NETSNMP_INLINE function(int parm) { return parm -1; }
- *   #endif
  *
  * Functions which should be static, regardless of whether or not inline
  * is available or enabled should use the NETSNMP_STATIC_INLINE macro,
@@ -1548,6 +1592,10 @@
  *    static NETSNMP_INLINE function(int parm) { return parm -1; }
  *
  */
+#ifdef NETSNMP_NO_INLINE
+#define NETSNMP_INLINE
+#define NETSNMP_STATIC_INLINE static
+#else
 /*
  * Win32 needs extern for inline function declarations in headers.
  * See MS tech note Q123768:
@@ -1555,21 +1603,15 @@
  */
 #define NETSNMP_INLINE extern inline
 #define NETSNMP_STATIC_INLINE static inline
-#define NETSNMP_ENABLE_INLINE 1
+#endif
 
 #if notused
 #include NETSNMP_SYSTEM_INCLUDE_FILE
 #include NETSNMP_MACHINE_INCLUDE_FILE
 #endif
 
-#if NETSNMP_ENABLE_INLINE && !defined(NETSNMP_NO_INLINE)
-#   define NETSNMP_USE_INLINE 1
-#else
-#   undef  NETSNMP_INLINE
-#   define NETSNMP_INLINE 
-#   undef  NETSNMP_STATIC_INLINE
-#   define NETSNMP_STATIC_INLINE static
-#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 #ifdef WIN32
 
@@ -1613,17 +1655,21 @@ typedef unsigned int     uintptr_t;
 #endif
 
 #ifndef __cplusplus
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4804) // '-' : unsafe use of type 'bool' in operation
+#endif
 enum {
     netsnmp_compile_time_uintptr_t_size_check
         = sizeof(struct netsnmp_compile_time_uintptr_t_size_check_s { int:-!(sizeof(uintptr_t) == sizeof(void*)); })
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #endif
 
 /* Define if you have the closesocket function.  */
 #define HAVE_CLOSESOCKET 1
-
-/* Define if you have raise() instead of alarm() */
-#define HAVE_RAISE 1
 
 /* define to 1 if you do not want to set global snmp_errno */
 #define DONT_SHARE_ERROR_WITH_OTHER_THREADS 1
@@ -1632,7 +1678,7 @@ enum {
 #if defined(_MSC_VER) && _MSC_VER < 1500
 #define vsnprintf _vsnprintf
 #endif
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && _MSC_VER < 1900
 #define snprintf  _snprintf
 #endif
 
@@ -1661,11 +1707,11 @@ enum {
 #ifdef NETSNMP_USE_DLL
   #ifdef NETSNMP_DLL
     #if defined(_MSC_VER)
-      #define NETSNMP_IMPORT __declspec(dllexport)
+      #define NETSNMP_IMPORT extern __declspec(dllexport)
     #endif
   #else
     #if defined(_MSC_VER)
-      #define NETSNMP_IMPORT __declspec(dllimport)
+      #define NETSNMP_IMPORT extern __declspec(dllimport)
     #endif
   #endif   /* NETSNMP_DLL */
 #endif     /* NETSNMP_USE_DLL */
@@ -1674,17 +1720,11 @@ enum {
 #if defined(_MSC_VER)
 #  if defined(NETSNMP_USE_OPENSSL)
 #    ifdef _DLL
-#      ifdef _DEBUG
-#        pragma comment(lib, "libeay32MDd.lib")
-#      else
-#        pragma comment(lib, "libeay32MD.lib")
-#      endif
+#      pragma comment(lib, "libcrypto.lib")
+#      pragma comment(lib, "libssl.lib")
 #    else
-#      ifdef _DEBUG
-#        pragma comment(lib, "libeay32MTd.lib")
-#      else
-#        pragma comment(lib, "libeay32MT.lib")
-#      endif
+#      pragma comment(lib, "libcrypto_static.lib")
+#      pragma comment(lib, "libssl_static.lib")
 #    endif
 #    pragma comment(lib, "gdi32.lib")
 #    pragma comment(lib, "user32.lib")
@@ -1701,20 +1741,18 @@ enum {
 #define NETSNMP_CAN_USE_NLIST
 #endif
 
-#if HAVE_DMALLOC_H
+#ifdef HAVE_DMALLOC_H
 #define DMALLOC_FUNC_CHECK
 #endif
+
+#define NETSNMP_NO_SYSTEMD
 
 /* #undef NETSNMP_ENABLE_LOCAL_SMUX */
 
 /* define if agentx transport is to use domain sockets only */
 /* #undef NETSNMP_AGENTX_DOM_SOCK_ONLY */
 
-#ifndef LOG_DAEMON
-#define       LOG_DAEMON      (3<<3)  /* system daemons */
-#endif
-
-#if UCD_COMPATIBLE
+#ifdef UCD_COMPATIBLE
 /* old and in the way */
 #define EXTENSIBLEMIB NETSNMP_UCDAVIS_MIB
 #endif
@@ -1748,7 +1786,11 @@ enum {
 #endif
 
 /* Define to 1 if you have the `strtoull' function. */
+#if _MSC_VER >= 1800
+#define HAVE_STRTOULL 1
+#else
 /* #undef HAVE_STRTOULL */
+#endif
 
 /*
  * Module configuration and control starts here.
@@ -1795,9 +1837,6 @@ enum {
 #ifdef HAVE_WIN32_PLATFORM_SDK
 #define HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY 1
 #endif
-
-/* Size prefix to use to printf a uint32_t */
-#define NETSNMP_PRI32 ""
 
 #ifdef _MSC_VER
 #ifdef _WIN64

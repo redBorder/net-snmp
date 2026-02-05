@@ -47,16 +47,16 @@
 
 #include <ctype.h>
 
-netsnmp_feature_child_of(inetCidrRouteTable_external_access, libnetsnmpmibs)
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(table_container_row_insert)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_child_of(inetCidrRouteTable_external_access, libnetsnmpmibs);
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(table_container_row_insert);
+netsnmp_feature_require(check_all_requests_error);
 
-netsnmp_feature_child_of(inetCidrRouteTable_container_size, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_registration_set, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_registration_get, inetCidrRouteTable_external_access)
-netsnmp_feature_child_of(inetCidrRouteTable_container_get, inetCidrRouteTable_external_access)
+netsnmp_feature_child_of(inetCidrRouteTable_container_size, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_registration_set, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_registration_get, inetCidrRouteTable_external_access);
+netsnmp_feature_child_of(inetCidrRouteTable_container_get, inetCidrRouteTable_external_access);
 /**********************************************************************
  **********************************************************************
  ***
@@ -294,10 +294,12 @@ _inetCidrRouteTable_initialize_interface(inetCidrRouteTable_registration *
         netsnmp_handler_registration_create("inetCidrRouteTable", handler,
                                             inetCidrRouteTable_oid,
                                             inetCidrRouteTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_DISABLE_SET_SUPPORT */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table inetCidrRouteTable\n");
@@ -1174,7 +1176,7 @@ _mfd_inetCidrRouteTable_get_values(netsnmp_mib_handler *handler,
 
         /*
          * if the buffer wasn't used previously for the old data (i.e. it
-         * was allcoated memory)  and the get routine replaced the pointer,
+         * was allocated memory)  and the get routine replaced the pointer,
          * we need to free the previous pointer.
          */
         if (old_string && (old_string != requests->requestvb->buf) &&
@@ -1228,16 +1230,16 @@ _inetCidrRouteTable_check_indexes(inetCidrRouteTable_rowreq_ctx *
     if (MFD_SUCCESS != rc)
         return SNMP_ERR_NOCREATION;
 
+    /* MORE CHECKING REQUIRED */
+
     /*
      * (INDEX) inetCidrRouteDest(2)/InetAddress/ASN_OCTET_STR/char(char)//L/a/w/e/R/d/h 
      */
     /*
      * check defined range(s). 
      */
-    if ((SNMPERR_SUCCESS == rc)
-        && ((rowreq_ctx->tbl_idx.inetCidrRouteDest_len < 0)
-            || (rowreq_ctx->tbl_idx.inetCidrRouteDest_len > 255))
-        ) {
+    if (rc == SNMPERR_SUCCESS &&
+        rowreq_ctx->tbl_idx.inetCidrRouteDest_len > 255) {
         rc = SNMP_ERR_WRONGLENGTH;
     }
     if (MFD_SUCCESS != rc)
@@ -1252,10 +1254,8 @@ _inetCidrRouteTable_check_indexes(inetCidrRouteTable_rowreq_ctx *
     /*
      * check defined range(s). 
      */
-    if ((SNMPERR_SUCCESS == rc)
-        && ((rowreq_ctx->tbl_idx.inetCidrRoutePfxLen < 0)
-            || (rowreq_ctx->tbl_idx.inetCidrRoutePfxLen > 2040))
-        ) {
+    if (rc == SNMPERR_SUCCESS &&
+        rowreq_ctx->tbl_idx.inetCidrRoutePfxLen > 2040) {
         rc = SNMP_ERR_WRONGVALUE;
     }
     if (MFD_SUCCESS != rc)
@@ -1267,8 +1267,6 @@ _inetCidrRouteTable_check_indexes(inetCidrRouteTable_rowreq_ctx *
     /*
      * (INDEX) inetCidrRoutePolicy(4)/OBJECTID/ASN_OBJECT_ID/oid(oid)//L/a/w/e/r/d/h 
      */
-    if (MFD_SUCCESS != rc)
-        return rc;
     rc = inetCidrRoutePolicy_check_index(rowreq_ctx);
     if (MFD_SUCCESS != rc)
         return SNMP_ERR_NOCREATION;
@@ -1307,10 +1305,8 @@ _inetCidrRouteTable_check_indexes(inetCidrRouteTable_rowreq_ctx *
     /*
      * check defined range(s). 
      */
-    if ((SNMPERR_SUCCESS == rc)
-        && ((rowreq_ctx->tbl_idx.inetCidrRouteNextHop_len < 0)
-            || (rowreq_ctx->tbl_idx.inetCidrRouteNextHop_len > 255))
-        ) {
+    if (rc == SNMPERR_SUCCESS &&
+        rowreq_ctx->tbl_idx.inetCidrRouteNextHop_len > 255) {
         rc = SNMP_ERR_WRONGLENGTH;
     }
     if (MFD_SUCCESS != rc)
@@ -2085,7 +2081,7 @@ _mfd_inetCidrRouteTable_commit(netsnmp_mib_handler *handler,
 
     if (rowreq_ctx->rowreq_flags & MFD_ROW_DIRTY) {
         /*
-         * if we successfully commited this row, set the dirty flag. Use the
+         * if we successfully committed this row, set the dirty flag. Use the
          * current value + 1 (i.e. dirty = # rows changed).
          * this is checked in post_request...
          */
@@ -2268,8 +2264,7 @@ _cache_free(netsnmp_cache * cache, void *magic)
  * @internal
  */
 static void
-_container_item_free(inetCidrRouteTable_rowreq_ctx * rowreq_ctx,
-                     void *context)
+_container_item_free(void *rowreq_ctx, void *context)
 {
     DEBUGMSGTL(("internal:inetCidrRouteTable:_container_item_free",
                 "called\n"));
@@ -2303,9 +2298,7 @@ _container_free(netsnmp_container *container)
     /*
      * free all items. inefficient, but easy.
      */
-    CONTAINER_CLEAR(container,
-                    (netsnmp_container_obj_func *) _container_item_free,
-                    NULL);
+    CONTAINER_CLEAR(container, _container_item_free, NULL);
 }                               /* _container_free */
 
 /**
@@ -2385,7 +2378,7 @@ inetCidrRouteTable_row_find_by_mib_index(inetCidrRouteTable_mib_index *
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = sizeof(oid_tmp) / sizeof(oid);
+    oid_idx.len = OID_LENGTH(oid_tmp);
 
     /*
      * convert

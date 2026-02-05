@@ -1,9 +1,15 @@
 #ifndef _SNMP_TRANSPORT_H
 #define _SNMP_TRANSPORT_H
 
+/*
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
+ */
 #include <sys/types.h>
 
-#if HAVE_SYS_SOCKET_H
+#ifdef HAVE_SYS_SOCKET_H
 #ifdef solaris2
 #define _XPG4_2
 #endif
@@ -27,6 +33,7 @@
 #include <netinet/in.h>
 #endif
 
+#include <net-snmp/types.h>
 #include <net-snmp/library/asn1.h>
 
 #ifdef __cplusplus
@@ -48,15 +55,16 @@ extern          "C" {
                                                           TSM tmStateReference */
 #define		NETSNMP_TRANSPORT_FLAG_EMPTY_PKT 0x10
 #define		NETSNMP_TRANSPORT_FLAG_OPENED	 0x20  /* f_open called */
+#define		NETSNMP_TRANSPORT_FLAG_SHARED	 0x40
 #define		NETSNMP_TRANSPORT_FLAG_HOSTNAME	 0x80  /* for fmtaddr hook */
 
 /*  The standard SNMP domains.  */
 
-NETSNMP_IMPORT oid      netsnmpUDPDomain[]; 	/*      = { 1, 3, 6, 1, 6, 1, 1 };  */
-NETSNMP_IMPORT oid      netsnmpCLNSDomain[];    /*      = { 1, 3, 6, 1, 6, 1, 2 };  */
-NETSNMP_IMPORT oid      netsnmpCONSDomain[];    /*      = { 1, 3, 6, 1, 6, 1, 3 };  */
-NETSNMP_IMPORT oid      netsnmpDDPDomain[]; 	/*      = { 1, 3, 6, 1, 6, 1, 4 };  */
-NETSNMP_IMPORT oid      netsnmpIPXDomain[]; 	/*      = { 1, 3, 6, 1, 6, 1, 5 };  */
+NETSNMP_IMPORT const oid netsnmpUDPDomain[];
+NETSNMP_IMPORT const oid netsnmpCLNSDomain[];
+NETSNMP_IMPORT const oid netsnmpCONSDomain[];
+NETSNMP_IMPORT const oid netsnmpDDPDomain[];
+NETSNMP_IMPORT const oid netsnmpIPXDomain[];
 NETSNMP_IMPORT size_t   netsnmpUDPDomain_len;
 NETSNMP_IMPORT size_t   netsnmpCLNSDomain_len;
 NETSNMP_IMPORT size_t   netsnmpCONSDomain_len;
@@ -106,6 +114,20 @@ typedef struct netsnmp_tmStateReference_s {
    void *otherTransportOpaque; /* XXX: May have mem leak issues */
 } netsnmp_tmStateReference;
 
+#define NETSNMP_TSPEC_LOCAL                     0x01 /* 1=server, 0=client */
+#define NETSNMP_TSPEC_PREBOUND                  0x02 /* 1=bound by systemd, 0=needs bind in the library */
+
+struct netsnmp_container_s; /* forward decl */
+typedef struct netsnmp_tdomain_spec_s {
+    const char *application;             /* application name */
+    const char *target;                  /* target as string */
+    u_int       flags;
+    const char *default_domain;          /* default domain */
+    const char *default_target;          /* default target */
+    const char *source;                  /* source as string iff remote */
+    struct netsnmp_container_s *transport_config; /* extra config */
+} netsnmp_tdomain_spec;
+
 /*  Structure which defines the transport-independent API.  */
 
 struct snmp_session;
@@ -118,12 +140,12 @@ typedef struct netsnmp_transport_s {
 
     /*  Local transport address (in relevant SNMP-style encoding).  */
     
-    unsigned char  *local;
+    void           *local;
     int             local_length;   /*  In octets.  */
 
     /*  Remote transport address (in relevant SNMP-style encoding).  */
 
-    unsigned char  *remote;
+    void           *remote;
     int             remote_length;  /*  In octets.  */
 
     /*  The actual socket.  */
@@ -158,7 +180,7 @@ typedef struct netsnmp_transport_s {
 
     int             (*f_recv)   (struct netsnmp_transport_s *, void *,
 				 int, void **, int *);
-    int             (*f_send)   (struct netsnmp_transport_s *, void *,
+    int             (*f_send)   (struct netsnmp_transport_s *, const void *,
 				 int, void **, int *);
     int             (*f_close)  (struct netsnmp_transport_s *);
 
@@ -171,7 +193,8 @@ typedef struct netsnmp_transport_s {
 
     /*  Optional callback to format a transport address.  */
 
-    char           *(*f_fmtaddr)(struct netsnmp_transport_s *, void *, int);
+    char           *(*f_fmtaddr)(struct netsnmp_transport_s *, const void *,
+                                 int);
 
     /*  Optional callback to support extra configuration token/value pairs */
     /*  return non-zero on error */
@@ -180,7 +203,7 @@ typedef struct netsnmp_transport_s {
 
     /*  Optional callback that is called after the first transport is
         cloned to the second */
-    int            (*f_copy)(struct netsnmp_transport_s *,
+    int            (*f_copy)(const struct netsnmp_transport_s *,
                              struct netsnmp_transport_s *);
 
     /*  Setup initial session config if special things are needed */
@@ -190,6 +213,11 @@ typedef struct netsnmp_transport_s {
     /* allocated host name identifier; used by configuration system
        to load localhost.conf for host-specific configuration */
     u_char         *identifier; /* udp:localhost:161 -> "localhost" */
+
+    /* Duplicate the remote address in the format required by SNMP-TARGET-MIB */
+    void           (*f_get_taddr)(struct netsnmp_transport_s *t,
+                                  void **addr, size_t *addr_len);
+
 } netsnmp_transport;
 
 typedef struct netsnmp_transport_list_s {
@@ -203,27 +231,35 @@ typedef struct netsnmp_tdomain_s {
     const char    **prefix;
 
     /*
-     * The f_create_from_tstring field is deprecated, please do not use it
-     * for new code and try to migrate old code away from using it.
+     * The f_create_from_tstring and f_create_from_tstring_new fields are
+     * deprecated, please do not use them for new code and try to migrate
+     * old code away from using them.
      */
     netsnmp_transport *(*f_create_from_tstring) (const char *, int);
 
-    netsnmp_transport *(*f_create_from_ostring) (const u_char *, size_t, int);
+    /* @o and @o_len define an address in the format used by SNMP-TARGET-MIB */
+    netsnmp_transport *(*f_create_from_ostring) (const void *o, size_t o_len,
+                                                 int local);
 
     struct netsnmp_tdomain_s *next;
 
+    /** deprecated, please do not use it */
     netsnmp_transport *(*f_create_from_tstring_new) (const char *, int,
 						     const char*);
+    netsnmp_transport *(*f_create_from_tspec) (netsnmp_tdomain_spec *);
 
 } netsnmp_tdomain;
 
 void init_snmp_transport(void);
+void shutdown_snmp_transport(void);
 
 /*  Some utility functions.  */
 
-char *netsnmp_transport_peer_string(netsnmp_transport *t, void *data, int len);
+NETSNMP_IMPORT
+char *netsnmp_transport_peer_string(netsnmp_transport *t, const void *data,
+                                    int len);
 
-int netsnmp_transport_send(netsnmp_transport *t, void *data, int len,
+int netsnmp_transport_send(netsnmp_transport *t, const void *data, int len,
                            void **opaque, int *olength);
 int netsnmp_transport_recv(netsnmp_transport *t, void *data, int len,
                            void **opaque, int *olength);
@@ -232,7 +268,8 @@ int netsnmp_transport_add_to_list(netsnmp_transport_list **transport_list,
 				  netsnmp_transport *transport);
 int netsnmp_transport_remove_from_list(netsnmp_transport_list **transport_list,
 				       netsnmp_transport *transport);
-int netsnmp_sockaddr_size(struct sockaddr *sa);
+NETSNMP_IMPORT
+int netsnmp_sockaddr_size(const struct sockaddr *sa);
 
 
 /*
@@ -240,7 +277,7 @@ int netsnmp_sockaddr_size(struct sockaddr *sa);
  * problem (for instance).
  */
 
-netsnmp_transport *netsnmp_transport_copy(netsnmp_transport *t);
+netsnmp_transport *netsnmp_transport_copy(const netsnmp_transport *t);
 
 
 /*  Free an netsnmp_transport.  */
@@ -248,6 +285,25 @@ netsnmp_transport *netsnmp_transport_copy(netsnmp_transport *t);
 NETSNMP_IMPORT
 void            netsnmp_transport_free(netsnmp_transport *t);
 
+#ifndef FEATURE_REMOVE_TRANSPORT_CACHE
+
+/**  transport cache support */
+
+NETSNMP_IMPORT
+netsnmp_transport *netsnmp_transport_cache_get(int af, int type, int local,
+                                               const netsnmp_sockaddr_storage *bind_addr,
+                                               unsigned addr_size);
+
+NETSNMP_IMPORT
+int                netsnmp_transport_cache_save(int af, int type, int local,
+                                                const netsnmp_sockaddr_storage *addr,
+                                                unsigned addr_size,
+                                                netsnmp_transport *t);
+
+NETSNMP_IMPORT
+int                netsnmp_transport_cache_remove(netsnmp_transport *t);
+
+#endif /* FEATURE_REMOVE_TRANSPORT_CACHE */
 
 /*
  * If the passed oid (in_oid, in_len) corresponds to a supported transport
@@ -290,6 +346,9 @@ netsnmp_transport *netsnmp_tdomain_transport_oid(const oid * dom,
 						 int local);
 
 NETSNMP_IMPORT
+netsnmp_transport *netsnmp_tdomain_transport_tspec(netsnmp_tdomain_spec *tspec);
+
+NETSNMP_IMPORT
 netsnmp_transport*
 netsnmp_transport_open_client(const char* application, const char* str);
 
@@ -306,11 +365,29 @@ typedef struct netsnmp_transport_config_s {
 } netsnmp_transport_config;
     
 NETSNMP_IMPORT    
-int netsnmp_transport_config_compare(netsnmp_transport_config *left,
-                                     netsnmp_transport_config *right);
+int netsnmp_transport_config_compare(const void *left, const void *right);
 NETSNMP_IMPORT
-netsnmp_transport_config *netsnmp_transport_create_config(char *key,
-                                                          char *value);
+netsnmp_transport_config *netsnmp_transport_create_config(const char *key,
+                                                          const char *value);
+
+#ifndef NETSNMP_FEATURE_REMOVE_FILTER_SOURCE
+NETSNMP_IMPORT
+void netsnmp_transport_parse_filterType(const char *word, char *cptr);
+
+NETSNMP_IMPORT
+int netsnmp_transport_filter_add(const char *addrtxt);
+
+NETSNMP_IMPORT
+int netsnmp_transport_filter_remove(const char *addrtxt);
+
+NETSNMP_IMPORT
+int netsnmp_transport_filter_check(const char *addrtxt);
+
+NETSNMP_IMPORT
+void netsnmp_transport_filter_cleanup(void);
+
+#endif /* NETSNMP_FEATURE_REMOVE_FILTER_SOURCE */
+
 #ifdef __cplusplus
 }
 #endif

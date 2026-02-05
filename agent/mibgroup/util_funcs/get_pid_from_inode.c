@@ -2,20 +2,24 @@
 
 #include "get_pid_from_inode.h"
 
+#include <net-snmp/library/system.h> /* strlcpy() */
 #include <net-snmp/output_api.h>
 
 #include <ctype.h>
 #include <stdio.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
 #endif
 
 # define PROC_PATH          "/proc"
@@ -144,9 +148,10 @@ netsnmp_get_pid_from_inode_init(void)
             if (filelen + strlen(pidinfo->d_name) > PATH_MAX)
                 continue;
 
-            strcpy(path_name + filelen, pidinfo->d_name);
+            strlcpy(path_name + filelen, pidinfo->d_name,
+                    sizeof(path_name) - filelen);
 
-            /* The file discriptor is a symbolic link to a socket or a file.*/
+            /* The file descriptor is a symbolic link to a socket or a file.*/
             /* Thus read the symbolic link.*/
             memset(socket_lnk, '\0', NAME_MAX + 1);
             readlen = readlink(path_name, socket_lnk, NAME_MAX);

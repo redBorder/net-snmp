@@ -11,6 +11,10 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 /*
  * include our parent header 
  */
@@ -185,8 +189,8 @@ etherStatsTable_container_shutdown(netsnmp_container * container_ptr)
  *  While loading the data, the only important thing is the indexes.
  *  If access to your data is cheap/fast (e.g. you have a pointer to a
  *  structure in memory), it would make sense to update the data here.
- *  If, however, the accessing the data invovles more work (e.g. parsing
- *  some other existing data, or peforming calculations to derive the data),
+ *  If, however, the accessing the data involves more work (e.g. parsing
+ *  some other existing data, or performing calculations to derive the data),
  *  then you can limit yourself to setting the indexes and saving any
  *  information you will need later. Then use the saved information in
  *  etherStatsTable_row_prep() for populating data.
@@ -200,11 +204,7 @@ etherStatsTable_container_shutdown(netsnmp_container * container_ptr)
 int
 etherStatsTable_container_load(netsnmp_container * container)
 {
-    etherStatsTable_rowreq_ctx *rowreq_ctx;
     size_t          count = 0;
-
-    DEBUGMSGTL(("verbose:etherStatsTable:etherStatsTable_container_load",
-                "called\n"));
 
     /*
      * TODO:352:M: |   |-> set indexes in new etherStatsTable rowreq context.
@@ -220,13 +220,15 @@ etherStatsTable_container_load(netsnmp_container * container)
      * etherStatsIndex(1)/INTEGER32/ASN_INTEGER/long(long)//l/A/w/e/R/d/h
      */
 
-    long            etherStatsIndex;
     int             fd;
-    int             rc = 0, retval = 0;
 
 #if defined(linux)
     struct ifname *list_head = NULL, *p = NULL;
 #endif
+
+    DEBUGMSGTL(("verbose:etherStatsTable:etherStatsTable_container_load",
+                "called\n"));
+
     
     /*
      * create socket for ioctls
@@ -239,12 +241,16 @@ etherStatsTable_container_load(netsnmp_container * container)
     }
 
     /*
-     * get the interface names of the devices present in the system, in case of failure retval suggests the reson for failure
+     * get the interface names of the devices present in the system, in case of failure retval suggests the reason for failure
      * and list_head contains null
      */
 
 #if defined(linux)
-    list_head = etherstats_interface_name_list_get (list_head, &retval);
+    {
+        int retval;
+
+        list_head = etherstats_interface_name_list_get(list_head, &retval);
+    }
 
     if (!list_head) {
         snmp_log (LOG_ERR, "access:etherStatsTable, error getting the interface names present in the system\n");
@@ -254,10 +260,13 @@ etherStatsTable_container_load(netsnmp_container * container)
     }
 
     /*
-     * Walk over the list of interface names present in the system and retreive the statistics 
+     * Walk over the list of interface names present in the system and retrieve the statistics
      */
 
     for (p = list_head; p; p = p->ifn_next) {
+        long            etherStatsIndex;
+        etherStatsTable_rowreq_ctx *rowreq_ctx;
+
         DEBUGMSGTL(("access:etherStatsTable", "processing '%s'\n", p->name));
 
         /*
@@ -267,7 +276,7 @@ etherStatsTable_container_load(netsnmp_container * container)
         etherStatsIndex = (long) etherstats_interface_ioctl_ifindex_get(-1, p->name);
 
         /* 
-         *  get the etherstats contents populated, if the device is not an ethernet device
+         *  get the etherstats contents populated, if the device is not an Ethernet device
          *  the operation will not be supported and an error message will be logged
          */
         
@@ -275,6 +284,7 @@ etherStatsTable_container_load(netsnmp_container * container)
         if (NULL == rowreq_ctx) {
             snmp_log(LOG_ERR, "memory allocation failed\n");
             close(fd);
+            etherstats_interface_name_list_free(list_head);
             return MFD_RESOURCE_UNAVAILABLE;
         }
 
@@ -296,23 +306,27 @@ etherStatsTable_container_load(netsnmp_container * container)
          */
 
         memset (&rowreq_ctx->data, 0, sizeof (rowreq_ctx->data));
-        rc = interface_ioctl_etherstats_get (rowreq_ctx, fd, p->name);
+        {
+            int rc;
 
-        if (rc < 0) {
-            DEBUGMSGTL(("access:etherStatsTable", "error getting the statistics for interface |%s| "
-                        "etherStatsTable data, operation might not be supported\n", p->name));
-            etherStatsTable_release_rowreq_ctx(rowreq_ctx);
-            continue;
-        }
+            rc = interface_ioctl_etherstats_get (rowreq_ctx, fd, p->name);
 
-        /*
-         * insert into table container
-         */
-        rc = CONTAINER_INSERT(container, rowreq_ctx);
-        if (rc < 0) {
-            DEBUGMSGTL(("access:etherStatsTable", "error inserting |%s| ", p->name));
-            etherStatsTable_release_rowreq_ctx(rowreq_ctx);
-            continue;
+            if (rc < 0) {
+                DEBUGMSGTL(("access:etherStatsTable", "error getting the statistics for interface |%s| "
+                            "etherStatsTable data, operation might not be supported\n", p->name));
+                etherStatsTable_release_rowreq_ctx(rowreq_ctx);
+                continue;
+            }
+
+            /*
+             * insert into table container
+             */
+            rc = CONTAINER_INSERT(container, rowreq_ctx);
+            if (rc < 0) {
+                DEBUGMSGTL(("access:etherStatsTable", "error inserting |%s| ", p->name));
+                etherStatsTable_release_rowreq_ctx(rowreq_ctx);
+                continue;
+            }
         }
 
         ++count;

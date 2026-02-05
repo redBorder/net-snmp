@@ -15,19 +15,19 @@
 
 #include <net-snmp/net-snmp-config.h>
 #include <fcntl.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <errno.h>
 
 #include "host_res.h"
 #include "hr_partition.h"
-#include "hr_filesys.h"
+#include "hrh_filesys.h"
 #include "hr_disk.h"
 
 #include <sys/stat.h>
@@ -44,9 +44,7 @@
 static int      HRP_savedDiskIndex;
 static int      HRP_savedPartIndex;
 static char     HRP_savedName[1024];
-#ifdef NETSNMP_CAN_GET_DISK_LABEL
 static char     HRP_savedLabel[1024];
-#endif
 
 static int      HRP_DiskIndex;
 
@@ -61,8 +59,6 @@ static void     Save_HR_Partition(int, int);
 
 static void     Init_HR_Partition(void);
 static int      Get_Next_HR_Partition(void);
-int             header_hrpartition(struct variable *, oid *, size_t *, int,
-                                   size_t *, WriteMethod **);
 
 
 #define	HRPART_INDEX		1
@@ -244,13 +240,13 @@ var_hrpartition(struct variable * vp,
         long_return = part_idx;
         return (u_char *) & long_return;
     case HRPART_LABEL:
-#ifdef NETSNMP_CAN_GET_DISK_LABEL
-        *var_len = strlen(HRP_savedLabel);
-        return (u_char *) HRP_savedLabel;
-#else
-        *var_len = strlen(HRP_savedName);
-        return (u_char *) HRP_savedName;
-#endif
+        if (HRP_savedLabel[0]) {
+            *var_len = strlen(HRP_savedLabel);
+            return (u_char *) HRP_savedLabel;
+        } else {
+            *var_len = strlen(HRP_savedName);
+            return (u_char *) HRP_savedName;
+        }
     case HRPART_ID:            /* Use the device number */
         sprintf(string, "0x%x", (int) stat_buf.st_rdev);
         *var_len = strlen(string);
@@ -336,7 +332,5 @@ Save_HR_Partition(int disk_idx, int part_idx)
     HRP_savedDiskIndex = disk_idx;
     HRP_savedPartIndex = part_idx;
     (void) Get_Next_HR_Disk_Partition(HRP_savedName, sizeof(HRP_savedName), HRP_index);
-#ifdef NETSNMP_CAN_GET_DISK_LABEL
     (void) Get_HR_Disk_Label(HRP_savedLabel, sizeof(HRP_savedLabel), HRP_savedName);
-#endif
 }

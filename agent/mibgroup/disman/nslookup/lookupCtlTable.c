@@ -21,7 +21,7 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(header_complex_find_entry)
+netsnmp_feature_require(header_complex_find_entry);
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
 
 #include <arpa/inet.h>
@@ -133,10 +133,15 @@ create_lookupTable_data(void)
     struct lookupTable_data *StorageNew = NULL;
     StorageNew = SNMP_MALLOC_STRUCT(lookupTable_data);
     if (StorageNew == NULL) {
-        snmp_log(LOG_ERR, "Out in memory in nslookup-mib/create_lookupTable_date\n");
+        snmp_log(LOG_ERR, "Out of memory in nslookup-mib/create_lookupTable_data\n");
         exit(1);
     }
     StorageNew->lookupCtlTargetAddress = strdup("");
+    if (StorageNew->lookupCtlTargetAddress == NULL) {
+        free(StorageNew);
+        snmp_log(LOG_ERR, "Out of memory in nslookup-mib/create_lookupTable_data\n");
+        exit(1);
+    }
     StorageNew->lookupCtlTargetAddressLen = 0;
     StorageNew->lookupCtlOperStatus = 2L;
     StorageNew->lookupCtlTime = 0;
@@ -217,22 +222,19 @@ lookupResultsTable_add(struct lookupTable_data *thedata)
 void
 lookupCtlTable_cleaner(struct header_complex_index *thestuff)
 {
-    struct header_complex_index *hciptr = NULL;
-    struct lookupTable_data *StorageDel = NULL;
+    struct header_complex_index *hciptr, *nhciptr;
+    struct lookupTable_data *StorageDel;
+
     DEBUGMSGTL(("lookupCtlTable", "cleanerout  "));
-    for (hciptr = thestuff; hciptr != NULL; hciptr = hciptr->next) {
-        StorageDel =
-            header_complex_extract_entry(&lookupCtlTableStorage, hciptr);
+    for (hciptr = thestuff; hciptr; hciptr = nhciptr) {
+        nhciptr = hciptr->next;
+        StorageDel = header_complex_extract_entry(&lookupCtlTableStorage,
+                                                  hciptr);
         if (StorageDel != NULL) {
             free(StorageDel->lookupCtlOwnerIndex);
-            StorageDel->lookupCtlOwnerIndex = NULL;
             free(StorageDel->lookupCtlOperationName);
-            StorageDel->lookupCtlOperationName = NULL;
             free(StorageDel->lookupCtlTargetAddress);
-            StorageDel->lookupCtlTargetAddress = NULL;
             free(StorageDel);
-            StorageDel = NULL;
-
         }
         DEBUGMSGTL(("lookupCtlTable", "cleaner  "));
     }
@@ -263,6 +265,7 @@ parse_lookupCtlTable(const char *token, char *line)
                               &StorageTmp->lookupCtlOwnerIndexLen);
     if (StorageTmp->lookupCtlOwnerIndex == NULL) {
         config_perror("invalid specification for lookupCtlOwnerIndex");
+        free(StorageTmp);
         return;
     }
 
@@ -272,6 +275,7 @@ parse_lookupCtlTable(const char *token, char *line)
                               &StorageTmp->lookupCtlOperationNameLen);
     if (StorageTmp->lookupCtlOperationName == NULL) {
         config_perror("invalid specification for lookupCtlOperationName");
+        free(StorageTmp);
         return;
     }
 
@@ -286,6 +290,7 @@ parse_lookupCtlTable(const char *token, char *line)
                               &StorageTmp->lookupCtlTargetAddressLen);
     if (StorageTmp->lookupCtlTargetAddress == NULL) {
         config_perror("invalid specification for lookupCtlTargetAddress");
+        free(StorageTmp);
         return;
     }
 
@@ -325,7 +330,6 @@ store_lookupCtlTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
-    size_t          tmpint;
     struct lookupTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -354,7 +358,7 @@ store_lookupCtlTable(int majorID, int minorID, void *serverarg,
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        lookupCtlTargetAddressType,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->lookupCtlTargetAddress,
@@ -364,18 +368,18 @@ store_lookupCtlTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->lookupCtlOperStatus,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->lookupCtlTime,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
-                                       &StorageTmp->lookupCtlRc, &tmpint);
+                                       &StorageTmp->lookupCtlRc, NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->lookupCtlRowStatus,
-                                       &tmpint);
+                                       NULL);
             snmpd_store_config(line);
         }
     }
@@ -495,6 +499,13 @@ add_result(struct lookupTable_data *item, int index,
 
     temp->lookupResultsAddressType = iatype;
     temp->lookupResultsAddress = malloc(data_len + 1);
+    if (temp->lookupResultsAddress == NULL) {
+        snmp_log(LOG_ERR, "Out of memory in nslookup-mib/run_lookup\n");
+        free(temp->lookupCtlOperationName);
+        free(temp->lookupCtlOwnerIndex);
+        free(temp);
+        return NULL;
+    }
     memcpy(temp->lookupResultsAddress, data, data_len);
     temp->lookupResultsAddress[data_len] = '\0';
     temp->lookupResultsAddressLen = data_len;
@@ -523,6 +534,9 @@ run_lookup(struct lookupTable_data *item)
     addressType = (long) item->lookupCtlTargetAddressType;
     addresslen = (size_t) item->lookupCtlTargetAddressLen;
     address = (char *) malloc(addresslen + 1);
+    if (!address) {
+        return;
+    }
     memcpy(address, item->lookupCtlTargetAddress, addresslen + 1);
     address[addresslen] = '\0';
 
@@ -530,10 +544,11 @@ run_lookup(struct lookupTable_data *item)
         struct in_addr addr_in;
         struct hostent *lookup;
 
-        if (!inet_aton(address, &addr_in)) {
+        if (inet_pton(AF_INET, address, &addr_in) != 1) {
             DEBUGMSGTL(("lookupResultsTable", "Invalid argument: %s\n",
                         address));
             modify_lookupCtlRc(item, 99);
+            free(address);
             return;
         }
 
@@ -551,6 +566,7 @@ run_lookup(struct lookupTable_data *item)
                         "Can't get a network host entry for ipv4 address: %s\n",
                         address));
             modify_lookupCtlRc(item, h_errno);
+            free(address);
             return;
         } else {
             modify_lookupCtlRc(item, 0L);
@@ -564,7 +580,8 @@ run_lookup(struct lookupTable_data *item)
             while (lookup->h_aliases[i]) {
                 temp = add_result(item, n, INETADDRESSTYPE_DNS,
                             lookup->h_aliases[i], strlen(lookup->h_aliases[i]));
-                current->next = temp;
+                if (current)
+                    current->next = temp;
                 current = temp;
                 i = i + 1;
                 n = n + 1;
@@ -581,7 +598,7 @@ run_lookup(struct lookupTable_data *item)
 
     else if (addressType == INETADDRESSTYPE_DNS) {
         struct hostent *lookup;
-#if HAVE_GETADDRINFO
+#ifdef HAVE_GETADDRINFO
         int             res;
         struct addrinfo *ais;
         struct addrinfo hints = { 0, AF_INET6, SOCK_DGRAM };
@@ -628,7 +645,7 @@ run_lookup(struct lookupTable_data *item)
             }
         }
 
-#if HAVE_GETADDRINFO
+#ifdef HAVE_GETADDRINFO
         netsnmp_get_monotonic_clock(&tpstart);
         res = netsnmp_getaddrinfo(address, NULL, &hints, &ais);
         netsnmp_get_monotonic_clock(&tpend);
@@ -678,7 +695,7 @@ run_lookup(struct lookupTable_data *item)
             }
             freeaddrinfo(ais);
         }
-#elif HAVE_GETHOSTBYNAME2
+#elif defined(HAVE_GETHOSTBYNAME2)
         netsnmp_get_monotonic_clock(&tpstart);
         lookup = gethostbyname2(address, AF_INET6);
         netsnmp_get_monotonic_clock(&tpend);
@@ -762,6 +779,7 @@ run_lookup(struct lookupTable_data *item)
                         "Can't get a network host entry for %s\n",
                         address));
             modify_lookupCtlRc(item, h_errno);
+            free(address);
             return;
         } else {
             modify_lookupCtlRc(item, 0L);
@@ -887,8 +905,8 @@ modify_lookupCtlRc(struct lookupTable_data *thedata, long val)
 int
 lookupResultsTable_del(struct lookupTable_data *thedata)
 {
-    struct header_complex_index *hciptr2 = NULL;
-    struct lookupResultsTable_data *StorageDel = NULL;
+    struct header_complex_index *hciptr2, *nhciptr2;
+    struct lookupResultsTable_data *StorageDel;
     netsnmp_variable_list *vars = NULL;
     oid             newoid[MAX_OID_LEN];
     size_t          newoid_len;
@@ -901,11 +919,10 @@ lookupResultsTable_del(struct lookupTable_data *thedata)
     memset(newoid, '\0', MAX_OID_LEN * sizeof(oid));
     header_complex_generate_oid(newoid, &newoid_len, NULL, 0, vars);
 
-
     snmp_free_varbind(vars);
     vars = NULL;
-    for (hciptr2 = lookupResultsTableStorage; hciptr2 != NULL;
-         hciptr2 = hciptr2->next) {
+    for (hciptr2 = lookupResultsTableStorage; hciptr2; hciptr2 = nhciptr2) {
+        nhciptr2 = hciptr2->next;
         if (snmp_oid_compare(newoid, newoid_len, hciptr2->name, newoid_len)
             == 0) {
             StorageDel =
@@ -918,7 +935,6 @@ lookupResultsTable_del(struct lookupTable_data *thedata)
                 SNMP_FREE(StorageDel);
             }
             DEBUGMSGTL(("lookupResultsTable", "delete  success!\n"));
-
         }
     }
     return SNMPERR_SUCCESS;
@@ -937,7 +953,7 @@ write_lookupCtlTargetAddressType(int action,
     static size_t   tmpvar;
     struct lookupTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(lookupCtlTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(lookupCtlTable_variables_oid) +
                     3 - 1);
 
     if ((StorageTmp =
@@ -965,7 +981,7 @@ write_lookupCtlTargetAddressType(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -979,7 +995,7 @@ write_lookupCtlTargetAddressType(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case
+         * it.  Note that anything done here must be reversible in the UNDO case
          */
         tmpvar = StorageTmp->lookupCtlTargetAddressType;
         StorageTmp->lookupCtlTargetAddressType = *((long *) var_val);
@@ -1019,7 +1035,7 @@ write_lookupCtlTargetAddress(int action,
     static size_t   tmplen;
     struct lookupTable_data *StorageTmp = NULL;
     size_t          newlen =
-        name_len - (sizeof(lookupCtlTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(lookupCtlTable_variables_oid) +
                     3 - 1);
     if ((StorageTmp =
          header_complex(lookupCtlTableStorage, NULL,
@@ -1047,7 +1063,7 @@ write_lookupCtlTargetAddress(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -1061,7 +1077,7 @@ write_lookupCtlTargetAddress(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case
+         * it.  Note that anything done here must be reversible in the UNDO case
          */
         tmpvar = StorageTmp->lookupCtlTargetAddress;
         tmplen = StorageTmp->lookupCtlTargetAddressLen;
@@ -1117,7 +1133,7 @@ write_lookupCtlRowStatus(int action,
     struct lookupTable_data *StorageTmp = NULL;
     static struct lookupTable_data *StorageNew = NULL, *StorageDel = NULL;
     size_t          newlen =
-        name_len - (sizeof(lookupCtlTable_variables_oid) / sizeof(oid) +
+        name_len - (OID_LENGTH(lookupCtlTable_variables_oid) +
                     3 - 1);
     static int      old_value;
     int             set_value;
@@ -1214,7 +1230,7 @@ write_lookupCtlRowStatus(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         if (StorageTmp == NULL) {
             /*
@@ -1234,7 +1250,7 @@ write_lookupCtlRowStatus(int action,
             if (header_complex_parse_oid
                 (&
                  (name
-                  [sizeof(lookupCtlTable_variables_oid) / sizeof(oid) +
+                  [OID_LENGTH(lookupCtlTable_variables_oid) +
                    2]), newlen, vars) != SNMPERR_SUCCESS) {
                 /*
                  * XXX: free, zero vars 
@@ -1289,7 +1305,7 @@ write_lookupCtlRowStatus(int action,
         /*
          * The variable has been stored in set_value for you to
          * use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in
+         * it.  Note that anything done here must be reversible in
          * the UNDO case 
          */
         if (StorageTmp == NULL) {

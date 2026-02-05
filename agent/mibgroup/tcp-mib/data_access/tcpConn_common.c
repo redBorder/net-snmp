@@ -16,28 +16,7 @@
 /*
  * local static prototypes
  */
-static void _access_tcpconn_entry_release(netsnmp_tcpconn_entry * entry,
-                                            void *unused);
-
-/**---------------------------------------------------------------------*/
-/*
- * external per-architecture functions prototypes
- *
- * These shouldn't be called by the general public, so they aren't in
- * the header file.
- */
-extern int
-netsnmp_arch_tcpconn_container_load(netsnmp_container* container,
-                                      u_int load_flags);
-extern int
-netsnmp_arch_tcpconn_entry_init(netsnmp_tcpconn_entry *entry);
-extern int
-netsnmp_arch_tcpconn_entry_copy(netsnmp_tcpconn_entry *lhs,
-                                  netsnmp_tcpconn_entry *rhs);
-extern void
-netsnmp_arch_tcpconn_entry_cleanup(netsnmp_tcpconn_entry *entry);
-
-
+static void _access_tcpconn_entry_release(void *entry, void *unused);
 
 /**---------------------------------------------------------------------*/
 /*
@@ -107,9 +86,7 @@ netsnmp_access_tcpconn_container_free(netsnmp_container *container, u_int free_f
         /*
          * free all items.
          */
-        CONTAINER_CLEAR(container,
-                        (netsnmp_container_obj_func*)_access_tcpconn_entry_release,
-                        NULL);
+        CONTAINER_CLEAR(container, _access_tcpconn_entry_release, NULL);
     }
 
     if(! (free_flags & NETSNMP_ACCESS_TCPCONN_FREE_KEEP_CONTAINER))
@@ -249,7 +226,7 @@ netsnmp_access_tcpconn_entry_update(netsnmp_tcpconn_entry *lhs,
 /**
  */
 void
-_access_tcpconn_entry_release(netsnmp_tcpconn_entry * entry, void *context)
+_access_tcpconn_entry_release(void *entry, void *context)
 {
     netsnmp_access_tcpconn_entry_free(entry);
 }

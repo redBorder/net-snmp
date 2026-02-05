@@ -1,3 +1,4 @@
+#!/bin/sh
 #
 # eval_tools.sh
 #
@@ -36,6 +37,10 @@ separator="-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
 if [ -z "$OK_TO_SAVE_RESULT" ] ; then
 OK_TO_SAVE_RESULT=1
 export OK_TO_SAVE_RESULT
+fi
+
+if [ `uname -s` = SunOS ]
+then PATH=/usr/xpg4/bin:$PATH
 fi
 
 #
@@ -127,7 +132,7 @@ SKIPIF() {
 #------------------------------------ -o-
 #
 VERIFY() {	# <path_to_file(s)>
-	local	missingfiles=
+	missingfiles=""
 
 	for f in $*; do
 		[ -f "$f" ] && continue
@@ -135,7 +140,7 @@ VERIFY() {	# <path_to_file(s)>
 		missingfiles=true
 	done
 
-	[ "$missingfiles" = true ] && exit 1000
+	[ "$missingfiles" = true ] && exit 255
 }
 
 NEWOUTPUTFILE() {
@@ -152,7 +157,7 @@ STARTTEST() {
 		return
 	}
 	echo "FAILED: Output file already exists: \"$junkoutputfile\"."
-	exit 1000
+	exit 255
 }
 
 
@@ -210,7 +215,7 @@ KNORG
 
 	fi
 	echo "RUNNING: $*" > $junkoutputfile
-	( $* 2>&1 ) >> $junkoutputfile 2>&1
+	( $DYNAMIC_ANALYZER $* 2>&1 ) >> $junkoutputfile 2>&1
 	RC=$?
 
 	if [ $SNMP_VERBOSE -gt 1 ]; then
@@ -353,12 +358,18 @@ CHECKAGENTCOUNT() {
 }
 
 # Return 0 (true) if a process with pid $1 exists and 1 (false) if no process
-# with pid $1 exists. Do not use this function on MinGW: the PIDs written by
-# snmpd and snmptrapd to their pid files are not visible in the MinGW/MSYS
-# process table.
+# with pid $1 exists.
 ISRUNNING() {
-    #ps -e 2>/dev/null | egrep "^[	 ]*$1[	 ]+" >/dev/null 2>&1
-    kill -0 "$pid" 2>/dev/null
+    if [ "x$OSTYPE" = "xmsys" ]; then
+	pslist.exe "$1" 2>&1 | while read name pspid rest; do
+	    if [ "$1" = "$pspid" ]; then
+		return 0
+	    fi
+	done
+	return 1
+    else
+        kill -0 "$1" 2>/dev/null
+    fi
 }
 
 # Echo a command that asks the process with pid $1 to stop.
@@ -379,15 +390,18 @@ ECHOSENDSIGKILL() {
     fi
 }
 
-# Wait until the shell statement "$@" evaluates to false.
-WAITFORNOTCOND() {
+# Wait until the shell statement "$@" evaluates to true.
+WAITFORCOND() {
     CAN_USLEEP
     if [ $SNMP_CAN_USLEEP = 1 ] ; then
         sleeptime=`expr $SNMP_SLEEP '*' 50`
     else 
         sleeptime=`expr $SNMP_SLEEP '*' 5`
     fi
-    while [ $sleeptime -gt 0 ] && eval "$@"; do
+    while [ $sleeptime -gt 0 ]; do
+	if eval "$*"; then
+	    break
+	fi
         if [ $SNMP_CAN_USLEEP = 1 ]; then
             sleep .1
         else
@@ -397,22 +411,27 @@ WAITFORNOTCOND() {
     done
 }
 
-# Wait until the shell statement "$@" evaluates to true.
-WAITFORCOND() {
-    WAITFORNOTCOND if "$@;" then false ";" else true ";" fi
-}
-
 WAITFORAGENT() {
     WAITFOR "$@" $SNMP_SNMPD_LOG_FILE
+    if [ $SNMP_CAN_USLEEP = 1 ]; then
+        sleep .1
+    else
+        sleep 1
+    fi
 }
 
 WAITFORTRAPD() {
     WAITFOR "$@" $SNMP_SNMPTRAPD_LOG_FILE
+    if [ $SNMP_CAN_USLEEP = 1 ]; then
+        sleep .1
+    else
+        sleep 1
+    fi
 }
 
 # Wait until pattern "$1" appears in file "$2".
 WAITFOR() {
-    WAITFORCOND grep "$1" "$2" ">/dev/null" "2>&1"
+    WAITFORCOND "grep $1 $2 >/dev/null 2>&1"
 }
 
 GOOD() {
@@ -455,7 +474,7 @@ CHECKANDDIE() {
 # Returns: Count of matched lines.
 #
 CHECKEXACT() {	# <pattern_to_match_exactly>
-	rval=`egrep -c "^$*\$|^$*[^a-zA-Z0-9_]|[^a-zA-Z0-9_]$*\$|[^a-zA-Z0-9_]$*[^a-zA-Z0-9_]" "$junkoutputfile" 2>/dev/null`
+	rval=`grep -E -c "^$*\$|^$*[^a-zA-Z0-9_]|[^a-zA-Z0-9_]$*\$|[^a-zA-Z0-9_]$*[^a-zA-Z0-9_]" "$junkoutputfile" 2>/dev/null`
 	snmp_last_test_result=$rval
 	EXPECTRESULT 1  # default
 	return $rval
@@ -504,6 +523,7 @@ STARTPROG() {
     if test -f $CFG_FILE; then
 	COMMAND="$COMMAND -C -c $CFG_FILE"
     fi
+    COMMAND="$COMMAND -f"
     if [ "x$PORT_SPEC" != "x" ]; then
         COMMAND="$COMMAND $PORT_SPEC"
     fi
@@ -515,13 +535,10 @@ STARTPROG() {
         OUTPUTENVVARS $LOG_FILE.command
         echo $COMMAND >> $LOG_FILE.command
     fi
-    if [ "x$OSTYPE" = "xmsys" ]; then
-      $COMMAND > $LOG_FILE.stdout 2>&1 &
-      ## COMMAND="cmd.exe //c start //min $COMMAND"
-      ## start $COMMAND > $LOG_FILE.stdout 2>&1
-    else
-      $COMMAND > $LOG_FILE.stdout 2>&1
-    fi
+    {
+	{ $COMMAND; } >$LOG_FILE.stdout 2>&1
+	echo $? >$LOG_FILE.exitcode
+    } &
 }
 
 #------------------------------------ -o-
@@ -536,7 +553,7 @@ STARTAGENT() {
     fi
     STARTPROG
     WAITFORCOND test -f $SNMP_SNMPD_PID_FILE
-    WAITFORAGENT "NET-SNMP version"
+    WAITFORAGENT "NET-SNMP.version"
 }
 
 #------------------------------------ -o-
@@ -551,7 +568,7 @@ STARTTRAPD() {
     fi
     STARTPROG
     WAITFORCOND test -f $SNMP_SNMPTRAPD_PID_FILE
-    WAITFORTRAPD "NET-SNMP version"
+    WAITFORTRAPD "NET-SNMP.version"
 }
 
 ## sending SIGHUP for reconfiguration
@@ -595,12 +612,7 @@ STOPPROG() {
 	echo "$COMMAND ($1)" >> $SNMP_TMPDIR/invoked
 	VERBOSE_OUT 0 "$COMMAND ($1)"
         $COMMAND >/dev/null 2>&1
-        if [ "x$OSTYPE" = "xmsys" ]; then
-            # Wait until $pid and its parent have stopped.
-            sleep 1
-        else
-            WAITFORNOTCOND "ISRUNNING $pid"
-        fi
+        WAITFORCOND "! ISRUNNING $pid"
     fi
 }
 
@@ -649,10 +661,8 @@ FINISHED() {
       STOPTRAPD
     fi
     for pid in $pids; do
-        if [ "x$OSTYPE" = "xmsys" ] || ISRUNNING $pid; then
-            if [ "x$OSTYPE" != "xmsys" ]; then
-                SNMP_SAVE_TMPDIR=yes
-            fi
+        if ISRUNNING $pid; then
+	    SNMP_SAVE_TMPDIR=yes
 	    COMMAND="`ECHOSENDSIGKILL $pid`"
 	    echo "$COMMAND ($pfile)" >> $SNMP_TMPDIR/invoked
 	    VERBOSE_OUT 0 "$COMMAND ($pfile)"
@@ -672,6 +682,23 @@ FINISHED() {
 	    rm -f core
 	fi
 	echo "$headerStr...FAIL" >> $SNMP_TMPDIR/invoked
+	if [ -n "$APPVEYOR" ] || [ -n "$CIRRUS_CI" ]; then
+	    {
+		find "$SNMP_TMPDIR" -type f |
+		    while read -r f; do
+			local lines
+			echo "==== $f"
+			lines=$(wc -l "$f" | { read -r a b; echo "$a"; })
+			if [ "$lines" -gt 512 ]; then
+			    head -n 256 "$f"
+			    echo "..."
+			    tail -n 256 "$f"
+			else
+			    cat "$f"
+			fi
+		    done;
+	    } 1>&2
+	fi
 	exit 1
     fi
 

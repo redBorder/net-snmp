@@ -59,7 +59,7 @@
 # include <strings.h>
 #endif
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 
@@ -71,30 +71,19 @@
 # include <fcntl.h>
 #endif
 
-#if HAVE_DIRENT_H
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
-#else
-# define dirent direct
-# if HAVE_SYS_NDIR_H
-#  include <sys/ndir.h>
-# endif
-# if HAVE_SYS_DIR_H
-#  include <sys/dir.h>
-# endif
-# if HAVE_NDIR_H
-#  include <ndir.h>
-# endif
 #endif
 
 #ifdef HAVE_SYS_STAT_H
 # include <sys/stat.h>
 #endif
 
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -273,8 +262,8 @@ struct statisticsV8_8 {
     /*
      * queue groups (strictly a sendmail 8.12+ thing 
      */
-    struct QDir {
-    char            dir[FILENAMELEN + 1];
+struct QDir {
+    char           *dir;
     struct QDir    *next;
 };
 
@@ -315,7 +304,7 @@ static long     stats[sizeof(struct statisticsV8_12_QUAR) / sizeof(long) + 1];  
 static time_t   lastreadstats;  /* time stats file has been read */
 static long     applindex = 1;  /* ApplIndex value for OIDs */
 static long     stat_cache_time = 5;    /* time (in seconds) to wait before reading stats file again */
-static long     dir_cache_time = 10;    /* time (in seconds) to wait before scanning queue directoy again */
+static long     dir_cache_time = 10;    /* time (in seconds) to wait before scanning queue directory again */
 
  /**/
 /** static void print_error(int priority, BOOL config, BOOL config_only, char *function, char *format, ...)
@@ -539,7 +528,7 @@ count_queuegroup(struct QGrp *qg)
 
     qg->last = current_time;
 
-    chdir(cwd);
+    NETSNMP_IGNORE_RESULT(chdir(cwd));
 }
 
 /** static void add_queuegroup(const char *name, const char *path)
@@ -586,7 +575,7 @@ add_queuegroup(const char *name, char *path)
          */
         *p = '\0';
 
-        strcpy(parentdir, path);
+        strlcpy(parentdir, path, sizeof(parentdir));
         /*
          * remove last directory component from parentdir 
          */
@@ -629,11 +618,14 @@ add_queuegroup(const char *name, char *path)
                 /*
                  * single queue directory 
                  */
-                subdir = (struct QDir *) malloc(sizeof(struct QDir));
-                snprintf(subdir->dir, FILENAMELEN - 5, "%s/%s", parentdir,
-                         dirp->d_name);
-                subdir->next = new;
-                new = subdir;
+                if ((subdir = calloc(1, sizeof(*subdir))) != NULL &&
+                    asprintf(&subdir->dir, "%s/%s", parentdir, dirp->d_name) >=
+                    0) {
+                    subdir->next = new;
+                    new = subdir;
+                } else {
+                    free(subdir);
+                }
             }
         }
 
@@ -642,8 +634,8 @@ add_queuegroup(const char *name, char *path)
         /*
          * single queue directory 
          */
-        new = (struct QDir *) malloc(sizeof(struct QDir));
-        strcpy(new->dir, path);
+        new = malloc(sizeof(*new));
+        new->dir = strdup(path);
         new->next = NULL;
     }
 
@@ -651,16 +643,19 @@ add_queuegroup(const char *name, char *path)
      * check 'new' for /qf directories 
      */
     for (subdir = new; subdir != NULL; subdir = subdir->next) {
-        char            qf[FILENAMELEN + 1];
+        char *qf = NULL;
 
-        snprintf(qf, FILENAMELEN, "%s/qf", subdir->dir);
-        if ((dp = opendir(qf)) != NULL) {
+        if (asprintf(&qf, "%s/qf", subdir->dir) >= 0 &&
+            (dp = opendir(qf)) != NULL) {
             /*
              * it exists ! 
              */
-            strcpy(subdir->dir, qf);
+            free(subdir->dir);
+            subdir->dir = qf;
+            qf = NULL;
             closedir(dp);
         }
+        free(qf);
     }
 
     /*
@@ -754,7 +749,7 @@ read_sendmailcf(BOOL config)
 
             if (mailers < MAXMAILERS) {
                 for (i = 1;
-                     line[i] != ',' && !isspace(line[i]) && line[i] != '\0'
+                     line[i] != ',' && !isspace(line[i] & 0xFF) && line[i] != '\0'
                      && i <= MNAMELEN; i++) {
                     mailernames[mailers][i - 1] = line[i];
                 }
@@ -833,7 +828,7 @@ read_sendmailcf(BOOL config)
                 if (*filename++ != '=') {
                     print_error(LOG_WARNING, config, FALSE,
                                 "mibII/mta_sendmail.c:read_sendmailcf",
-                                "line %d in config file \"%s\" ist missing an '='",
+                                "line %d in config file \"%s\" is missing an '='",
                                 linenr, sendmailcf_fn);
                     break;
                 }
@@ -856,7 +851,7 @@ read_sendmailcf(BOOL config)
                     strlcpy(sendmailst_fn, filename, sizeof(sendmailst_fn));
                     found_sendmailst = TRUE;
                     DEBUGMSGTL(("mibII/mta_sendmail.c:read_sendmailcf",
-                                "found statatistics file \"%s\"\n",
+                                "found statistics file \"%s\"\n",
                                 sendmailst_fn));
                 } else if (strncasecmp(line + 2, "QueueDirectory", 14) ==
                            0) {
@@ -877,10 +872,10 @@ read_sendmailcf(BOOL config)
                                 linenr, sendmailcf_fn);
                     break;
                 }
-                strcpy(sendmailst_fn, line + 2);
+                strlcpy(sendmailst_fn, line + 2, sizeof(sendmailst_fn));
                 found_sendmailst = TRUE;
                 DEBUGMSGTL(("mibII/mta_sendmail.c:read_sendmailcf",
-                            "found statatistics file \"%s\"\n",
+                            "found statistics file \"%s\"\n",
                             sendmailst_fn));
                 break;
 
@@ -995,7 +990,7 @@ read_sendmailcf(BOOL config)
  *    Called by the agent for each configuration line that belongs to this module.
  *    The possible tokens are:
  *
- *    sendmail_config  - filename of the sendmail configutarion file
+ *    sendmail_config  - filename of the sendmail configuration file
  *    sendmail_stats   - filename of the sendmail statistics file
  *    sendmail_queue   - name of the sendmail mailqueue directory
  *    sendmail_index   - the ApplIndex to use for the table
@@ -1025,7 +1020,7 @@ mta_sendmail_parse_config(const char *token, char *line)
     }
 
     if (strcasecmp(token, "sendmail_stats") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         copy_nword(line, sendmailst_fn, sizeof(sendmailst_fn));
@@ -1041,7 +1036,7 @@ mta_sendmail_parse_config(const char *token, char *line)
                     "opened statistics file \"%s\"\n", sendmailst_fn));
         return;
     } else if (strcasecmp(token, "sendmail_config") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         copy_nword(line, sendmailcf_fn, sizeof(sendmailcf_fn));
@@ -1052,14 +1047,14 @@ mta_sendmail_parse_config(const char *token, char *line)
                     "read config file \"%s\"\n", sendmailcf_fn));
         return;
     } else if (strcasecmp(token, "sendmail_queue") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         add_queuegroup("mqueue", line);
 
         return;
     } else if (strcasecmp(token, "sendmail_index") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         applindex = atol(line);
@@ -1068,7 +1063,7 @@ mta_sendmail_parse_config(const char *token, char *line)
             applindex = 1;
         }
     } else if (strcasecmp(token, "sendmail_stats_t") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         stat_cache_time = atol(line);
@@ -1077,7 +1072,7 @@ mta_sendmail_parse_config(const char *token, char *line)
             applindex = 5;
         }
     } else if (strcasecmp(token, "sendmail_queue_t") == 0) {
-        while (isspace(*line)) {
+        while (isspace(*line & 0xFF)) {
             line++;
         }
         dir_cache_time = atol(line);
@@ -1396,7 +1391,7 @@ var_mtaGroupEntry(struct variable *vp,
         *length = vp->namelen + 2;
     }
 
-    *write_method = 0;
+    *write_method = NULL;
     *var_len = sizeof(long);    /* default to 'long' results */
 
     if (vp->magic & NEEDS_STATS) {

@@ -120,13 +120,11 @@ SOFTWARE.
     NETSNMP_IMPORT
     void            print_ascii_dump(FILE *);
     void            register_mib_handlers(void);
+    NETSNMP_IMPORT
     void            netsnmp_set_mib_directory(const char *dir);
     NETSNMP_IMPORT
     char            *netsnmp_get_mib_directory(void);
     void            netsnmp_fixup_mib_directory(void);
-    void            netsnmp_mibindex_load( void );
-    char *          netsnmp_mibindex_lookup( const char * );
-    FILE *          netsnmp_mibindex_new( const char * );
     int             sprint_realloc_description(u_char ** buf, size_t * buf_len,
                                 size_t * out_len, int allow_realloc,
                                 oid * objid, size_t objidlen, int width);
@@ -149,7 +147,7 @@ SOFTWARE.
                                       netsnmp_variable_list * data);
     NETSNMP_IMPORT
     int             build_oid_noalloc(oid * in, size_t in_len,
-                                      size_t * out_len, oid * prefix,
+                                      size_t * out_len, const oid * prefix,
                                       size_t prefix_len,
                                       netsnmp_variable_list * indexes);
     NETSNMP_IMPORT
@@ -484,15 +482,18 @@ SOFTWARE.
 	                             unsigned char **new_val, int *new_val_len);
 
     NETSNMP_IMPORT
-    void            clear_tree_flags(register struct tree *tp);
+    void            clear_tree_flags(struct tree *tp);
 
     NETSNMP_IMPORT
     char           *snmp_out_toggle_options(char *);
     NETSNMP_IMPORT
+    char           *snmp_out_options(char *, int, char * const *);
+    NETSNMP_IMPORT
     void            snmp_out_toggle_options_usage(const char *, FILE *);
     NETSNMP_IMPORT
-    char           *snmp_in_toggle_options(char *);
-    char           *snmp_in_options(char *, int, char * const *);
+    const char     *snmp_in_toggle_options(char *);
+    NETSNMP_IMPORT
+    const char     *snmp_in_options(char *, int, char * const *);
     NETSNMP_IMPORT
     void            snmp_in_toggle_options_usage(const char *, FILE *);
     NETSNMP_IMPORT
@@ -500,6 +501,7 @@ SOFTWARE.
 
 
     int             netsnmp_str2oid(const char *S, oid * O, int L);
+    char            *make_printf_format_string(const char *);
 
 
 #define NETSNMP_STRING_OUTPUT_GUESS  1
@@ -512,6 +514,7 @@ SOFTWARE.
 #define NETSNMP_OID_OUTPUT_NUMERIC 4
 #define NETSNMP_OID_OUTPUT_UCD     5
 #define NETSNMP_OID_OUTPUT_NONE    6
+#define NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC 7
 #ifdef __cplusplus
 }
 #endif

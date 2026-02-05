@@ -11,7 +11,11 @@
 #include <net-snmp/data_access/systemstats.h>
 
 #include "../ipSystemStatsTable/ipSystemStatsTable.h"
+#include "systemstats.h"
+#include "systemstats_private.h"
 
+#include <stdint.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <ctype.h>
@@ -33,7 +37,7 @@ netsnmp_access_systemstats_arch_init(void)
 }
 
 /*
-  /proc/net/snmp
+  /proc/net/snmp - Linux 6.6 and lower
 
   Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates
   Ip: 2 64 7083534 0 0 0 0 0 6860233 6548963 0 0 1 286623 63322 1 259920 0 0
@@ -46,8 +50,63 @@ netsnmp_access_systemstats_arch_init(void)
   
   Udp: InDatagrams NoPorts InErrors OutDatagrams
   Udp: 1491094 122 0 1466178
+*
+  /proc/net/snmp - Linux 6.7 and higher
+
+  Ip: Forwarding DefaultTTL InReceives InHdrErrors InAddrErrors ForwDatagrams InUnknownProtos InDiscards InDelivers OutRequests OutDiscards OutNoRoutes ReasmTimeout ReasmReqds ReasmOKs ReasmFails FragOKs FragFails FragCreates OutTransmits
+  Ip: 1 64 50859058 496 0 37470604 0 0 20472980 7515791 1756 0 0 7264 3632 0 3548 0 7096 44961424
+
+  Icmp: InMsgs InErrors InCsumErrors InDestUnreachs InTimeExcds InParmProbs InSrcQuenchs InRedirects InEchos InEchoReps InTimestamps InTimestampReps InAddrMasks InAddrMaskReps OutMsgs OutErrors OutRateLimitGlobal OutRateLimitHost OutDestUnreachs OutTimeExcds OutParmProbs OutSrcQuenchs OutRedirects OutEchos OutEchoReps OutTimestamps OutTimestampReps OutAddrMasks OutAddrMaskReps
+  Icmp: 114447 2655 0 17589 0 0 0 0 66905 29953 0 0 0 0 143956 0 0 572 16610 484 0 0 0 59957 66905 0 0 0 0
+
+  IcmpMsg: InType0 InType3 InType8 OutType0 OutType3 OutType8 OutType11
+  IcmpMsg: 29953 17589 66905 66905 16610 59957 484
+
+  Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails EstabResets CurrEstab InSegs OutSegs RetransSegs InErrs OutRsts InCsumErrors
+  Tcp: 1 200 120000 -1 17744 13525 307 3783 6 18093137 9277788 3499 8 7442 0
+
+  Udp: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+  Udp: 2257832 1422 0 2252835 0 0 0 84 0
+
+  UdpLite: InDatagrams NoPorts InErrors OutDatagrams RcvbufErrors SndbufErrors InCsumErrors IgnoredMulti MemErrors
+  UdpLite: 0 0 0 0 0 0 0 0 0
 */
 
+static struct {
+    const char *name;
+    int avail_idx; /* -1 means no columnAvail[] index */
+    int offset;    /* -1 means no field in netsnmp_ipstats for that value */
+    int type;      /* 0 - u_long, 1 - struct counter64 */
+} systemstats_v4_ip_fields[] = {
+    {"Forwarding", -1, -1, 0},
+    {"DefaultTTL", -1, -1, 0},
+    {"InReceives", IPSYSTEMSTATSTABLE_HCINRECEIVES, offsetof(netsnmp_ipstats, HCInReceives), 1},
+    {"InHdrErrors", IPSYSTEMSTATSTABLE_INHDRERRORS, offsetof(netsnmp_ipstats, InHdrErrors), 0},
+    {"InAddrErrors", IPSYSTEMSTATSTABLE_INADDRERRORS, offsetof(netsnmp_ipstats, InAddrErrors), 0},
+    {"ForwDatagrams", IPSYSTEMSTATSTABLE_HCOUTFORWDATAGRAMS, offsetof(netsnmp_ipstats, HCOutForwDatagrams), 1},
+    {"InUnknownProtos", IPSYSTEMSTATSTABLE_INUNKNOWNPROTOS, offsetof(netsnmp_ipstats, InUnknownProtos), 0},
+    {"InDiscards", IPSYSTEMSTATSTABLE_INDISCARDS, offsetof(netsnmp_ipstats, InDiscards), 0},
+    {"InDelivers", IPSYSTEMSTATSTABLE_HCINDELIVERS, offsetof(netsnmp_ipstats, HCInDelivers), 1},
+    {"OutRequests", IPSYSTEMSTATSTABLE_HCOUTREQUESTS, offsetof(netsnmp_ipstats, HCOutRequests), 1},
+    {"OutDiscards", IPSYSTEMSTATSTABLE_HCOUTDISCARDS, offsetof(netsnmp_ipstats, HCOutDiscards), 1},
+    {"OutNoRoutes", IPSYSTEMSTATSTABLE_HCOUTNOROUTES, offsetof(netsnmp_ipstats, HCOutNoRoutes), 1},
+    {"ReasmTimeout", -1, -1, 0},
+    {"ReasmReqds", IPSYSTEMSTATSTABLE_REASMREQDS, offsetof(netsnmp_ipstats, ReasmReqds), 0},
+    {"ReasmOKs", IPSYSTEMSTATSTABLE_REASMOKS, offsetof(netsnmp_ipstats, ReasmOKs), 0},
+    {"ReasmFails", IPSYSTEMSTATSTABLE_REASMFAILS, offsetof(netsnmp_ipstats, ReasmFails), 0},
+    {"FragOKs", IPSYSTEMSTATSTABLE_HCOUTFRAGOKS, offsetof(netsnmp_ipstats, HCOutFragOKs), 1},
+    {"FragFails", IPSYSTEMSTATSTABLE_HCOUTFRAGFAILS, offsetof(netsnmp_ipstats, HCOutFragFails), 1},
+    {"FragCreates", IPSYSTEMSTATSTABLE_HCOUTFRAGCREATES, offsetof(netsnmp_ipstats, HCOutFragCreates), 1},
+    {"OutTransmits", -1, -1, 0},
+};
+
+#define SYSTEMSTATS_V4_IP_FIELD_COUNT \
+    (sizeof(systemstats_v4_ip_fields) / sizeof(systemstats_v4_ip_fields[0]))
+
+static int systemstats_v4_ip_fields_prepared;
+
+/* really found fields in header (index + 1); 0 means not found */
+static int systemstats_v4_ip_fields_idx[SYSTEMSTATS_V4_IP_FIELD_COUNT + 5 /*some extra space*/];
 
 /*
  *
@@ -98,10 +157,12 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
     FILE           *devin;
     char            line[1024];
     netsnmp_systemstats_entry *entry = NULL;
-    int             scan_count;
+    int             scan_count = 0;
     char           *stats, *start = line;
     int             len;
-    unsigned long long scan_vals[19];
+    unsigned long long scan_val;
+    char           *field, *ptr, *saveptr;
+    int             idx = 0;
 
     DEBUGMSGTL(("access:systemstats:container:arch", "load v4 (flags %x)\n",
                 load_flags));
@@ -114,41 +175,76 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
     }
 
     if (!(devin = fopen("/proc/net/snmp", "r"))) {
-        DEBUGMSGTL(("access:systemstats",
-                    "Failed to load Systemstats Table (linux1)\n"));
-        NETSNMP_LOGONCE((LOG_ERR, "cannot open /proc/net/snmp ...\n"));
+        snmp_log_perror("systemstats_linux: cannot open /proc/net/snmp");
         return -2;
     }
 
     /*
-     * skip header, but make sure it's the length we expect...
+     * Parse header and compare column labels.
      */
-    fgets(line, sizeof(line), devin);
-    len = strlen(line);
-    if (224 != len) {
+    start = fgets(line, sizeof(line), devin);
+    if (!start) {
         fclose(devin);
-        snmp_log(LOG_ERR, "unexpected header length in /proc/net/snmp."
-                 " %d != 224\n", len);
+        snmp_log_perror("systemstats_linux: cannot read /proc/net/snmp");
+        return -3;
+    }
+
+    len = strlen(line);
+    if (len && line[len - 1] == '\n')
+        line[len - 1] = '\0';
+
+    if (strncmp(start, "Ip: ", 4) || len < 224) {
+        fclose(devin);
+        snmp_log(LOG_ERR, "systemstats_linux: unexpected header in %s\n", "/proc/net/snmp");
         return -4;
+    } else {
+        start += sizeof("Ip: ") - 1;
+    }
+
+    if (systemstats_v4_ip_fields_prepared == 0) {
+        int found = 0;
+
+        for (ptr = start; ; ptr = NULL) {
+            field = strtok_r(ptr, " ", &saveptr);
+            if (!field)
+                break;
+            for (int i = 0; i < SYSTEMSTATS_V4_IP_FIELD_COUNT; ++i) {
+                if (!strcmp(field, systemstats_v4_ip_fields[i].name)) {
+                    systemstats_v4_ip_fields_idx[idx] = i + 1;
+                    found++;
+                    break;
+                }
+            }
+            idx++;
+            if (idx >= sizeof(systemstats_v4_ip_fields_idx) /
+                sizeof(systemstats_v4_ip_fields_idx[0])) {
+                snmp_log(LOG_ERR, "systemstats_linux: known fields array overflow - report this as a net-snmp bug and include the kernel version\n");
+                break;
+            }
+        }
+        if (found != idx)
+            snmp_log(LOG_ERR,
+                     "systemstats_linux: found only %d known fields of %d in %s\n",
+                     found, idx, "/proc/net/snmp");
+        systemstats_v4_ip_fields_prepared = found;
     }
 
     /*
      * This file provides the statistics for each systemstats.
      * Read in each line in turn, isolate the systemstats name
-     *   and retrieve (or create) the corresponding data structure.
+     * and retrieve (or create) the corresponding data structure.
      */
     start = fgets(line, sizeof(line), devin);
     fclose(devin);
     if (start) {
-
         len = strlen(line);
-        if (line[len - 1] == '\n')
+        if (len && line[len - 1] == '\n')
             line[len - 1] = '\0';
 
         while (*start && *start == ' ')
             start++;
 
-        if ((!*start) || ((stats = strrchr(start, ':')) == NULL)) {
+        if (!*start || (stats = strrchr(start, ':')) == NULL) {
             snmp_log(LOG_ERR,
                      "systemstats data format error 1, line ==|%s|\n", line);
             return -4;
@@ -162,11 +258,8 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
 
         entry = netsnmp_access_systemstats_entry_create(1, 0,
                     "ipSystemStatsTable.ipv4");
-        if(NULL == entry) {
-            netsnmp_access_systemstats_container_free(container,
-                                                      NETSNMP_ACCESS_SYSTEMSTATS_FREE_NOFLAGS);
+        if (!entry)
             return -3;
-        }
 
         /*
          * OK - we've now got (or created) the data structure for
@@ -176,76 +269,55 @@ _systemstats_v4(netsnmp_container* container, u_int load_flags)
          *      data structure accordingly.
          */
 
-        memset(scan_vals, 0x0, sizeof(scan_vals));
-        scan_count = sscanf(stats,
-                            "%llu %llu %llu %llu %llu %llu %llu %llu %llu %llu"
-                            "%llu %llu %llu %llu %llu %llu %llu %llu %llu",
-                            &scan_vals[0],&scan_vals[1],&scan_vals[2],
-                            &scan_vals[3],&scan_vals[4],&scan_vals[5],
-                            &scan_vals[6],&scan_vals[7],&scan_vals[8],
-                            &scan_vals[9],&scan_vals[10],&scan_vals[11],
-                            &scan_vals[12],&scan_vals[13],&scan_vals[14],
-                            &scan_vals[15],&scan_vals[16],&scan_vals[17],
-                            &scan_vals[18]);
+        for (ptr = stats, len = 0; ; ptr = NULL, len++) {
+            char *e;
+
+            if (!(field = strtok_r(ptr, " ", &saveptr)))
+                break;
+            scan_val = strtoull(field, &e, 10);
+            if (field == e || *e != '\0')
+                continue;
+            if (len >= sizeof(systemstats_v4_ip_fields_idx) /
+                sizeof(systemstats_v4_ip_fields_idx[0])) {
+                snmp_log(LOG_ERR, "systemstats_linux: known fields array overflow - report this as a net-snmp bug and include the kernel version\n");
+                break;
+            }
+            if (systemstats_v4_ip_fields_idx[len] == 0)
+                continue;
+            idx = systemstats_v4_ip_fields_idx[len] - 1;
+            scan_count++;
+            if (systemstats_v4_ip_fields[idx].offset != -1) {
+                int offset = systemstats_v4_ip_fields[idx].offset;
+
+                if (systemstats_v4_ip_fields[idx].type == 0) {
+                    u_long *u = (u_long *)((void *)&entry->stats + offset);
+                    *u = scan_val;
+                } else {
+                    struct counter64 *s = (struct counter64 *)((void*)&entry->stats + offset);
+                    s->low = scan_val & 0xffffffff;
+                    s->high = scan_val >> 32;
+                }
+            }
+            if (systemstats_v4_ip_fields[idx].avail_idx != -1) {
+                entry->stats.columnAvail[systemstats_v4_ip_fields[idx].avail_idx] = 1;
+            }
+        }
+
         DEBUGMSGTL(("access:systemstats", "  read %d values\n", scan_count));
 
-        if(scan_count != 19) {
+        if (scan_count != systemstats_v4_ip_fields_prepared) {
             snmp_log(LOG_ERR,
                      "error scanning systemstats data (expected %d, got %d)\n",
-                     19, scan_count);
+                     systemstats_v4_ip_fields_prepared, scan_count);
             netsnmp_access_systemstats_entry_free(entry);
             return -4;
         }
-        /* entry->stats. = scan_vals[0]; / * Forwarding */
-        /* entry->stats. = scan_vals[1]; / * DefaultTTL */
-        entry->stats.HCInReceives.low = scan_vals[2] & 0xffffffff;
-        entry->stats.HCInReceives.high = scan_vals[2] >> 32;
-        entry->stats.InHdrErrors = scan_vals[3];
-        entry->stats.InAddrErrors = scan_vals[4];
-        entry->stats.HCOutForwDatagrams.low = scan_vals[5] & 0xffffffff;
-        entry->stats.HCOutForwDatagrams.high = scan_vals[5] >> 32;
-        entry->stats.InUnknownProtos = scan_vals[6];
-        entry->stats.InDiscards = scan_vals[7];
-        entry->stats.HCInDelivers.low = scan_vals[8] & 0xffffffff;
-        entry->stats.HCInDelivers.high = scan_vals[8] >> 32;
-        entry->stats.HCOutRequests.low = scan_vals[9] & 0xffffffff;
-        entry->stats.HCOutRequests.high = scan_vals[9] >> 32;
-        entry->stats.HCOutDiscards.low = scan_vals[10] & 0xffffffff;;
-        entry->stats.HCOutDiscards.high = scan_vals[10] >> 32;
-        entry->stats.HCOutNoRoutes.low = scan_vals[11] & 0xffffffff;;
-        entry->stats.HCOutNoRoutes.high = scan_vals[11] >> 32;
-        /* entry->stats. = scan_vals[12]; / * ReasmTimeout */
-        entry->stats.ReasmReqds = scan_vals[13];
-        entry->stats.ReasmOKs = scan_vals[14];
-        entry->stats.ReasmFails = scan_vals[15];
-        entry->stats.HCOutFragOKs.low = scan_vals[16] & 0xffffffff;;
-        entry->stats.HCOutFragOKs.high = scan_vals[16] >> 32;
-        entry->stats.HCOutFragFails.low = scan_vals[17] & 0xffffffff;;
-        entry->stats.HCOutFragFails.high = scan_vals[17] >> 32;
-        entry->stats.HCOutFragCreates.low = scan_vals[18] & 0xffffffff;;
-        entry->stats.HCOutFragCreates.high = scan_vals[18] >> 32;
 
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINRECEIVES] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INHDRERRORS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INADDRERRORS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTFORWDATAGRAMS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INUNKNOWNPROTOS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_INDISCARDS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINDELIVERS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTREQUESTS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTDISCARDS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTNOROUTES] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_REASMREQDS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_REASMOKS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_REASMFAILS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTFRAGOKS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTFRAGFAILS] = 1;
-        entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTFRAGCREATES] = 1;
         entry->stats.columnAvail[IPSYSTEMSTATSTABLE_DISCONTINUITYTIME] = 1;
         entry->stats.columnAvail[IPSYSTEMSTATSTABLE_REFRESHRATE] = 1;
 
         /*
-         * load addtional statistics defined by RFC 4293
+         * load additional statistics defined by RFC 4293
          * As these are supported linux 2.6.22 or later, it is no problem
          * if loading them are failed.
          */
@@ -272,16 +344,14 @@ _additional_systemstats_v4(netsnmp_systemstats_entry* entry,
     FILE           *devin;
     char            line[1024];
     int             scan_count;
-    unsigned long long scan_vals[6];
+    unsigned long long scan_vals[12];
     int             retval = 0;
 
     DEBUGMSGTL(("access:systemstats:container:arch",
-                "load addtional v4 (flags %u)\n", load_flags));
+                "load additional v4 (flags %u)\n", load_flags));
 
     if (!(devin = fopen("/proc/net/netstat", "r"))) {
-        DEBUGMSGTL(("access:systemstats",
-                    "cannot open /proc/net/netstat\n"));
-        NETSNMP_LOGONCE((LOG_ERR,"cannot open /proc/net/netstat\n"));
+        snmp_log_perror("systemstats_linux: cannot open /proc/net/netstat");
         return -2;
     }
 
@@ -290,7 +360,7 @@ _additional_systemstats_v4(netsnmp_systemstats_entry* entry,
      */
     while (fgets(line, sizeof(line), devin)) {
         if (strncmp(IP_EXT_HEAD, line, sizeof(IP_EXT_HEAD) - 1) == 0) {
-            /* next line should includes IPv4 addtional statistics */
+            /* next line should include IPv4 additional statistics */
             if ((fgets(line, sizeof(line), devin)) == NULL) {
                 retval = -4;
                 break;
@@ -303,12 +373,14 @@ _additional_systemstats_v4(netsnmp_systemstats_entry* entry,
             memset(scan_vals, 0x0, sizeof(scan_vals));
             scan_count = sscanf(line,
                                 "%*s"   /* ignore `IpExt:' */
-                                "%llu %llu %llu %llu %llu %llu",
+                                "%llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
                                 &scan_vals[0], &scan_vals[1], &scan_vals[2],
-                                &scan_vals[3], &scan_vals[4], &scan_vals[5]);
+                                &scan_vals[3], &scan_vals[4], &scan_vals[5],
+                                &scan_vals[6], &scan_vals[7], &scan_vals[8],
+                                &scan_vals[9], &scan_vals[10], &scan_vals[11]);
             if (scan_count < 6) {
                 snmp_log(LOG_ERR,
-                        "error scanning addtional systemstats data"
+                        "error scanning additional systemstats data"
                         "(minimum expected %d, got %d)\n",
                         6, scan_count);
                 retval = -4;
@@ -333,6 +405,21 @@ _additional_systemstats_v4(netsnmp_systemstats_entry* entry,
             entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTMCASTPKTS] = 1;
             entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINBCASTPKTS] = 1;
             entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTBCASTPKTS] = 1;
+	    if (scan_count >= 12) {
+		entry->stats.HCInOctets.low        = scan_vals[6] & 0xffffffff;
+		entry->stats.HCInOctets.high       = scan_vals[6] >> 32;
+		entry->stats.HCOutOctets.low       = scan_vals[7] & 0xffffffff;
+		entry->stats.HCOutOctets.high      = scan_vals[7] >> 32;
+		entry->stats.HCInMcastOctets.low   = scan_vals[8] & 0xffffffff;
+		entry->stats.HCInMcastOctets.high  = scan_vals[8] >> 32;
+		entry->stats.HCOutMcastOctets.low  = scan_vals[9] & 0xffffffff;
+		entry->stats.HCOutMcastOctets.high = scan_vals[9] >> 32;
+		/* 10 and 11 are In/OutBcastOctets */
+		entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINOCTETS] = 1;
+		entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTOCTETS] = 1;
+		entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINMCASTOCTETS] = 1;
+		entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTMCASTOCTETS] = 1;
+	    }
         }
     }
 
@@ -340,7 +427,7 @@ _additional_systemstats_v4(netsnmp_systemstats_entry* entry,
 
     if (retval < 0)
         DEBUGMSGTL(("access:systemstats",
-                    "/proc/net/netstat does not include addtional stats\n"));
+                    "/proc/net/netstat does not include additional stats\n"));
 
     return retval;
 }
@@ -369,7 +456,7 @@ _systemstats_v6_load_file(netsnmp_systemstats_entry *entry, FILE *devin)
             break;
 
         len = strlen(line);
-        if (line[len - 1] == '\n')
+        if (len && line[len - 1] == '\n')
             line[len - 1] = '\0';
 
         if (('I' != line[0]) || ('6' != line[2]))
@@ -422,7 +509,7 @@ _systemstats_v6_load_file(netsnmp_systemstats_entry *entry, FILE *devin)
                     entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINMCASTOCTETS] = 1;
                 } else
                     rc = 1;
-            } else if ('N' == line[5]) {
+            } else if ('N' == line[5] && 'R' == line[7]) {
                 entry->stats.HCInNoRoutes.low = scan_val & 0xffffffff;
                 entry->stats.HCInNoRoutes.high = scan_val >> 32;
                 entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCINNOROUTES] = 1;
@@ -545,10 +632,12 @@ _systemstats_v6_load_systemstats(netsnmp_container* container, u_int load_flags)
      * try to open file. If we can't, that's ok - maybe the module hasn't
      * been loaded yet.
      */
-    if (!(devin = fopen(filename, "r"))) {
+    devin = fopen(filename, "r");
+    if (!devin) {
         DEBUGMSGTL(("access:systemstats",
                 "Failed to load Systemstats Table (linux1), cannot open %s\n",
                 filename));
+        netsnmp_access_systemstats_entry_free(entry);
         return 0;
     }
     
@@ -613,7 +702,9 @@ _systemstats_v6_load_ifstats(netsnmp_container* container, u_int load_flags)
             continue;
         }
         if (NULL == (devin = fopen(dev_filename, "r"))) {
-            snmp_log(LOG_ERR, "Failed to open %s\n", dev_filename);
+            char msg[128];
+            snprintf(msg, sizeof(msg), "systemstats_linux: %s", dev_filename);
+            snmp_log_perror(dev_filename);
             continue;
         }
     

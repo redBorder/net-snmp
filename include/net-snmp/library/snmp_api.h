@@ -4,7 +4,12 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -31,6 +36,21 @@
 #include <net-snmp/session_api.h>
 
 #include <net-snmp/net-snmp-features.h>
+
+#ifdef SNMP_NEED_REQUEST_LIST
+#if TIME_WITH_SYS_TIME
+# include <sys/time.h> /* struct timeval */
+# include <time.h>
+#else
+# if HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+#else
+struct timeval;
+#endif
 
 #ifndef DONT_SHARE_ERROR_WITH_OTHER_THREADS
 #define SET_SNMP_ERROR(x) snmp_errno=(x)
@@ -65,7 +85,6 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ******************************************************************/
 
-struct timeval;
 /*
  * A list of all the outstanding requests for a particular session.
  */
@@ -109,16 +128,17 @@ typedef struct request_list {
 #else
 #define SNMP_DEFAULT_AUTH_PROTO     usmHMACSHA1AuthProtocol
 #endif
-#define SNMP_DEFAULT_AUTH_PROTOLEN  USM_LENGTH_OID_TRANSFORM
+#define SNMP_DEFAULT_AUTH_PROTOLEN  OID_LENGTH(SNMP_DEFAULT_AUTH_PROTO)
 #ifndef NETSNMP_DISABLE_DES
 #define SNMP_DEFAULT_PRIV_PROTO     usmDESPrivProtocol
 #else
 #define SNMP_DEFAULT_PRIV_PROTO     usmAESPrivProtocol
 #endif
-#define SNMP_DEFAULT_PRIV_PROTOLEN  USM_LENGTH_OID_TRANSFORM
+#define SNMP_DEFAULT_PRIV_PROTOLEN  OID_LENGTH(SNMP_DEFAULT_PRIV_PROTO)
 
     NETSNMP_IMPORT void     snmp_set_detail(const char *);
 
+#define SNMP_MAX_RCV_MSG_SIZE      65536
 #define SNMP_MAX_MSG_SIZE          1472 /* ethernet MTU minus IP/UDP header */
 #define SNMP_MAX_MSG_V3_HDRS       (4+3+4+7+7+3+7+16)   /* fudge factor=16 */
 #define SNMP_MAX_ENG_SIZE          32
@@ -160,6 +180,8 @@ typedef struct request_list {
 
 #define SNMP_DETAIL_SIZE        512
 
+#define SNMP_FLAGS_TIME_CREATED    0x2000
+#define SNMP_FLAGS_SESSION_USER    0x1000
 #define SNMP_FLAGS_UDP_BROADCAST   0x800
 #define SNMP_FLAGS_RESP_CALLBACK   0x400      /* Additional callback on response */
 #define SNMP_FLAGS_USER_CREATED    0x200      /* USM user has been created */
@@ -167,6 +189,7 @@ typedef struct request_list {
 #define SNMP_FLAGS_STREAM_SOCKET   0x80
 #define SNMP_FLAGS_LISTENING       0x40 /* Server stream sockets only */
 #define SNMP_FLAGS_SUBSESSION      0x20
+#define SNMP_FLAGS_SHARED_SOCKET   0x10 /* subsession list=related sessions */
 #define SNMP_FLAGS_STRIKE2         0x02
 #define SNMP_FLAGS_STRIKE1         0x01
 
@@ -281,6 +304,9 @@ typedef struct request_list {
     NETSNMP_IMPORT void netsnmp_free(void *ptr);
     NETSNMP_IMPORT char *netsnmp_strdup(const char *s1);
 
+    NETSNMP_IMPORT long int netsnmp_random(void);
+    NETSNMP_IMPORT void netsnmp_srandom(unsigned int seed);
+
     /*
      * void
      * snmp_free_pdu(pdu)
@@ -328,8 +354,12 @@ typedef struct request_list {
 #define NETSNMP_CALLBACK_OP_SEND_FAILED		3
 #define NETSNMP_CALLBACK_OP_CONNECT		4
 #define NETSNMP_CALLBACK_OP_DISCONNECT		5
+#define NETSNMP_CALLBACK_OP_RESEND		6
+#define NETSNMP_CALLBACK_OP_SEC_ERROR		7
 
+    NETSNMP_IMPORT
     long            snmp_get_next_msgid(void);
+    NETSNMP_IMPORT
     long            snmp_get_next_reqid(void);
     NETSNMP_IMPORT
     long            snmp_get_next_sessid(void);
@@ -337,8 +367,12 @@ typedef struct request_list {
     long            snmp_get_next_transid(void);
 
     NETSNMP_IMPORT
+    int             netsnmp_max_send_msg_size(void);
+
+    NETSNMP_IMPORT
     int             snmp_oid_compare(const oid *, size_t, const oid *,
                                      size_t);
+    NETSNMP_IMPORT
     int             snmp_oid_ncompare(const oid *, size_t, const oid *,
                                       size_t, size_t);
     NETSNMP_IMPORT
@@ -354,6 +388,7 @@ typedef struct request_list {
     NETSNMP_IMPORT
     int             netsnmp_oid_equals(const oid *, size_t, const oid *,
                                        size_t);
+    NETSNMP_IMPORT
     int             netsnmp_oid_tree_equals(const oid *, size_t, const oid *,
                                             size_t);
     NETSNMP_IMPORT
@@ -364,26 +399,46 @@ typedef struct request_list {
                                             const oid * in_name2, size_t len2);
     NETSNMP_IMPORT
     void            init_snmp(const char *);
-    u_char         *snmp_pdu_build(netsnmp_pdu *, u_char *, size_t *);
+
+    NETSNMP_IMPORT
+    int
+    snmp_build(u_char ** pkt, size_t * pkt_len, size_t * offset,
+               netsnmp_session * pss, netsnmp_pdu *pdu);
+
+    NETSNMP_IMPORT
+    int
+    snmp_parse(struct session_list *slp, netsnmp_session *pss,
+               netsnmp_pdu *pdu, u_char *data, size_t length);
+
+    NETSNMP_IMPORT
+    u_char         *snmp_pdu_build(const netsnmp_pdu *, u_char *, size_t *);
 #ifdef NETSNMP_USE_REVERSE_ASNENCODING
-    u_char         *snmp_pdu_rbuild(netsnmp_pdu *, u_char *, size_t *);
+    NETSNMP_IMPORT
+    u_char         *snmp_pdu_rbuild(const netsnmp_pdu *, u_char *, size_t *);
 #endif
+    NETSNMP_IMPORT
     int             snmpv3_parse(netsnmp_pdu *, u_char *, size_t *,
                                  u_char **, netsnmp_session *);
+    NETSNMP_IMPORT
     int             snmpv3_packet_build(netsnmp_session *,
                                         netsnmp_pdu *pdu, u_char * packet,
                                         size_t * out_length,
                                         u_char * pdu_data,
                                         size_t pdu_data_len);
+    NETSNMP_IMPORT
     int             snmpv3_packet_rbuild(netsnmp_session *,
                                          netsnmp_pdu *pdu, u_char * packet,
                                          size_t * out_length,
                                          u_char * pdu_data,
                                          size_t pdu_data_len);
+    NETSNMP_IMPORT
     int             snmpv3_make_report(netsnmp_pdu *pdu, int error);
+    NETSNMP_IMPORT
     int             snmpv3_get_report_type(netsnmp_pdu *pdu);
+    NETSNMP_IMPORT
     int             snmp_pdu_parse(netsnmp_pdu *pdu, u_char * data,
                                    size_t * length);
+    NETSNMP_IMPORT
     u_char         *snmpv3_scopedPDU_parse(netsnmp_pdu *pdu, u_char * cp,
                                            size_t * length);
     NETSNMP_IMPORT
@@ -399,14 +454,15 @@ typedef struct request_list {
                                  const char *);
     NETSNMP_IMPORT
     oid            *snmp_duplicate_objid(const oid * objToCopy, size_t);
-    NETSNMP_IMPORT
 
 #ifndef NETSNMP_FEATURE_REMOVE_STATISTICS
+    NETSNMP_IMPORT
     u_int           snmp_increment_statistic(int which);
     NETSNMP_IMPORT
     u_int           snmp_increment_statistic_by(int which, int count);
     NETSNMP_IMPORT
     u_int           snmp_get_statistic(int which);
+    NETSNMP_IMPORT
     void            snmp_init_statistics(void);
 #else /* NETSNMP_FEATURE_REMOVE_STATISTICS */
 
@@ -417,23 +473,28 @@ typedef struct request_list {
 
 #endif
 
+    NETSNMP_IMPORT
     int             create_user_from_session(netsnmp_session * session);
-    int snmpv3_probe_contextEngineID_rfc5343(void *slp,
+    NETSNMP_IMPORT
+    int snmpv3_probe_contextEngineID_rfc5343(struct session_list *slp,
                                              netsnmp_session *session);
+    netsnmp_pdu *snmpv3_probe_usm_pdu_create(void);
 
     /*
      * New re-allocating reverse encoding functions.  
      */
 #ifdef NETSNMP_USE_REVERSE_ASNENCODING
 
+    NETSNMP_IMPORT
     int        snmpv3_packet_realloc_rbuild(u_char ** pkt, size_t * pkt_len,
                                      size_t * offset,
                                      netsnmp_session * session,
                                      netsnmp_pdu *pdu, u_char * pdu_data,
                                      size_t pdu_data_len);
 
+    NETSNMP_IMPORT
     int        snmp_pdu_realloc_rbuild(u_char ** pkt, size_t * pkt_len,
-                                size_t * offset, netsnmp_pdu *pdu);
+                                       size_t * offset, const netsnmp_pdu *pdu);
 #endif
 
 
@@ -463,21 +524,12 @@ struct netsnmp_transport_s;
                                                   size_t *, size_t *),
                                   int (*fcheck) (u_char *, size_t));
 
-    /*
-     * provided for backwards compatability.  Don't use these functions.
-     * See snmp_debug.h and snmp_debug.c instead.
-     */
-
-    NETSNMP_IMPORT
-    void            snmp_set_do_debugging(int);
-    NETSNMP_IMPORT
-    int             snmp_get_do_debugging(void);
-
-
     NETSNMP_IMPORT
     void            netsnmp_sess_log_error(int priority,
                                            const char *prog_string,
                                            netsnmp_session * ss);
+
+    NETSNMP_IMPORT
     const char *    snmp_pdu_type(int type);
 
     /*
@@ -486,8 +538,9 @@ struct netsnmp_transport_s;
      */
 
     NETSNMP_IMPORT
-    struct netsnmp_transport_s *snmp_sess_transport(void *);
-    void            snmp_sess_transport_set(void *,
+    struct netsnmp_transport_s *snmp_sess_transport(struct session_list *);
+    NETSNMP_IMPORT
+    void            snmp_sess_transport_set(struct session_list *,
 					    struct netsnmp_transport_s *);
 
     NETSNMP_IMPORT int
@@ -511,40 +564,34 @@ struct netsnmp_transport_s;
      * 
      */
 
-    void           *snmp_sess_add_ex(netsnmp_session *,
-                                     struct netsnmp_transport_s *,
-                                     int (*fpre_parse) (netsnmp_session *,
-                                                        struct
-                                                        netsnmp_transport_s
-                                                        *, void *, int),
-                                     int (*fparse) (netsnmp_session *,
-                                                    struct snmp_pdu *,
-                                                    u_char *, size_t),
-                                     int (*fpost_parse) (netsnmp_session *,
-                                                         struct snmp_pdu *,
-                                                         int),
-                                     int (*fbuild) (netsnmp_session *,
-                                                    struct snmp_pdu *,
-                                                    u_char *, size_t *),
-                                     int (*frbuild) (netsnmp_session *,
-                                                     struct snmp_pdu *,
-                                                     u_char **, size_t *,
-                                                     size_t *),
-                                     int (*fcheck) (u_char *, size_t),
-                                     netsnmp_pdu *(*fcreate_pdu) (struct
-                                                                  netsnmp_transport_s
-                                                                  *,
-                                                                  void *,
-                                                                  size_t));
+    NETSNMP_IMPORT
+    void netsnmp_cleanup_session(netsnmp_session *s);
 
-    void           *snmp_sess_add(netsnmp_session *,
-                                  struct netsnmp_transport_s *,
-                                  int (*fpre_parse) (netsnmp_session *,
-                                                     struct
-                                                     netsnmp_transport_s *,
-                                                     void *, int),
-                                  int (*fpost_parse) (netsnmp_session *,
-                                                      netsnmp_pdu *, int));
+    NETSNMP_IMPORT
+    struct session_list *
+    snmp_sess_add_ex(netsnmp_session *,
+                     struct netsnmp_transport_s *,
+                     int (*fpre_parse)(netsnmp_session *,
+                                        struct netsnmp_transport_s *, void *,
+                                        int),
+                     int (*fparse)(netsnmp_session *, struct snmp_pdu *,
+                                   u_char *, size_t),
+                     int (*fpost_parse)(netsnmp_session *, struct snmp_pdu *,
+                                        int),
+                     int (*fbuild)(netsnmp_session *, struct snmp_pdu *,
+                                   u_char *, size_t *),
+                     int (*frbuild)(netsnmp_session *, struct snmp_pdu *,
+                                    u_char **, size_t *, size_t *),
+                     int (*fcheck)(u_char *, size_t),
+                     netsnmp_pdu *(*fcreate_pdu)(struct netsnmp_transport_s *,
+                                                 void *, size_t));
+
+    NETSNMP_IMPORT
+    struct session_list *
+    snmp_sess_add(netsnmp_session *, struct netsnmp_transport_s *,
+                  int (*fpre_parse) (netsnmp_session *,
+                                     struct netsnmp_transport_s *, void *, int),
+                  int (*fpost_parse) (netsnmp_session *, netsnmp_pdu *, int));
 
     NETSNMP_IMPORT
     netsnmp_session *snmp_add(netsnmp_session *,
@@ -703,7 +750,7 @@ struct netsnmp_transport_s;
     struct session_list {
        struct session_list *next;
        netsnmp_session *session;
-       netsnmp_transport *transport;
+       struct netsnmp_transport_s *transport;
        struct snmp_internal_session *internal;
     };
 

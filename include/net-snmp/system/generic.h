@@ -1,8 +1,6 @@
 #ifndef __NET_SNMP_SYSTEM_GENERIC_H__
 #define __NET_SNMP_SYSTEM_GENERIC_H__
 
-#define bsdlike bsdlike
-
 /*
  * nlist symbols in ip.c 
  */
@@ -17,26 +15,9 @@
 #define IFADDR_SYMBOL "in_ifaddr"
 
 /*
- * nlist symbols in at.c 
- */
-#define ARPTAB_SYMBOL "arptab"
-#define ARPTAB_SIZE_SYMBOL "arptab_size"
-
-/*
  * load average lookup symbol 
  */
 #define LOADAVE_SYMBOL "avenrun"
-
-/*
- * nlist symbols in hr_proc.c and memory.c 
- */
-#define PHYSMEM_SYMBOL "physmem"
-#define TOTAL_MEMORY_SYMBOL "total"
-#define MBSTAT_SYMBOL "mbstat"
-#define SWDEVT_SYMBOL "swdevt"
-#define FSWDEVT_SYMBOL "fswdevt"
-#define NSWAPFS_SYMBOL "nswapfs"
-#define NSWAPDEV_SYMBOL "nswapdev"
 
 /*
  * process nlist symbols. 
@@ -73,6 +54,5 @@
  * udp_inpcb list symbol 
  */
 #define INP_NEXT_SYMBOL inp_next
-#define INP_PREV_SYMBOL inp_prev
 
 #endif /* !__NET_SNMP_SYSTEM_GENERIC_H__ */

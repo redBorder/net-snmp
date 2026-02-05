@@ -27,39 +27,39 @@ SOFTWARE.
 ******************************************************************/
 #include <net-snmp/net-snmp-config.h>
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
 #include <sys/types.h>
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 # include <netinet/in.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
 # endif
 #endif
-#if HAVE_SYS_SELECT_H
+#ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 #include <stdio.h>
-#if HAVE_NETDB_H
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
-#if HAVE_ARPA_INET_H
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
 
@@ -93,7 +93,7 @@ static size_t   name_length;
 static oid      root[MAX_OID_LEN];
 static size_t   rootlen;
 static int      localdebug;
-static int      exitval = 0;
+static int      exitval = 1;
 static int      use_getbulk = 1;
 static int      max_getbulk = 10;
 static int      extra_columns = 0;
@@ -220,7 +220,7 @@ usage(void)
     fprintf(stderr, "\t\t\t  b:       brief field names\n");
     fprintf(stderr, "\t\t\t  B:       do not use GETBULK requests\n");
     fprintf(stderr, "\t\t\t  c<NUM>:  print table in columns of <NUM> chars width\n");
-    fprintf(stderr, "\t\t\t  f<STR>:  print table delimitied with <STR>\n");
+    fprintf(stderr, "\t\t\t  f<STR>:  print table delimited with <STR>\n");
     fprintf(stderr, "\t\t\t  h:       print only the column headers\n");
     fprintf(stderr, "\t\t\t  H:       print no column headers\n");
     fprintf(stderr, "\t\t\t  i:       print index values\n");
@@ -250,6 +250,8 @@ main(int argc, char *argv[])
     netsnmp_session session, *ss;
     int            total_entries = 0;
 
+    SOCK_STARTUP;
+
     netsnmp_set_line_buffering(stdout);
 
     netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, 
@@ -260,12 +262,13 @@ main(int argc, char *argv[])
      */
     switch (snmp_parse_args(argc, argv, &session, "C:", optProc)) {
     case NETSNMP_PARSE_ARGS_ERROR:
-        exit(1);
+        goto out;
     case NETSNMP_PARSE_ARGS_SUCCESS_EXIT:
-        exit(0);
+        exitval = 0;
+        goto out;
     case NETSNMP_PARSE_ARGS_ERROR_USAGE:
         usage();
-        exit(1);
+        goto out;
     default:
         break;
     }
@@ -279,13 +282,13 @@ main(int argc, char *argv[])
     if (optind + 1 != argc) {
         fprintf(stderr, "Must have exactly one table name\n");
         usage();
-        exit(1);
+        goto out;
     }
 
     rootlen = MAX_OID_LEN;
     if (!snmp_parse_oid(argv[optind], root, &rootlen)) {
         snmp_perror(argv[optind]);
-        exit(1);
+        goto out;
     }
     localdebug = netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, 
                                         NETSNMP_DS_LIB_DUMP_PACKET);
@@ -296,21 +299,21 @@ main(int argc, char *argv[])
     /*
      * open an SNMP session 
      */
-    SOCK_STARTUP;
     ss = snmp_open(&session);
     if (ss == NULL) {
         /*
          * diagnose snmp_open errors with the input netsnmp_session pointer 
          */
         snmp_sess_perror("snmptable", &session);
-        SOCK_CLEANUP;
-        exit(1);
+        goto out;
     }
 
 #ifndef NETSNMP_DISABLE_SNMPV1
     if (ss->version == SNMP_VERSION_1)
         use_getbulk = 0;
 #endif
+
+    exitval = 0;
 
     do {
         entries = 0;
@@ -322,21 +325,25 @@ main(int argc, char *argv[])
                 get_table_entries(ss);
         }
 
-        if (exitval) {
-            snmp_close(ss);
-            SOCK_CLEANUP;
-            return exitval;
-        }
+        if (exitval)
+            goto close_session;
 
         if (entries || headers_only)
             print_table();
 
         if (data) {
+            int i, j;
+            for (i = 0; i < entries; i++)
+                for (j = 0; j < fields; j++)
+                free(data[i*fields+j]);
             free (data);
             data = NULL;
         }
 
         if (indices) {
+            int i;
+            for (i = 0; i < entries; i++)
+                free(indices[i]);
             free (indices);
             indices = NULL;
         }
@@ -345,15 +352,20 @@ main(int argc, char *argv[])
 
     } while (!end_of_table);
 
-    snmp_close(ss);
-    SOCK_CLEANUP;
-
     if (total_entries == 0)
         printf("%s: No entries\n", table_name);
     if (extra_columns)
 	printf("%s: WARNING: More columns on agent than in MIB\n", table_name);
 
-    return 0;
+    exitval = 0;
+
+close_session:
+    snmp_close(ss);
+
+out:
+    netsnmp_cleanup_session(&session);
+    SOCK_CLEANUP;
+    return exitval;
 }
 
 void
@@ -370,24 +382,26 @@ print_table(void)
 
     for (field = 0; field < fields; field++) {
         if (column_width != 0)
-            sprintf(string_buf, "%%%s%d.%ds", left_justify_flag,
-                    column_width + 1, column_width );
+            snprintf(string_buf, sizeof string_buf, "%%%s%d.%ds",
+                     left_justify_flag, column_width + 1, column_width );
         else if (field_separator == NULL)
-            sprintf(string_buf, "%%%s%ds", left_justify_flag,
-                    column[field].width + 1);
+            snprintf(string_buf, sizeof string_buf, "%%%s%ds",
+                     left_justify_flag, column[field].width + 1);
         else if (field == 0 && !show_index)
-            sprintf(string_buf, "%%s");
+            snprintf(string_buf, sizeof string_buf, "%%s");
         else
-            sprintf(string_buf, "%s%%s", field_separator);
+            snprintf(string_buf, sizeof string_buf, "%s%%s",
+                     field_separator);
         column[field].fmt = strdup(string_buf);
     }
     if (show_index) {
         if (column_width)
-            sprintf(string_buf, "\nindex: %%s\n");
+            snprintf(string_buf, sizeof string_buf, "\nindex: %%s\n");
         else if (field_separator == NULL)
-            sprintf(string_buf, "%%%s%ds", left_justify_flag, index_width);
+            snprintf(string_buf, sizeof string_buf, "%%%s%ds",
+                     left_justify_flag, index_width);
         else
-            sprintf(string_buf, "%%s");
+            snprintf(string_buf, sizeof string_buf, "%%s");
         index_fmt = strdup(string_buf);
     }
 
@@ -450,6 +464,8 @@ print_table(void)
     }
 
     first_pass = 0;
+    if (index_fmt)
+        free(index_fmt);
 }
 
 void
@@ -532,11 +548,16 @@ get_field_names(void)
             break;
         }
         if (fields == 1) {
-            column = (struct column *) malloc(sizeof(*column));
+            column = malloc(sizeof(*column));
         } else {
-            column =
-                (struct column *) realloc(column,
-                                          fields * sizeof(*column));
+            struct column *tmp_column;
+
+            tmp_column = realloc(column, fields * sizeof(*column));
+            if (!tmp_column) {
+                fprintf(stderr, "Out of memory\n");
+                exit(1);
+            }
+            column = tmp_column;
         }
         column[fields - 1].label = strdup(name_p);
         column[fields - 1].width = strlen(name_p);
@@ -631,29 +652,32 @@ get_table_entries(netsnmp_session * ss)
                 if (entries >= allocated) {
                     if (allocated == 0) {
                         allocated = 10;
-                        data =
-                            (char **) malloc(allocated * fields *
-                                             sizeof(char *));
+                        data = malloc(allocated * fields * sizeof(char *));
                         memset(data, 0,
                                allocated * fields * sizeof(char *));
                         if (show_index)
-                            indices =
-                                (char **) malloc(allocated *
-                                                 sizeof(char *));
+                            indices = malloc(allocated * sizeof(char *));
                     } else {
+                        void *tmp_data = NULL, *tmp_indices = NULL;
+
                         allocated += 10;
-                        data =
-                            (char **) realloc(data,
-                                              allocated * fields *
-                                              sizeof(char *));
-                        memset(data + entries * fields, 0,
-                               (allocated -
-                                entries) * fields * sizeof(char *));
+                        tmp_data = realloc(data, allocated * fields *
+                                           sizeof(char *));
                         if (show_index)
-                            indices =
-                                (char **) realloc(indices,
-                                                  allocated *
+                            tmp_indices = realloc(indices, allocated *
                                                   sizeof(char *));
+                        if (tmp_data && (!show_index || tmp_indices)) {
+                            data = tmp_data;
+                            memset(data + entries * fields, 0,
+                                   (allocated - entries) * fields *
+                                   sizeof(char *));
+                            if (show_index)
+                                indices = tmp_indices;
+                        } else {
+                            free(tmp_data);
+                            free(tmp_indices);
+                            allocated -= 10;
+                        }
                     }
                 }
                 dp = data + (entries - 1) * fields;
@@ -696,7 +720,6 @@ get_table_entries(netsnmp_session * ss)
                              vars->name_length)) {
                             break;
                         }
-                        i = vars->name_length - rootlen + 1;
                         if (localdebug || show_index) {
                             if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, 
                                               NETSNMP_DS_LIB_EXTENDED_INDEX)) {
@@ -713,6 +736,7 @@ get_table_entries(netsnmp_session * ss)
                                     break;
                                 case NETSNMP_OID_OUTPUT_FULL:
                                 case NETSNMP_OID_OUTPUT_NUMERIC:
+				case NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC:
                                 case NETSNMP_OID_OUTPUT_UCD:
                                     name_p = buf + strlen(table_name)+1;
                                     name_p = strchr(name_p, '.')+1;
@@ -740,6 +764,13 @@ get_table_entries(netsnmp_session * ss)
                     if (localdebug && buf) {
                         printf("%s => taken\n", buf);
                     }
+                    if (dp[col]) {
+                        fprintf(stderr, "OID not increasing: %s\n", buf);
+                        running = 0;
+                        end_of_table = 1;
+                        exitval = 2;
+                        break;
+                    }
                     out_len = 0;
                     sprint_realloc_value((u_char **)&buf, &buf_len, &out_len, 1,
                                          vars->name, vars->name_length,
@@ -757,6 +788,11 @@ get_table_entries(netsnmp_session * ss)
                         column[col].width = i;
                     }
                 }
+                if (buf) {
+                    free(buf);
+                    buf = NULL;
+                    buf_len = 0;
+                }
 
                 if (end_of_table) {
                     --entries;
@@ -764,9 +800,9 @@ get_table_entries(netsnmp_session * ss)
                      * not part of this subtree 
                      */
                     if (localdebug) {
-                        printf("End of table: %s\n",
-                               buf ? (char *) buf : "[NIL]");
+                        printf("End of table\n");
                     }
+                    snmp_free_pdu(response);
                     running = 0;
                     continue;
                 }
@@ -877,6 +913,10 @@ getbulk_table_entries(netsnmp_session * ss)
                     if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID, 
                                               NETSNMP_DS_LIB_EXTENDED_INDEX)) {
                         name_p = strchr(buf, '[');
+                        if (name_p == NULL) {
+                            running = 0;
+                            break;
+                        }
                     } else {
                         switch (netsnmp_ds_get_int(NETSNMP_DS_LIBRARY_ID,
                                                   NETSNMP_DS_LIB_OID_OUTPUT_FORMAT)) {
@@ -889,6 +929,7 @@ getbulk_table_entries(netsnmp_session * ss)
                             break;
                         case NETSNMP_OID_OUTPUT_FULL:
                         case NETSNMP_OID_OUTPUT_NUMERIC:
+			case NETSNMP_OID_OUTPUT_FULL_AND_NUMERIC:
                         case NETSNMP_OID_OUTPUT_UCD:
                             name_p = buf + strlen(table_name)+1;
                             name_p = strchr(name_p, '.')+1;
@@ -947,6 +988,13 @@ getbulk_table_entries(netsnmp_session * ss)
                             index_width = i;
                     }
                     dp = data + row * fields;
+                    if (dp[col]) {
+                        fprintf(stderr, "OID not increasing: %s\n", buf);
+                        exitval = 2;
+                        end_of_table = 1;
+                        running = 0;
+                        break;
+                    }
                     out_len = 0;
                     sprint_realloc_value((u_char **)&buf, &buf_len, &out_len, 1,
                                          vars->name, vars->name_length,
@@ -967,6 +1015,11 @@ getbulk_table_entries(netsnmp_session * ss)
                     name_length = last_var->name_length;
                     memcpy(name, last_var->name,
                            name_length * sizeof(oid));
+                }
+                if (buf) {
+                    free(buf);
+                    buf = NULL;
+                    buf_len = 0;
                 }
             } else {
                 /*

@@ -9,25 +9,25 @@
 #include <net-snmp/net-snmp-config.h>
 
 #include <stdio.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_ERR_H
+#ifdef HAVE_ERR_H
 #include <err.h>
 #endif
-#if TIME_WITH_SYS_TIME
+#ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
 # include <time.h>
 #else
-# if HAVE_SYS_TIME_H
+# ifdef HAVE_SYS_TIME_H
 #  include <sys/time.h>
 # else
 #  include <time.h>
@@ -38,11 +38,11 @@
 
 #include <sys/stat.h>
 #include <sys/socket.h>
-#if HAVE_SYS_FILIO_H
+#ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>
 #endif
 
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 
@@ -54,7 +54,6 @@
 static oid      max_rip_mib[] =
     { 1, 3, 6, 1, 2, 1, 23, 3, 1, 9, 255, 255, 255, 255 };
 static oid      min_rip_mib[] = { 1, 3, 6, 1, 2, 1, 23, 1, 1, 0 };
-extern u_char   smux_type;
 
 struct variable13 rip2_variables[] = {
     {RIP2GLOBALROUTECHANGES, ASN_COUNTER, NETSNMP_OLDAPI_RONLY,
@@ -140,7 +139,7 @@ var_rip2(struct variable *vp,
     *write_method = NULL;
 
     /*
-     * Donot allow access to the peer stuff as it crashes gated.
+     * Do not allow access to the peer stuff as it crashes gated.
      * However A GetNext on the last 23.3.1.9 variable will force gated into
      * the peer stuff and cause it to crash.
      * The only way to fix this is to either solve the Gated problem, or 
@@ -195,7 +194,7 @@ var_rip2(struct variable *vp,
         return NULL;
 
     /*
-     * Any resullt returned should be within the rip2 tree.
+     * Any result returned should be within the rip2 tree.
      * rip_mib - static u_int rip_mib[] = {1, 3, 6, 1, 2, 1, 23};
      */
     if (memcmp(rip_mib, name, sizeof(rip_mib)) != 0) {

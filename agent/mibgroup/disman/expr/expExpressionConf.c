@@ -15,7 +15,7 @@
 #include "disman/expr/expObject.h"
 #include "disman/expr/expExpressionConf.h"
 
-netsnmp_feature_require(iquery)
+netsnmp_feature_require(iquery);
 
 /* Initializes the expExpressionConf module */
 void
@@ -140,7 +140,7 @@ parse_expression(const char *token, char *line)
          * object name into the expression field...
          */
         /*   XXX - TODO - Handle string literals */
-        if (!isalpha(*cp)) {
+        if (!isalpha(*cp & 0xFF)) {
            *cp2++ = *cp++;
            continue;
         }

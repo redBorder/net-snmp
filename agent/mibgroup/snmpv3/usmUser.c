@@ -1,12 +1,21 @@
 /*
  * usmUser.c
+ *
+ * Portions of this file are subject to the following copyright(s).  See
+ * the Net-SNMP's COPYING file for more details and other copyrights
+ * that may apply:
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
  */
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
 #include <stdlib.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -22,10 +31,12 @@
 int usmStatusCheck(struct usmUser *uptr);
 #endif  /* !NETSNMP_NO_WRITE_SUPPORT */
 
-netsnmp_feature_child_of(usmuser_all, libnetsnmpmibs)
-netsnmp_feature_child_of(init_register_usmuser_context, usmuser_all)
+netsnmp_feature_child_of(usmuser_all, libnetsnmpmibs);
+netsnmp_feature_child_of(init_register_usmuser_context, usmuser_all);
 
-struct variable4 usmUser_variables[] = {
+netsnmp_feature_require(scapi_get_proper_priv_length);
+
+static const struct variable4 usmUser_variables[] = {
     {USMUSERSPINLOCK, ASN_INTEGER, NETSNMP_OLDAPI_RWRITE,
      var_usmUser, 1, {1}},
     {USMUSERSECURITYNAME, ASN_OCTET_STR, NETSNMP_OLDAPI_RONLY,
@@ -53,7 +64,7 @@ struct variable4 usmUser_variables[] = {
 
 };
 
-oid             usmUser_variables_oid[] = { 1, 3, 6, 1, 6, 3, 15, 1, 2 };
+static const oid usmUser_variables_oid[] = { 1, 3, 6, 1, 6, 3, 15, 1, 2 };
 
 
 /*
@@ -61,7 +72,9 @@ oid             usmUser_variables_oid[] = { 1, 3, 6, 1, 6, 3, 15, 1, 2 };
  */
 #define USM_MIB_LENGTH 12
 
+#ifndef NETSNMP_NO_WRITE_SUPPORT
 static unsigned int usmUserSpinLock = 0;
+#endif
 
 void
 init_usmUser(void)
@@ -74,61 +87,15 @@ init_usmUser(void)
 void
 init_register_usmUser_context(const char *contextName) {
     register_mib_context("snmpv3/usmUser",
-                         (struct variable *) usmUser_variables,
+                         (const struct variable *) usmUser_variables,
                          sizeof(struct variable4),
                          sizeof(usmUser_variables)/sizeof(struct variable4),
                          usmUser_variables_oid,
-                         sizeof(usmUser_variables_oid)/sizeof(oid),
+                         OID_LENGTH(usmUser_variables_oid),
                          DEFAULT_MIB_PRIORITY, 0, 0, NULL,
                          contextName, -1, 0);
 }
 #endif /* NETSNMP_FEATURE_REMOVE_INIT_REGISTER_USMUSER_CONTEXT */
-
-/*******************************************************************-o-******
- * usm_generate_OID
- *
- * Parameters:
- *	*prefix		(I) OID prefix to the usmUser table entry.
- *	 prefixLen	(I)
- *	*uptr		(I) Pointer to a user in the user list.
- *	*length		(O) Length of generated index OID.
- *      
- * Returns:
- *	Pointer to the OID index for the user (uptr)  -OR-
- *	NULL on failure.
- *
- *
- * Generate the index OID for a given usmUser name.  'length' is set to
- * the length of the index OID.
- *
- * Index OID format is:
- *
- *    <...prefix>.<engineID_length>.<engineID>.<user_name_length>.<user_name>
- */
-oid            *
-usm_generate_OID(oid * prefix, size_t prefixLen, struct usmUser *uptr,
-                 size_t * length)
-{
-    oid            *indexOid;
-    int             i;
-
-    *length = 2 + uptr->engineIDLen + strlen(uptr->name) + prefixLen;
-    indexOid = (oid *) malloc(*length * sizeof(oid));
-    if (indexOid) {
-        memmove(indexOid, prefix, prefixLen * sizeof(oid));
-
-        indexOid[prefixLen] = uptr->engineIDLen;
-        for (i = 0; i < (int) uptr->engineIDLen; i++)
-            indexOid[prefixLen + 1 + i] = (oid) uptr->engineID[i];
-
-        indexOid[prefixLen + uptr->engineIDLen + 1] = strlen(uptr->name);
-        for (i = 0; i < (int) strlen(uptr->name); i++)
-            indexOid[prefixLen + uptr->engineIDLen + 2 + i] =
-                (oid) uptr->name[i];
-    }
-    return indexOid;
-
-}                               /* end usm_generate_OID() */
 
 /*
  * usm_parse_oid(): parses an index to the usmTable to break it down into
@@ -142,7 +109,7 @@ usm_generate_OID(oid * prefix, size_t prefixLen, struct usmUser *uptr,
  * returns 1 if an error is encountered, or 0 if successful.
  */
 int
-usm_parse_oid(oid * oidIndex, size_t oidLen,
+usm_parse_oid(const oid * oidIndex, size_t oidLen,
               unsigned char **engineID, size_t * engineIDLen,
               unsigned char **name, size_t * nameLen)
 {
@@ -237,7 +204,7 @@ usm_parse_user(oid * name, size_t name_len)
 {
     struct usmUser *uptr;
 
-    char           *newName;
+    u_char         *newName;
     u_char         *engineID;
     size_t          nameLen, engineIDLen;
 
@@ -245,14 +212,13 @@ usm_parse_user(oid * name, size_t name_len)
      * get the name and engineID out of the incoming oid 
      */
     if (usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                      &engineID, &engineIDLen, (u_char **) & newName,
-                      &nameLen))
+                      &engineID, &engineIDLen, &newName, &nameLen))
         return NULL;
 
     /*
      * Now see if a user exists with these index values 
      */
-    uptr = usm_get_user(engineID, engineIDLen, newName);
+    uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
     free(engineID);
     free(newName);
 
@@ -305,13 +271,15 @@ var_usmUser(struct variable * vp,
      * variables we may use later 
      */
     static long     long_ret;
+#ifndef NETSNMP_NO_WRITE_SUPPORT
     static u_char   string[1];
     static oid      objid[2];   /* for .0.0 */
+#endif
 
     if (!vp || !name || !length || !var_len)
         return NULL;
 
-    /* assume it isnt writable for the time being */
+    /* assume it isn't writable for the time being */
     *write_method = (WriteMethod*)0;    
 
     /* assume an integer and change later if not */
@@ -346,14 +314,14 @@ var_usmUser(struct variable * vp,
                 indexOid =
                     usm_generate_OID(vp->name, vp->namelen, nptr, &len);
                 result = snmp_oid_compare(name, *length, indexOid, len);
-                DEBUGMSGTL(("usmUser", "Checking user: %s - ",
+                DEBUGMSGTL(("9:usmUser", "Checking user: %s - ",
                             nptr->name));
                 for (i = 0; i < (int) nptr->engineIDLen; i++) {
-                    DEBUGMSG(("usmUser", " %x", nptr->engineID[i]));
+                    DEBUGMSG(("9:usmUser", " %x", nptr->engineID[i]));
                 }
-                DEBUGMSG(("usmUser", " - %d \n  -> OID: ", result));
-                DEBUGMSGOID(("usmUser", indexOid, len));
-                DEBUGMSG(("usmUser", "\n"));
+                DEBUGMSG(("9:usmUser", " - %d \n  -> OID: ", result));
+                DEBUGMSGOID(("9:usmUser", indexOid, len));
+                DEBUGMSG(("9:usmUser", "\n"));
 
                 free(indexOid);
 
@@ -688,7 +656,7 @@ write_usmUserAuthProtocol(int action,
             if (snmp_oid_compare
                 ((oid *) var_val, var_val_len / sizeof(oid),
                  usmNoAuthProtocol,
-                 sizeof(usmNoAuthProtocol) / sizeof(oid)) == 0) {
+                 OID_LENGTH(usmNoAuthProtocol)) == 0) {
                 /*
                  * ... and then only if the privProtocol is equal to
                  * usmNoPrivProtocol.  
@@ -696,7 +664,7 @@ write_usmUserAuthProtocol(int action,
                 if (snmp_oid_compare
                     (uptr->privProtocol, uptr->privProtocolLen,
                      usmNoPrivProtocol,
-                     sizeof(usmNoPrivProtocol) / sizeof(oid)) != 0) {
+                     OID_LENGTH(usmNoPrivProtocol)) != 0) {
                     return SNMP_ERR_INCONSISTENTVALUE;
                 }
                 optr = uptr->authProtocol;
@@ -732,7 +700,7 @@ write_usmUserAuthProtocol(int action,
             if (snmp_oid_compare
                 ((oid *) var_val, var_val_len / sizeof(oid),
                  usmNoAuthProtocol,
-                 sizeof(usmNoAuthProtocol) / sizeof(oid)) == 0
+                 OID_LENGTH(usmNoAuthProtocol)) == 0
 #ifndef NETSNMP_DISABLE_MD5
                 || snmp_oid_compare((oid *) var_val,
                                     var_val_len / sizeof(oid),
@@ -799,7 +767,7 @@ write_usmUserAuthProtocol(int action,
  *
  * Note: This function handles both the usmUserAuthKeyChange and
  *       usmUserOwnAuthKeyChange objects.  We are not passed the name
- *       of the user requseting the keychange, so we leave this to the
+ *       of the user requesting the keychange, so we leave this to the
  *       calling module to verify when and if we should be called.  To
  *       change this would require a change in the mib module API to
  *       pass in the securityName requesting the change.
@@ -816,17 +784,22 @@ write_usmUserAuthKeyChange(int action,
     struct usmUser *uptr;
     unsigned char   buf[SNMP_MAXBUF_SMALL];
     size_t          buflen = SNMP_MAXBUF_SMALL;
-    const char      fnAuthKey[] = "write_usmUserAuthKeyChange";
-    const char      fnOwnAuthKey[] = "write_usmUserOwnAuthKeyChange";
     const char     *fname;
     static unsigned char *oldkey;
     static size_t   oldkeylen;
     static int      resetOnFail;
 
-    if (name[USM_MIB_LENGTH - 1] == 6) {
-        fname = fnAuthKey;
-    } else {
-        fname = fnOwnAuthKey;
+    switch (name[USM_MIB_LENGTH - 1]) {
+    case 6:
+        fname = "write_usmUserAuthKeyChange";
+        break;
+    case 7:
+        fname = "write_usmUserOwnAuthKeyChange";
+        break;
+    default:
+        fname = "?";
+        netsnmp_assert(FALSE);
+        break;
     }
 
     if (action == RESERVE1) {
@@ -856,7 +829,7 @@ write_usmUserAuthKeyChange(int action,
                 if (snmp_oid_compare
                     (uptr->authProtocol, uptr->authProtocolLen,
                      usmHMACSHA1AuthProtocol,
-                     sizeof(usmHMACSHA1AuthProtocol) / sizeof(oid)) == 0) {
+                     OID_LENGTH(usmHMACSHA1AuthProtocol)) == 0) {
                 if (var_val_len != 0 && var_val_len != 40) {
                     return SNMP_ERR_WRONGLENGTH;
                 }
@@ -871,7 +844,7 @@ write_usmUserAuthKeyChange(int action,
         }
         if (snmp_oid_compare(uptr->authProtocol, uptr->authProtocolLen,
                              usmNoAuthProtocol,
-                             sizeof(usmNoAuthProtocol) / sizeof(oid)) ==
+                             OID_LENGTH(usmNoAuthProtocol)) ==
             0) {
             /*
              * "When the value of the corresponding usmUserAuthProtocol is
@@ -901,7 +874,7 @@ write_usmUserAuthKeyChange(int action,
         resetOnFail = 1;
         oldkey = uptr->authKey;
         oldkeylen = uptr->authKeyLen;
-        memdup(&uptr->authKey, buf, buflen);
+        uptr->authKey = netsnmp_memdup(buf, buflen);
         if (uptr->authKey == NULL) {
             return SNMP_ERR_RESOURCEUNAVAILABLE;
         }
@@ -946,6 +919,7 @@ write_usmUserPrivProtocol(int action,
         }
     } else if (action == RESERVE2) {
         if ((uptr = usm_parse_user(name, name_len)) == NULL) {
+            DEBUGMSGTL(("usmUser", "usm_parse_user() error\n"));
             return SNMP_ERR_INCONSISTENTNAME;
         }
 
@@ -959,7 +933,7 @@ write_usmUserPrivProtocol(int action,
             if (snmp_oid_compare
                 ((oid *) var_val, var_val_len / sizeof(oid),
                  usmNoPrivProtocol,
-                 sizeof(usmNoPrivProtocol) / sizeof(oid)) == 0) {
+                 OID_LENGTH(usmNoPrivProtocol)) == 0) {
                 resetOnFail = 1;
                 optr = uptr->privProtocol;
                 olen = uptr->privProtocolLen;
@@ -967,6 +941,7 @@ write_usmUserPrivProtocol(int action,
                                                           var_val_len /
                                                           sizeof(oid));
                 if (uptr->privProtocol == NULL) {
+                    DEBUGMSGTL(("usmUser", "snmp_duplicate_objid() error\n"));
                     return SNMP_ERR_RESOURCEUNAVAILABLE;
                 }
                 uptr->privProtocolLen = var_val_len / sizeof(oid);
@@ -980,6 +955,7 @@ write_usmUserPrivProtocol(int action,
                  */
                 return SNMP_ERR_NOERROR;
             } else {
+                DEBUGMSGTL(("usmUser", "inconsistent value error\n"));
                 return SNMP_ERR_INCONSISTENTVALUE;
             }
         } else {
@@ -998,24 +974,26 @@ write_usmUserPrivProtocol(int action,
                 if (snmp_oid_compare
                     ((oid *) var_val, var_val_len / sizeof(oid),
                      usmNoPrivProtocol,
-                     sizeof(usmNoPrivProtocol) / sizeof(oid)) != 0) {
+                     OID_LENGTH(usmNoPrivProtocol)) != 0) {
+                    DEBUGMSGTL(("usmUser", "inconsistent value error\n"));
                     return SNMP_ERR_INCONSISTENTVALUE;
                 }
             } else {
                 if (snmp_oid_compare
                     ((oid *) var_val, var_val_len / sizeof(oid),
                      usmNoPrivProtocol,
-                     sizeof(usmNoPrivProtocol) / sizeof(oid)) != 0
+                     OID_LENGTH(usmNoPrivProtocol)) != 0
 #ifndef NETSNMP_DISABLE_DES
                  && snmp_oid_compare
                     ((oid *) var_val, var_val_len / sizeof(oid),
                      usmDESPrivProtocol,
-                     sizeof(usmDESPrivProtocol) / sizeof(oid)) != 0
+                     OID_LENGTH(usmDESPrivProtocol)) != 0
 #endif
                  && snmp_oid_compare
                     ((oid *) var_val, var_val_len / sizeof(oid),
                      usmAESPrivProtocol,
-                     sizeof(usmAESPrivProtocol) / sizeof(oid)) != 0) {
+                     OID_LENGTH(usmAESPrivProtocol)) != 0) {
+                    DEBUGMSGTL(("usmUser", "wrong value error\n"));
                     return SNMP_ERR_WRONGVALUE;
                 }
             }
@@ -1026,6 +1004,7 @@ write_usmUserPrivProtocol(int action,
                                                       var_val_len /
                                                       sizeof(oid));
             if (uptr->privProtocol == NULL) {
+                DEBUGMSGTL(("usmUser", "resource unavailable error\n"));
                 return SNMP_ERR_RESOURCEUNAVAILABLE;
             }
             uptr->privProtocolLen = var_val_len / sizeof(oid);
@@ -1062,19 +1041,22 @@ write_usmUserPrivKeyChange(int action,
                            u_char * statP, oid * name, size_t name_len)
 {
     struct usmUser *uptr;
-    unsigned char   buf[SNMP_MAXBUF_SMALL];
-    size_t          buflen = SNMP_MAXBUF_SMALL;
-    const char      fnPrivKey[] = "write_usmUserPrivKeyChange";
-    const char      fnOwnPrivKey[] = "write_usmUserOwnPrivKeyChange";
     const char     *fname;
     static unsigned char *oldkey;
     static size_t   oldkeylen;
     static int      resetOnFail;
 
-    if (name[USM_MIB_LENGTH - 1] == 9) {
-        fname = fnPrivKey;
-    } else {
-        fname = fnOwnPrivKey;
+    switch (name[USM_MIB_LENGTH - 1]) {
+    case 9:
+        fname = "write_usmUserPrivKeyChange";
+        break;
+    case 10:
+        fname = "write_usmUserOwnPrivKeyChange";
+        break;
+    default:
+        fname = "?";
+        netsnmp_assert(FALSE);
+        break;
     }
 
     if (action == RESERVE1) {
@@ -1091,26 +1073,33 @@ write_usmUserPrivKeyChange(int action,
         if ((uptr = usm_parse_user(name, name_len)) == NULL) {
             return SNMP_ERR_INCONSISTENTNAME;
         } else {
-#ifndef NETSNMP_DISABLE_DES
-            if (snmp_oid_compare(uptr->privProtocol, uptr->privProtocolLen,
-                                 usmDESPrivProtocol,
-                                 sizeof(usmDESPrivProtocol) /
-                                 sizeof(oid)) == 0) {
-                if (var_val_len != 0 && var_val_len != 32) {
-                    return SNMP_ERR_WRONGLENGTH;
-                }
+            const netsnmp_priv_alg_info *pai =
+                sc_get_priv_alg_byoid(uptr->privProtocol,
+                                      uptr->privProtocolLen);
+            int plen;
+
+            if (NULL == pai) {
+                DEBUGMSGTL(("usmUser", "%s: unknown privProtocol\n",
+                            fname));
+                return SNMP_ERR_GENERR;
             }
-#endif
-            if (snmp_oid_compare(uptr->privProtocol, uptr->privProtocolLen,
-                                 usmAESPrivProtocol,
-                                 sizeof(usmAESPrivProtocol) /
-                                 sizeof(oid)) == 0) {
-                if (var_val_len != 0 && var_val_len != 32) {
-                    return SNMP_ERR_WRONGLENGTH;
-                }
+            plen = pai->proper_length;
+            DEBUGMSGTL(("usmUser", "plen %d\n", plen));
+            /*
+             * ?? we store salt with key. See also the corresponding statement
+             * in apps/snmpusm.c.
+             */
+            if (USM_CREATE_USER_PRIV_DES == pai->type)
+                plen *= 2;
+            if (var_val_len != 0 && var_val_len != (2 * plen)) {
+                DEBUGMSGTL(("usmUser", "%s: bad len. %" NETSNMP_PRIz "d != %d\n",
+                            fname, var_val_len, 2 * plen));
+                return SNMP_ERR_WRONGLENGTH;
             }
         }
     } else if (action == ACTION) {
+        int res;
+
         if ((uptr = usm_parse_user(name, name_len)) == NULL) {
             return SNMP_ERR_INCONSISTENTNAME;
         }
@@ -1119,7 +1108,7 @@ write_usmUserPrivKeyChange(int action,
         }
         if (snmp_oid_compare(uptr->privProtocol, uptr->privProtocolLen,
                              usmNoPrivProtocol,
-                             sizeof(usmNoPrivProtocol) / sizeof(oid)) ==
+                             OID_LENGTH(usmNoPrivProtocol)) ==
             0) {
             /*
              * "When the value of the corresponding usmUserPrivProtocol is
@@ -1132,28 +1121,11 @@ write_usmUserPrivKeyChange(int action,
             return SNMP_ERR_NOERROR;
         }
 
-        /*
-         * Change the key. 
-         */
-        DEBUGMSGTL(("usmUser", "%s: changing priv key for user %s\n",
-                    fname, uptr->secName));
-
-        if (decode_keychange(uptr->authProtocol, uptr->authProtocolLen,
-                             uptr->privKey, uptr->privKeyLen,
-                             var_val, var_val_len,
-                             buf, &buflen) != SNMPERR_SUCCESS) {
-            DEBUGMSGTL(("usmUser", "%s: ... failed\n", fname));
-            return SNMP_ERR_GENERR;
-        }
-        DEBUGMSGTL(("usmUser", "%s: ... succeeded\n", fname));
+        res = usm_set_priv_key(uptr, fname, &oldkey, &oldkeylen, var_val,
+                               var_val_len);
+        if (res != SNMP_ERR_NOERROR)
+            return res;
         resetOnFail = 1;
-        oldkey = uptr->privKey;
-        oldkeylen = uptr->privKeyLen;
-        memdup(&uptr->privKey, buf, buflen);
-        if (uptr->privKey == NULL) {
-            return SNMP_ERR_RESOURCEUNAVAILABLE;
-        }
-        uptr->privKeyLen = buflen;
     } else if (action == COMMIT) {
         SNMP_FREE(oldkey);
     } else if (action == UNDO) {
@@ -1272,7 +1244,7 @@ write_usmUserStorageType(int action,
                        (snmp_oid_compare
                         (uptr->privProtocol, uptr->privProtocolLen,
                          usmNoPrivProtocol,
-                         sizeof(usmNoPrivProtocol) / sizeof(oid)) != 0
+                         OID_LENGTH(usmNoPrivProtocol)) != 0
                         || snmp_oid_compare(uptr->authProtocol,
                                             uptr->authProtocolLen,
                                             usmNoAuthProtocol,
@@ -1343,7 +1315,7 @@ write_usmUserStatus(int action,
     static long     long_ret;
     unsigned char  *engineID;
     size_t          engineIDLen;
-    char           *newName;
+    u_char         *newName;
     size_t          nameLen;
     struct usmUser *uptr = NULL;
 
@@ -1367,8 +1339,7 @@ write_usmUserStatus(int action,
          * See if we can parse the oid for engineID/name first.  
          */
         if (usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                          &engineID, &engineIDLen, (u_char **) & newName,
-                          &nameLen)) {
+                          &engineID, &engineIDLen, &newName, &nameLen)) {
             DEBUGMSGTL(("usmUser",
                         "can't parse the OID for engineID or name\n"));
             return SNMP_ERR_INCONSISTENTNAME;
@@ -1384,7 +1355,7 @@ write_usmUserStatus(int action,
         /*
          * Now see if a user already exists with these index values. 
          */
-        uptr = usm_get_user(engineID, engineIDLen, newName);
+        uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
 
         if (uptr != NULL) {
             if (long_ret == RS_CREATEANDGO || long_ret == RS_CREATEANDWAIT) {
@@ -1408,7 +1379,7 @@ write_usmUserStatus(int action,
                     return SNMP_ERR_RESOURCEUNAVAILABLE;
                 }
                 uptr->engineID = engineID;
-                uptr->name = newName;
+                uptr->name = (char *)newName;
                 uptr->secName = strdup(uptr->name);
                 if (uptr->secName == NULL) {
                     usm_free_user(uptr);
@@ -1436,9 +1407,8 @@ write_usmUserStatus(int action,
         }
     } else if (action == ACTION) {
         usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                      &engineID, &engineIDLen, (u_char **) & newName,
-                      &nameLen);
-        uptr = usm_get_user(engineID, engineIDLen, newName);
+                      &engineID, &engineIDLen, &newName, &nameLen);
+        uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
         SNMP_FREE(engineID);
         SNMP_FREE(newName);
 
@@ -1447,8 +1417,6 @@ write_usmUserStatus(int action,
                 if (usmStatusCheck(uptr)) {
                     uptr->userStatus = RS_ACTIVE;
                 } else {
-                    SNMP_FREE(engineID);
-                    SNMP_FREE(newName);
                     return SNMP_ERR_INCONSISTENTVALUE;
                 }
             } else if (long_ret == RS_CREATEANDWAIT) {
@@ -1468,9 +1436,8 @@ write_usmUserStatus(int action,
         }
     } else if (action == COMMIT) {
         usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                      &engineID, &engineIDLen, (u_char **) & newName,
-                      &nameLen);
-        uptr = usm_get_user(engineID, engineIDLen, newName);
+                      &engineID, &engineIDLen, &newName, &nameLen);
+        uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
         SNMP_FREE(engineID);
         SNMP_FREE(newName);
 
@@ -1482,12 +1449,11 @@ write_usmUserStatus(int action,
         }
     } else if (action == UNDO || action == FREE) {
         if (usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                      &engineID, &engineIDLen, (u_char **) & newName,
-                      &nameLen)) {
+                      &engineID, &engineIDLen, &newName, &nameLen)) {
             /* Can't extract engine info from the OID - nothing to undo */
             return SNMP_ERR_NOERROR;
         }
-        uptr = usm_get_user(engineID, engineIDLen, newName);
+        uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
         SNMP_FREE(engineID);
         SNMP_FREE(newName);
 
@@ -1508,14 +1474,13 @@ write_usmUserStatus(int action,
      * see if we can parse the oid for engineID/name first 
      */
 if (usm_parse_oid(&name[USM_MIB_LENGTH], name_len - USM_MIB_LENGTH,
-                  &engineID, &engineIDLen, (u_char **) & newName,
-                  &nameLen))
+                  &engineID, &engineIDLen, &newName, &nameLen))
     return SNMP_ERR_INCONSISTENTNAME;
 
     /*
      * Now see if a user already exists with these index values 
      */
-uptr = usm_get_user(engineID, engineIDLen, newName);
+uptr = usm_get_user2(engineID, engineIDLen, newName, nameLen);
 
 
 if (uptr) {                     /* If so, we set the appropriate value... */

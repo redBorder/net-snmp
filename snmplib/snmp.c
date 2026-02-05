@@ -45,7 +45,7 @@ SOFTWARE.
 #else
 #include <strings.h>
 #endif
-#if HAVE_NETINET_IN_H
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
@@ -53,10 +53,6 @@ SOFTWARE.
 #endif
 #ifndef NULL
 #define NULL 0
-#endif
-
-#if HAVE_DMALLOC_H
-#include <dmalloc.h>
 #endif
 
 #ifdef vms
@@ -69,6 +65,7 @@ SOFTWARE.
 #include <net-snmp/library/asn1.h>
 #include <net-snmp/library/snmp.h>      /* for "internal" definitions */
 #include <net-snmp/library/snmp_api.h>
+#include <net-snmp/library/snmp_impl.h>
 #include <net-snmp/library/mib.h>
 
 /** @mainpage Net-SNMP Coding Documentation
@@ -78,7 +75,7 @@ SOFTWARE.
    incomplete, but when combined with the manual page set and
    tutorials forms a pretty comprehensive starting point.
 
-   @section Starting out
+   @section Starting_out Starting out
 
    The best places to start learning are the @e Net-SNMP @e tutorial
    (http://www.Net-SNMP.org/tutorial-5/) and the @e Modules and @e
@@ -92,6 +89,11 @@ xdump(const void * data, size_t length, const char *prefix)
     const u_char * const cp = (const u_char*)data;
     int                  col, count;
     char                *buffer;
+#ifndef NETSNMP_DISABLE_DYNAMIC_LOG_LEVEL
+    int      debug_log_level = netsnmp_get_debug_log_level();
+#else
+#define debug_log_level LOG_DEBUG
+#endif /* NETSNMP_DISABLE_DYNAMIC_LOG_LEVEL */
 
     buffer = (char *) malloc(strlen(prefix) + 80);
     if (!buffer) {
@@ -122,10 +124,10 @@ xdump(const void * data, size_t length, const char *prefix)
         }
         buffer[col + 60] = '\n';
         buffer[col + 60 + 1] = 0;
-        snmp_log(LOG_DEBUG, "%s", buffer);
+        snmp_log(debug_log_level, "%s", buffer);
         count += col;
     }
-    snmp_log(LOG_DEBUG, "\n");
+    snmp_log(debug_log_level, "\n");
     free(buffer);
 
 }                               /* end xdump() */
@@ -191,46 +193,35 @@ snmp_parse_var_op(u_char * data,
     return data;
 }
 
-/*
- * u_char * snmp_build_var_op(
- * u_char *data      IN - pointer to the beginning of the output buffer
- * oid *var_name        IN - object id of variable 
- * int *var_name_len    IN - length of object id 
- * u_char var_val_type  IN - type of variable 
- * int    var_val_len   IN - length of variable 
- * u_char *var_val      IN - value of variable 
- * int *listlength      IN/OUT - number of valid bytes left in
- * output buffer 
+/**
+ * ASN encode a varbind
+ *
+ * @param data[in]           pointer to the beginning of the output buffer
+ * @param var_name[in]       object id of variable
+ * @param var_name_len[in]   length of object id
+ * @param var_val_type[in]   type of variable
+ * @param var_val_len[in]    length of variable
+ * @param var_val[in]        value of variable
+ * @param listlength[in|out] number of valid bytes left in output buffer
  */
 
 u_char         *
 snmp_build_var_op(u_char * data,
-                  oid * var_name,
+                  const oid * var_name,
                   size_t * var_name_len,
                   u_char var_val_type,
                   size_t var_val_len,
-                  u_char * var_val, size_t * listlength)
+                  const void * var_val, size_t * listlength)
 {
-    size_t          dummyLen, headerLen;
-    u_char         *dataPtr;
+    const size_t    headerLen = 4;
+    size_t          sequenceLen;
+    u_char   *const dataPtr = data;
 
-    dummyLen = *listlength;
-    dataPtr = data;
-#if 0
-    data = asn_build_sequence(data, &dummyLen,
-                              (u_char) (ASN_SEQUENCE | ASN_CONSTRUCTOR),
-                              0);
-    if (data == NULL) {
+    if (*listlength < headerLen)
         return NULL;
-    }
-#endif
-    if (dummyLen < 4)
-        return NULL;
-    data += 4;
-    dummyLen -= 4;
-
-    headerLen = data - dataPtr;
+    data += headerLen;
     *listlength -= headerLen;
+
     DEBUGDUMPHEADER("send", "Name");
     data = asn_build_objid(data, listlength,
                            (u_char) (ASN_UNIVERSAL | ASN_PRIMITIVE |
@@ -245,14 +236,14 @@ snmp_build_var_op(u_char * data,
     switch (var_val_type) {
     case ASN_INTEGER:
         data = asn_build_int(data, listlength, var_val_type,
-                             (long *) var_val, var_val_len);
+                             var_val, var_val_len);
         break;
     case ASN_GAUGE:
     case ASN_COUNTER:
     case ASN_TIMETICKS:
     case ASN_UINTEGER:
         data = asn_build_unsigned_int(data, listlength, var_val_type,
-                                      (u_long *) var_val, var_val_len);
+                                      var_val, var_val_len);
         break;
 #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
     case ASN_OPAQUE_COUNTER64:
@@ -260,8 +251,7 @@ snmp_build_var_op(u_char * data,
 #endif
     case ASN_COUNTER64:
         data = asn_build_unsigned_int64(data, listlength, var_val_type,
-                                        (struct counter64 *) var_val,
-                                        var_val_len);
+                                        var_val, var_val_len);
         break;
     case ASN_OCTET_STR:
     case ASN_IPADDRESS:
@@ -272,7 +262,7 @@ snmp_build_var_op(u_char * data,
         break;
     case ASN_OBJECT_ID:
         data = asn_build_objid(data, listlength, var_val_type,
-                               (oid *) var_val, var_val_len / sizeof(oid));
+                               var_val, var_val_len / sizeof(oid));
         break;
     case ASN_NULL:
         data = asn_build_null(data, listlength, var_val_type);
@@ -289,16 +279,15 @@ snmp_build_var_op(u_char * data,
 #ifdef NETSNMP_WITH_OPAQUE_SPECIAL_TYPES
     case ASN_OPAQUE_FLOAT:
         data = asn_build_float(data, listlength, var_val_type,
-                               (float *) var_val, var_val_len);
+                               var_val, var_val_len);
         break;
     case ASN_OPAQUE_DOUBLE:
         data = asn_build_double(data, listlength, var_val_type,
-                                (double *) var_val, var_val_len);
+                                var_val, var_val_len);
         break;
     case ASN_OPAQUE_I64:
         data = asn_build_signed_int64(data, listlength, var_val_type,
-                                      (struct counter64 *) var_val,
-                                      var_val_len);
+                                      var_val, var_val_len);
         break;
 #endif                          /* NETSNMP_WITH_OPAQUE_SPECIAL_TYPES */
     default:
@@ -314,11 +303,10 @@ snmp_build_var_op(u_char * data,
     if (data == NULL) {
         return NULL;
     }
-    dummyLen = (data - dataPtr) - headerLen;
 
-    asn_build_sequence(dataPtr, &dummyLen,
-                       (u_char) (ASN_SEQUENCE | ASN_CONSTRUCTOR),
-                       dummyLen);
+    sequenceLen = (data - dataPtr) - headerLen;
+    asn_build_sequence(dataPtr, &sequenceLen, ASN_SEQUENCE | ASN_CONSTRUCTOR,
+                       headerLen);
     return data;
 }
 

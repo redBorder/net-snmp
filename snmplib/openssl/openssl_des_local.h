@@ -97,6 +97,12 @@
 # define OPENSSL_EXTERN OPENSSL_EXPORT
 #endif
 
+#if defined(__has_attribute) && __has_attribute(__fallthrough__)
+# define NETSNMP_FALLTHROUGH __attribute__((__fallthrough__))
+#else
+# define NETSNMP_FALLTHROUGH do {} while (0) /* fallthrough */
+#endif
+
 #define ITERATIONS 16
 #define HALF_ITERATIONS 8
 
@@ -110,20 +116,27 @@
 			 l|=((DES_LONG)(*((c)++)))<<24L)
 
 /* NOTE - c is not incremented as per c2l */
-#define c2ln(c,l1,l2,n)	{ \
-			c+=n; \
-			l1=l2=0; \
-			switch (n) { \
-			case 8: l2 =((DES_LONG)(*(--(c))))<<24L; \
-			case 7: l2|=((DES_LONG)(*(--(c))))<<16L; \
-			case 6: l2|=((DES_LONG)(*(--(c))))<< 8L; \
-			case 5: l2|=((DES_LONG)(*(--(c))));     \
-			case 4: l1 =((DES_LONG)(*(--(c))))<<24L; \
-			case 3: l1|=((DES_LONG)(*(--(c))))<<16L; \
-			case 2: l1|=((DES_LONG)(*(--(c))))<< 8L; \
-			case 1: l1|=((DES_LONG)(*(--(c))));     \
-				} \
-			}
+#define c2ln(c,l1,l2,n)	{                               \
+        c+=n;                                           \
+        l1=l2=0;                                        \
+        switch (n) {                                    \
+        case 8: l2 =((DES_LONG)(*(--(c))))<<24L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 7: l2|=((DES_LONG)(*(--(c))))<<16L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 6: l2|=((DES_LONG)(*(--(c))))<< 8L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 5: l2|=((DES_LONG)(*(--(c))));             \
+            NETSNMP_FALLTHROUGH;                        \
+        case 4: l1 =((DES_LONG)(*(--(c))))<<24L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 3: l1|=((DES_LONG)(*(--(c))))<<16L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 2: l1|=((DES_LONG)(*(--(c))))<< 8L;        \
+            NETSNMP_FALLTHROUGH;                        \
+        case 1: l1|=((DES_LONG)(*(--(c))));             \
+        }                                               \
+    }
 
 #define l2c(l,c)	(*((c)++)=(unsigned char)(((l)     )&0xff), \
 			 *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
@@ -145,19 +158,26 @@
 			 *((c)++)=(unsigned char)(((l)     )&0xff))
 
 /* NOTE - c is not incremented as per l2c */
-#define l2cn(l1,l2,c,n)	{ \
-			c+=n; \
-			switch (n) { \
-			case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff); \
-			case 7: *(--(c))=(unsigned char)(((l2)>>16L)&0xff); \
-			case 6: *(--(c))=(unsigned char)(((l2)>> 8L)&0xff); \
-			case 5: *(--(c))=(unsigned char)(((l2)     )&0xff); \
-			case 4: *(--(c))=(unsigned char)(((l1)>>24L)&0xff); \
-			case 3: *(--(c))=(unsigned char)(((l1)>>16L)&0xff); \
-			case 2: *(--(c))=(unsigned char)(((l1)>> 8L)&0xff); \
-			case 1: *(--(c))=(unsigned char)(((l1)     )&0xff); \
-				} \
-			}
+#define l2cn(l1,l2,c,n)	{                                       \
+        c+=n;                                                   \
+        switch (n) {                                            \
+        case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 7: *(--(c))=(unsigned char)(((l2)>>16L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 6: *(--(c))=(unsigned char)(((l2)>> 8L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 5: *(--(c))=(unsigned char)(((l2)     )&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 4: *(--(c))=(unsigned char)(((l1)>>24L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 3: *(--(c))=(unsigned char)(((l1)>>16L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 2: *(--(c))=(unsigned char)(((l1)>> 8L)&0xff);     \
+            NETSNMP_FALLTHROUGH;                                \
+        case 1: *(--(c))=(unsigned char)(((l1)     )&0xff);     \
+        }                                                       \
+    }
 
 #if (defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER)) || defined(__ICC)
 #define	ROTATE(a,n)	(_lrotr(a,n))

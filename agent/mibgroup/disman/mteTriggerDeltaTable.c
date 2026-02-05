@@ -8,10 +8,10 @@
  * This should always be included first before anything else 
  */
 #include <net-snmp/net-snmp-config.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -83,13 +83,6 @@ struct variable2 mteTriggerDeltaTable_variables[] = {
 /*
  * (L = length of the oidsuffix) 
  */
-
-
-/*
- * global storage of our data, saved in and configured by header_complex() 
- */
-extern struct header_complex_index *mteTriggerTableStorage;
-
 
 
 /*
@@ -195,7 +188,7 @@ write_mteTriggerDeltaDiscontinuityID(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerDeltaTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(mteTriggerDeltaTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("mteTriggerDeltaTable",
@@ -223,7 +216,7 @@ write_mteTriggerDeltaDiscontinuityID(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -239,12 +232,12 @@ write_mteTriggerDeltaDiscontinuityID(int action,
         /*
          * The variable has been stored in objid for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerDeltaDiscontinuityID;
         tmplen = StorageTmp->mteTriggerDeltaDiscontinuityIDLen;
-        memdup((u_char **) & StorageTmp->mteTriggerDeltaDiscontinuityID,
-               var_val, var_val_len);
+        StorageTmp->mteTriggerDeltaDiscontinuityID =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerDeltaDiscontinuityIDLen =
             var_val_len / sizeof(oid);
         break;
@@ -285,7 +278,7 @@ write_mteTriggerDeltaDiscontinuityIDWildcard(int action,
     struct mteTriggerTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerDeltaTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(mteTriggerDeltaTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("mteTriggerDeltaTable",
@@ -313,7 +306,7 @@ write_mteTriggerDeltaDiscontinuityIDWildcard(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -329,7 +322,7 @@ write_mteTriggerDeltaDiscontinuityIDWildcard(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerDeltaDiscontinuityIDWildcard;
         StorageTmp->mteTriggerDeltaDiscontinuityIDWildcard =
@@ -370,7 +363,7 @@ write_mteTriggerDeltaDiscontinuityIDType(int action,
     struct mteTriggerTable_data *StorageTmp = NULL;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerDeltaTable_variables_oid) / sizeof(oid) + 3 - 1);
+        (OID_LENGTH(mteTriggerDeltaTable_variables_oid) + 3 - 1);
 
 
     DEBUGMSGTL(("mteTriggerDeltaTable",
@@ -398,7 +391,7 @@ write_mteTriggerDeltaDiscontinuityIDType(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -414,7 +407,7 @@ write_mteTriggerDeltaDiscontinuityIDType(int action,
         /*
          * The variable has been stored in long_ret for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerDeltaDiscontinuityIDType;
         StorageTmp->mteTriggerDeltaDiscontinuityIDType =

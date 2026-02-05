@@ -10,6 +10,8 @@
 #include <net-snmp/data_access/defaultrouter.h>
 
 #include "ip-mib/ipDefaultRouterTable/ipDefaultRouterTable.h"
+#include "defaultrouter.h"
+#include "defaultrouter_private.h"
 
 /**---------------------------------------------------------------------*/
 /*
@@ -17,22 +19,7 @@
  */
 static int _access_defaultrouter_entry_compare_addr(const void *lhs,
                                                     const void *rhs);
-static void _access_defaultrouter_entry_release(netsnmp_defaultrouter_entry * entry,
-                                                void *unused);
-
-/**---------------------------------------------------------------------*/
-/*
- * external per-architecture functions prototypes
- *
- * These shouldn't be called by the general public, so they aren't in
- * the header file.
- */
-extern int
-netsnmp_arch_defaultrouter_entry_init(netsnmp_defaultrouter_entry *entry);
-
-extern int
-netsnmp_arch_defaultrouter_container_load(netsnmp_container* container,
-                                          u_int load_flags);
+static void _access_defaultrouter_entry_release(void *entry, void *unused);
 
 /**---------------------------------------------------------------------*/
 /*
@@ -129,9 +116,7 @@ netsnmp_access_defaultrouter_container_free(netsnmp_container *container,
         /*
          * free all items.
          */
-        CONTAINER_CLEAR(container,
-                        (netsnmp_container_obj_func*)_access_defaultrouter_entry_release,
-                        NULL);
+        CONTAINER_CLEAR(container, _access_defaultrouter_entry_release, NULL);
     }
 
     if(! (free_flags & NETSNMP_ACCESS_DEFAULTROUTER_FREE_KEEP_CONTAINER))
@@ -262,7 +247,7 @@ netsnmp_access_defaultrouter_entry_copy(netsnmp_defaultrouter_entry *lhs,
 /**
  */
 void
-_access_defaultrouter_entry_release(netsnmp_defaultrouter_entry * entry, void *context)
+_access_defaultrouter_entry_release(void *entry, void *context)
 {
     netsnmp_access_defaultrouter_entry_free(entry);
 }

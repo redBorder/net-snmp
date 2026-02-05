@@ -8,13 +8,18 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright Â© 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
 /*
  * Portions of this file are copyrighted by:
  * Copyright (C) 2007 Apple, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  */
@@ -28,10 +33,10 @@
 #include <net-snmp/agent/table.h>
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
-netsnmp_feature_require(oid_stash)
+netsnmp_feature_require(oid_stash);
 #endif /* !NETSNMP_NO_WRITE_SUPPORT */
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -39,12 +44,12 @@ netsnmp_feature_require(oid_stash)
 
 #include <net-snmp/library/snmp_assert.h>
 
-netsnmp_feature_child_of(table_all, mib_helpers)
+netsnmp_feature_child_of(table_all, mib_helpers);
 
-netsnmp_feature_child_of(table_build_result, table_all)
-netsnmp_feature_child_of(table_get_or_create_row_stash, table_all)
-netsnmp_feature_child_of(registration_owns_table_info, table_all)
-netsnmp_feature_child_of(table_sparse, table_all)
+netsnmp_feature_child_of(table_build_result, table_all);
+netsnmp_feature_child_of(table_get_or_create_row_stash, table_all);
+netsnmp_feature_child_of(registration_owns_table_info, table_all);
+netsnmp_feature_child_of(table_sparse, table_all);
 
 static void     table_helper_cleanup(netsnmp_agent_request_info *reqinfo,
                                      netsnmp_request_info *request,
@@ -73,7 +78,7 @@ sparse_table_helper_handler(netsnmp_mib_handler *handler,
  *
  *  To do this, the table handler needs to know up front how your
  *  table is structured.  To inform it about this, you fill in a
- *  table_registeration_info structure that is passed to the table
+ *  table_registration_info structure that is passed to the table
  *  handler.  It contains the asn index types for the table as well as
  *  the minimum and maximum column that should be used.
  *  
@@ -91,7 +96,7 @@ sparse_table_helper_handler(netsnmp_mib_handler *handler,
  *
  *  @param tabreq is a pointer to a netsnmp_table_registration_info struct.
  *	The table handler needs to know up front how your table is structured.
- *	A netsnmp_table_registeration_info structure that is 
+ *	A netsnmp_table_registration_info structure that is 
  *	passed to the table handler should contain the asn index types for the 
  *	table as well as the minimum and maximum column that should be used.
  *
@@ -117,6 +122,16 @@ netsnmp_get_table_handler(netsnmp_table_registration_info *tabreq)
     return ret;
 }
 
+static void *netsnmp_clone_tri(void *tri)
+{
+    return netsnmp_table_registration_info_clone(tri);
+}
+
+static void netsnmp_free_tri(void *tri)
+{
+    netsnmp_table_registration_info_free(tri);
+}
+
 /** Configures a handler such that table registration information is freed by
  *  netsnmp_handler_free(). Should only be called if handler->myvoid points to
  *  an object of type netsnmp_table_registration_info.
@@ -125,10 +140,8 @@ void netsnmp_handler_owns_table_info(netsnmp_mib_handler *handler)
 {
     netsnmp_assert(handler);
     netsnmp_assert(handler->myvoid);
-    handler->data_clone
-	= (void *(*)(void *)) netsnmp_table_registration_info_clone;
-    handler->data_free
-	= (void (*)(void *)) netsnmp_table_registration_info_free;
+    handler->data_clone = netsnmp_clone_tri;
+    handler->data_free = netsnmp_free_tri;
 }
 
 /** Configures a handler such that table registration information is freed by
@@ -151,9 +164,14 @@ int
 netsnmp_register_table(netsnmp_handler_registration *reginfo,
                        netsnmp_table_registration_info *tabreq)
 {
-    int rc = netsnmp_inject_handler(reginfo, netsnmp_get_table_handler(tabreq));
-    if (SNMPERR_SUCCESS != rc)
-        return rc;
+    netsnmp_mib_handler *handler = netsnmp_get_table_handler(tabreq);
+    if (!handler ||
+        (netsnmp_inject_handler(reginfo, handler) != SNMPERR_SUCCESS)) {
+        snmp_log(LOG_ERR, "could not create table handler\n");
+        netsnmp_handler_free(handler);
+        netsnmp_handler_registration_free(reginfo);
+        return MIB_REGISTRATION_FAILED;
+    }
 
     return netsnmp_register_handler(reginfo);
 }
@@ -406,6 +424,8 @@ table_helper_handler(netsnmp_mib_handler *handler,
             if (reqinfo->mode == MODE_GET)
                 table_helper_cleanup(reqinfo, request,
                                      SNMP_NOSUCHOBJECT);
+            else
+                request->processed = 1; /* skip if next handler called */
             continue;
         }
 
@@ -479,10 +499,13 @@ table_helper_handler(netsnmp_mib_handler *handler,
                 if (reqinfo->mode == MODE_SET_RESERVE1)
                     table_helper_cleanup(reqinfo, request,
                                          SNMP_ERR_NOTWRITABLE);
-                else if (reqinfo->mode == MODE_GET)
+                else
 #endif /* NETSNMP_NO_WRITE_SUPPORT */
+                if (reqinfo->mode == MODE_GET)
                     table_helper_cleanup(reqinfo, request,
                                          SNMP_NOSUCHOBJECT);
+                else
+                    request->processed = 1; /* skip if next handler called */
                 continue;
             }
             /*
@@ -756,7 +779,7 @@ sparse_table_helper_handler(netsnmp_mib_handler *handler,
         if((sparse_table_helper_handler != handler->access_method) ||
            !(handler->flags & MIB_HANDLER_CUSTOM1)) {
             snmp_log(LOG_WARNING, "handler (%s) registered after sparse table "
-                     "hander will not be called\n",
+                     "handler will not be called\n",
                      handler->next->handler_name ?
                      handler->next->handler_name : "" );
             if(sparse_table_helper_handler == handler->access_method)
@@ -828,12 +851,11 @@ netsnmp_sparse_table_register(netsnmp_handler_registration *reginfo,
                        netsnmp_table_registration_info *tabreq)
 {
     netsnmp_mib_handler *handler1, *handler2;
-    int rc;
 
     handler1 = netsnmp_create_handler(SPARSE_TABLE_HANDLER_NAME,
                                      sparse_table_helper_handler);
     if (NULL == handler1)
-        return SNMP_ERR_GENERR;
+        return MIB_REGISTRATION_FAILED;
 
     handler2 = netsnmp_get_table_handler(tabreq);
     if (NULL == handler2 ) {
@@ -841,18 +863,16 @@ netsnmp_sparse_table_register(netsnmp_handler_registration *reginfo,
         return SNMP_ERR_GENERR;
     }
 
-    rc = netsnmp_inject_handler(reginfo, handler1);
-    if (SNMPERR_SUCCESS != rc) {
+    if (SNMPERR_SUCCESS != netsnmp_inject_handler(reginfo, handler1)) {
         netsnmp_handler_free(handler1);
         netsnmp_handler_free(handler2);
-        return rc;
+        return MIB_REGISTRATION_FAILED;
     }
 
-    rc = netsnmp_inject_handler(reginfo, handler2);
-    if (SNMPERR_SUCCESS != rc) {
+    if (SNMPERR_SUCCESS != netsnmp_inject_handler(reginfo, handler2)) {
         /** handler1 is in reginfo... remove and free?? */
         netsnmp_handler_free(handler2);
-        return rc;
+        return MIB_REGISTRATION_FAILED;
     }
 
     /** both handlers now in reginfo, so nothing to do on error */
@@ -863,7 +883,7 @@ netsnmp_sparse_table_register(netsnmp_handler_registration *reginfo,
 
 #ifndef NETSNMP_FEATURE_REMOVE_TABLE_BUILD_RESULT
 /** Builds the result to be returned to the agent given the table information.
- *  Use this function to return results from lowel level handlers to
+ *  Use this function to return results from lower level handlers to
  *  the agent.  It takes care of building the proper resulting oid
  *  (containing proper indexing) and inserts the result value into the
  *  returning varbind.
@@ -912,7 +932,7 @@ netsnmp_table_build_oid(netsnmp_handler_registration *reginfo,
         return SNMPERR_GENERR;
 
     /*
-     * xxx-rks: inefficent. we do a copy here, then build_oid does it
+     * xxx-rks: inefficient. we do a copy here, then build_oid does it
      *          again. either come up with a new utility routine, or
      *          do some hijinks here to eliminate extra copy.
      *          Probably could make sure all callers have the
@@ -963,7 +983,7 @@ netsnmp_table_build_oid_from_index(netsnmp_handler_registration *reginfo,
     return SNMPERR_SUCCESS;
 }
 
-/** parses an OID into table indexses */
+/** parses an OID into table indexes */
 int
 netsnmp_update_variable_list_from_index(netsnmp_table_request_info *tri)
 {
@@ -986,7 +1006,8 @@ netsnmp_update_indexes_from_variable_list(netsnmp_table_request_info *tri)
     if (!tri)
         return SNMPERR_GENERR;
 
-    return build_oid_noalloc(tri->index_oid, sizeof(tri->index_oid),
+    return build_oid_noalloc(tri->index_oid,
+                             sizeof(tri->index_oid) / sizeof(tri->index_oid[0]),
                              &tri->index_oid_len, NULL, 0, tri->indexes);
 }
 
@@ -1203,7 +1224,7 @@ netsnmp_closest_column(unsigned int current,
  *
  * @param tinfo is a pointer to a netsnmp_table_registration_info struct.
  *	The table handler needs to know up front how your table is structured.
- *	A netsnmp_table_registeration_info structure that is 
+ *	A netsnmp_table_registration_info structure that is 
  *	passed to the table handler should contain the asn index types for the 
  *	table as well as the minimum and maximum column that should be used.
  *
@@ -1225,6 +1246,7 @@ netsnmp_table_helper_add_indexes(netsnmp_table_registration_info *tinfo,
 }
 
 #ifndef NETSNMP_NO_WRITE_SUPPORT
+#ifndef NETSNMP_FEATURE_REMOVE_TABLE_GET_OR_CREATE_ROW_STASH
 static void
 _row_stash_data_list_free(void *ptr) {
     netsnmp_oid_stash_node **tmp = (netsnmp_oid_stash_node **)ptr;
@@ -1232,7 +1254,6 @@ _row_stash_data_list_free(void *ptr) {
     free(ptr);
 }
 
-#ifndef NETSNMP_FEATURE_REMOVE_TABLE_GET_OR_CREATE_ROW_STASH
 /** returns a row-wide place to store data in.
     @todo This function will likely change to add free pointer functions. */
 netsnmp_oid_stash_node **

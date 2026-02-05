@@ -5,7 +5,7 @@
 #ifndef _MIBGROUP_VMSTAT_H
 #define _MIBGROUP_VMSTAT_H
 
-config_require(hardware/cpu)
+config_require(hardware/cpu);
 
 #include "mibdefs.h"
 
@@ -39,5 +39,6 @@ void              init_vmstat(void);
 #define CPURAWSTEAL 64
 #define CPURAWGUEST 65
 #define CPURAWGUESTNICE 66
+#define CPUNUMCPUS 67
 
 #endif                          /* _MIBGROUP_VMSTAT_H */

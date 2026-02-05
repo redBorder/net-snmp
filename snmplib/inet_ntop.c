@@ -19,13 +19,17 @@
 
 #include <net-snmp/net-snmp-config.h>
 
-#if HAVE_ARPA_NAMESER_H
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_ARPA_NAMESER_H
 #include <arpa/nameser.h>
 #endif
 
 #include <errno.h>
 #include <stdio.h>
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -72,7 +76,7 @@ static const char *inet_ntop6(const u_char *src, char *dst, size_t size);
  *	Paul Vixie, 1996.
  */
 const char *
-inet_ntop(int af, const void *src, char *dst, size_t size)
+netsnmp_inet_ntop(int af, const void *src, char *dst, size_t size)
 {
 
 	switch (af) {

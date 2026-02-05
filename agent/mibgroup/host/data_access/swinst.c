@@ -11,22 +11,19 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/data_access/swinst.h>
-
 #include <stdlib.h>
 #include <unistd.h>
+#include "swinst.h"
+#include "swinst_private.h"
 
-netsnmp_feature_child_of(software_installed, libnetsnmpmibs)
+netsnmp_feature_child_of(software_installed, libnetsnmpmibs);
 
-netsnmp_feature_child_of(swinst_entry_remove, netsnmp_unused)
+netsnmp_feature_child_of(swinst_entry_remove, netsnmp_unused);
 
 /* ---------------------------------------------------------------------
  */
 
-static void netsnmp_swinst_entry_free_cb(netsnmp_swinst_entry *, void *);
-
-extern void netsnmp_swinst_arch_init(void);
-extern void netsnmp_swinst_arch_shutdown(void);
-extern int netsnmp_swinst_arch_load(netsnmp_container *, u_int);
+static void netsnmp_swinst_entry_free_cb(void *, void *);
 
 void init_swinst( void )
 {
@@ -93,6 +90,7 @@ netsnmp_swinst_container_load( netsnmp_container *user_container, int flags )
         netsnmp_swinst_container_free_items(container);
         if (container != user_container) {
             netsnmp_swinst_container_free(container, flags);
+            container = NULL;
         }
     }
     
@@ -132,9 +130,7 @@ void netsnmp_swinst_container_free_items(netsnmp_container *container)
     /*
      * free all items.
      */
-    CONTAINER_CLEAR(container,
-                    (netsnmp_container_obj_func*)netsnmp_swinst_entry_free_cb,
-                    NULL);
+    CONTAINER_CLEAR(container, netsnmp_swinst_entry_free_cb, NULL);
 }
 
 
@@ -178,7 +174,7 @@ netsnmp_swinst_entry_free(netsnmp_swinst_entry *entry)
  * free a row
  */
 static void
-netsnmp_swinst_entry_free_cb(netsnmp_swinst_entry *entry, void *context)
+netsnmp_swinst_entry_free_cb(void *entry, void *context)
 {
     free(entry);
 }

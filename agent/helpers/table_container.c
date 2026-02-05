@@ -1,6 +1,15 @@
 /*
  * table_container.c
  * $Id$
+ *
+ * Portions of this file are subject to the following copyright(s).  See
+ * the Net-SNMP's COPYING file for more details and other copyrights
+ * that may apply:
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
  */
 
 #include <net-snmp/net-snmp-config.h>
@@ -11,7 +20,7 @@
 
 #include <net-snmp/agent/table_container.h>
 
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -21,14 +30,14 @@
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/snmp_assert.h>
 
-netsnmp_feature_provide(table_container)
-netsnmp_feature_child_of(table_container, table_container_all)
-netsnmp_feature_child_of(table_container_replace_row, table_container_all)
-netsnmp_feature_child_of(table_container_extract, table_container_all)
-netsnmp_feature_child_of(table_container_management, table_container_all)
-netsnmp_feature_child_of(table_container_row_remove, table_container_all)
-netsnmp_feature_child_of(table_container_row_insert, table_container_all)
-netsnmp_feature_child_of(table_container_all, mib_helpers)
+netsnmp_feature_provide(table_container);
+netsnmp_feature_child_of(table_container, table_container_all);
+netsnmp_feature_child_of(table_container_replace_row, table_container_all);
+netsnmp_feature_child_of(table_container_extract, table_container_all);
+netsnmp_feature_child_of(table_container_management, table_container_all);
+netsnmp_feature_child_of(table_container_row_remove, table_container_all);
+netsnmp_feature_child_of(table_container_row_insert, table_container_all);
+netsnmp_feature_child_of(table_container_all, mib_helpers);
 
 #ifndef NETSNMP_FEATURE_REMOVE_TABLE_CONTAINER
 
@@ -69,7 +78,7 @@ typedef struct container_table_data_s {
  *  Helps you implement a table when data can be found via a netsnmp_container.
  *  @ingroup table
  *
- *  The table_container handler is used (automatically) in conjuntion
+ *  The table_container handler is used (automatically) in conjunction
  *  with the @link table table@endlink handler.
  *
  *  This handler will use the index information provided by
@@ -107,7 +116,7 @@ typedef struct container_table_data_s {
  *
  *  The container must, at a minimum, implement find and find_next. If a NULL
  *  key is passed to the container, it must return the first item, if any.
- *  All containers provided by net-snmp fulfil this requirement.
+ *  All containers provided by net-snmp fulfill this requirement.
  *
  *  This handler will only register to process 'data lookup' modes. In
  *  traditional net-snmp modes, that is any GET-like mode (GET, GET-NEXT,
@@ -131,11 +140,11 @@ typedef struct container_table_data_s {
  *    pass it to the next appropriate handler.
  *
  *  SET
- *    If the hander did not register with the HANDLER_CAN_NOT_CREATE flag
+ *    If the handler did not register with the HANDLER_CAN_NOT_CREATE flag
  *    set in the registration modes, it is assumed that this is a row
  *    creation request and a NULL row is added to the request's data list.
- *    The sub-handler is responsbile for dealing with any row creation
- *    contraints and inserting any newly created rows into the container
+ *    The sub-handler is responsible for dealing with any row creation
+ *    constraints and inserting any newly created rows into the container
  *    and the request's data list.
  *
  *  If a row is found, it will be inserted into
@@ -269,16 +278,20 @@ netsnmp_tcontainer_replace_row( container_table_data *table,
  *
  * ================================== */
 
-static container_table_data *
-netsnmp_container_table_data_clone(container_table_data *tad)
+static void *
+netsnmp_container_table_data_clone(void *p)
 {
+    container_table_data *tad = p;
+
     ++tad->refcnt;
     return tad;
 }
 
 static void
-netsnmp_container_table_data_free(container_table_data *tad)
+netsnmp_container_table_data_free(void *p)
 {
+    container_table_data *tad = p;
+
     if (--tad->refcnt == 0)
 	free(tad);
 }
@@ -324,8 +337,8 @@ netsnmp_container_table_handler_get(netsnmp_table_registration_info *tabreg,
         container->ncompare = netsnmp_ncompare_netsnmp_index;
     
     handler->myvoid = (void*)tad;
-    handler->data_clone = (void *(*)(void *))netsnmp_container_table_data_clone;
-    handler->data_free = (void (*)(void *))netsnmp_container_table_data_free;
+    handler->data_clone = netsnmp_container_table_data_clone;
+    handler->data_free = netsnmp_container_table_data_free;
     handler->flags |= MIB_HANDLER_AUTO_NEXT;
     
     return handler;
@@ -340,6 +353,7 @@ netsnmp_container_table_register(netsnmp_handler_registration *reginfo,
 
     if ((NULL == reginfo) || (NULL == reginfo->handler) || (NULL == tabreg)) {
         snmp_log(LOG_ERR, "bad param in netsnmp_container_table_register\n");
+        netsnmp_handler_registration_free(reginfo);
         return SNMPERR_GENERR;
     }
 
@@ -347,7 +361,13 @@ netsnmp_container_table_register(netsnmp_handler_registration *reginfo,
         container = netsnmp_container_find(reginfo->handlerName);
 
     handler = netsnmp_container_table_handler_get(tabreg, container, key_type);
-    netsnmp_inject_handler(reginfo, handler );
+    if (!handler ||
+        (netsnmp_inject_handler(reginfo, handler) != SNMPERR_SUCCESS)) {
+        snmp_log(LOG_ERR, "could not create container table handler\n");
+        netsnmp_handler_free(handler);
+        netsnmp_handler_registration_free(reginfo);
+        return MIB_REGISTRATION_FAILED;
+    }
 
     return netsnmp_register_table(reginfo, tabreg);
 }
@@ -382,28 +402,18 @@ netsnmp_container_table_container_extract(netsnmp_request_info *request)
 }
 #endif /* NETSNMP_FEATURE_REMOVE_TABLE_CONTAINER_EXTRACT */
 
-#ifndef NETSNMP_USE_INLINE
 /** find the context data used by the table_container helper */
 void *
 netsnmp_container_table_row_extract(netsnmp_request_info *request)
 {
-    /*
-     * NOTE: this function must match in table_container.c and table_container.h.
-     *       if you change one, change them both!
-     */
     return netsnmp_request_get_list_data(request, TABLE_CONTAINER_ROW);
 }
 /** find the context data used by the table_container helper */
 void *
 netsnmp_container_table_extract_context(netsnmp_request_info *request)
 {
-    /*
-     * NOTE: this function must match in table_container.c and table_container.h.
-     *       if you change one, change them both!
-     */
     return netsnmp_request_get_list_data(request, TABLE_CONTAINER_ROW);
 }
-#endif /* inline */
 
 #ifndef NETSNMP_FEATURE_REMOVE_TABLE_CONTAINER_ROW_INSERT
 /** inserts a newly created table_container entry into a request list */
@@ -761,7 +771,7 @@ _container_table_handler(netsnmp_mib_handler *handler,
      */
     if ((oldmode == MODE_GETNEXT) && (handler->next)) {
         /*
-         * tell agent handlder not to auto call next handler
+         * tell agent handler not to auto call next handler
          */
         handler->flags |= MIB_HANDLER_AUTO_NEXT_OVERRIDE_ONCE;
 

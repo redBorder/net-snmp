@@ -5,10 +5,16 @@
 #ifndef _MIBGROUP_ICMP_H
 #define _MIBGROUP_ICMP_H
 
-config_arch_require(solaris2,        kernel_sunos5)
-config_arch_require(linux,     mibII/kernel_linux)
-config_arch_require(netbsd,    mibII/kernel_netbsd)
-config_arch_require(netbsdelf, mibII/kernel_netbsd)
+#if defined(solaris2)
+config_require(kernel_sunos5);
+#elif defined(linux)
+config_require(mibII/kernel_linux);
+#elif defined(freebsd4) || defined(openbsd4) || defined(dragonfly2) || \
+    defined(darwin)
+config_require(mibII/kernel_sysctl);
+#elif defined(netbsd5) || defined(netbsdelf5)
+config_require(mibII/kernel_netbsd);
+#endif
 
 #include <net-snmp/agent/cache_handler.h>
 

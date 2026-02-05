@@ -3,13 +3,18 @@
  * @defgroup util Memory Utility Routines
  * @ingroup library
  * @{
+ *
+ * Portions of this file are copyrighted by:
+ * Copyright (c) 2016 VMware, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
  */
 
 #ifndef _TOOLS_H
 #define _TOOLS_H
 
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h> /* uintptr_t */
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h> /* PATH_MAX (Linux), MAXPATHLEN (BSD) */
 #endif
 
 #ifdef __cplusplus
@@ -19,7 +24,7 @@ extern          "C" {
 
 
     /*
-     * General acros and constants.
+     * General macros and constants.
      */
 #ifdef WIN32
 #  define SNMP_MAXPATH MAX_PATH
@@ -54,11 +59,7 @@ extern          "C" {
 
 /** @def SNMP_FREE(s)
     Frees a pointer only if it is !NULL and sets its value to NULL */
-#define SNMP_FREE(s)    do { if (s) { free((void *)s); s=NULL; } } while(0)
-
-/** @def SNMP_SWIPE_MEM(n, s)
-    Frees pointer n only if it is !NULL, sets n to s and sets s to NULL */
-#define SNMP_SWIPE_MEM(n,s) do { if (n) free((void *)n); n = s; s=NULL; } while(0)
+#define SNMP_FREE(s)    do { if (s) { free(s); s=NULL; } } while(0)
 
     /*
      * XXX Not optimal everywhere. 
@@ -87,9 +88,9 @@ extern          "C" {
  */
 #if defined(__GNUC__)
 #define NETSNMP_REMOVE_CONST(t, e)                                      \
-    (__extension__ ({ const t tmp = (e); (t)(uintptr_t)tmp; }))
+    (__extension__ ({ const t tmp = (e); (t)(size_t)tmp; }))
 #else
-#define NETSNMP_REMOVE_CONST(t, e) ((t)(uintptr_t)(e))
+#define NETSNMP_REMOVE_CONST(t, e) ((t)(size_t)(e))
 #endif
 
 
@@ -127,6 +128,8 @@ extern          "C" {
 #define TRUE  1
 #endif
 
+#define NETSNMP_IGNORE_RESULT(e) do { if (e) { } } while (0)
+
     /*
      * QUIT the FUNction:
      *      e       Error code variable
@@ -142,25 +145,6 @@ extern          "C" {
 		goto l ;		\
 	}
 
-    /*
-     * DIFFTIMEVAL
-     *      Set <diff> to the difference between <now> (current) and <then> (past).
-     *
-     * ASSUMES that all inputs are (struct timeval)'s.
-     * Cf. system.c:calculate_time_diff().
-     */
-#define DIFFTIMEVAL(now, then, diff) 			\
-{							\
-	now.tv_sec--;					\
-	now.tv_usec += 1000000L;			\
-	diff.tv_sec  = now.tv_sec  - then.tv_sec;	\
-	diff.tv_usec = now.tv_usec - then.tv_usec;	\
-	if (diff.tv_usec > 1000000L){			\
-		diff.tv_usec -= 1000000L;		\
-		diff.tv_sec++;				\
-	}						\
-}
-
 /**
  * Compute res = a + b.
  *
@@ -169,15 +153,14 @@ extern          "C" {
  * @note res may be the same variable as one of the operands. In other
  *   words, &a == &res || &b == &res may hold.
  */
-#define NETSNMP_TIMERADD(a, b, res)                  \
-{                                                    \
+#define NETSNMP_TIMERADD(a, b, res) do {             \
     (res)->tv_sec  = (a)->tv_sec  + (b)->tv_sec;     \
     (res)->tv_usec = (a)->tv_usec + (b)->tv_usec;    \
     if ((res)->tv_usec >= 1000000L) {                \
         (res)->tv_usec -= 1000000L;                  \
         (res)->tv_sec++;                             \
     }                                                \
-}
+} while (0)
 
 /**
  * Compute res = a - b.
@@ -187,31 +170,20 @@ extern          "C" {
  * @note res may be the same variable as one of the operands. In other
  *   words, &a == &res || &b == &res may hold.
  */
-#define NETSNMP_TIMERSUB(a, b, res)                             \
-{                                                               \
+#define NETSNMP_TIMERSUB(a, b, res) do {                        \
     (res)->tv_sec  = (a)->tv_sec  - (b)->tv_sec - 1;            \
     (res)->tv_usec = (a)->tv_usec - (b)->tv_usec + 1000000L;    \
     if ((res)->tv_usec >= 1000000L) {                           \
         (res)->tv_usec -= 1000000L;                             \
         (res)->tv_sec++;                                        \
     }                                                           \
-}
-
-
-    /*
-     * ISTRANSFORM
-     * ASSUMES the minimum length for ttype and toid.
-     */
-#define USM_LENGTH_OID_TRANSFORM	10
-
-#define ISTRANSFORM(ttype, toid)					\
-	!snmp_oid_compare(ttype, USM_LENGTH_OID_TRANSFORM,		\
-		usm ## toid ## Protocol, USM_LENGTH_OID_TRANSFORM)
+} while (0)
 
 #define ENGINETIME_MAX	2147483647      /* ((2^31)-1) */
 #define ENGINEBOOT_MAX	2147483647      /* ((2^31)-1) */
 
 
+    struct timeval;
 
 
     /*
@@ -226,7 +198,9 @@ extern          "C" {
     u_char         *malloc_random(size_t * size);
     u_char         *malloc_zero(size_t size);
     NETSNMP_IMPORT
-    int             memdup(u_char ** to, const void * from, size_t size);
+    void           *netsnmp_memdup(const void * from, size_t size);
+    NETSNMP_IMPORT
+    void *netsnmp_memdup_nt(const void *from, size_t from_len, size_t *to_len);
 
     void            netsnmp_check_definedness(const void *packet,
                                               size_t length);
@@ -258,11 +232,18 @@ extern          "C" {
                                            size_t * out_len,
                                            int allow_realloc,
                                            const char *decimal);
-#define snmp_cstrcat(b,l,o,a,s) snmp_strcat(b,l,o,a,(const u_char *)s)
     NETSNMP_IMPORT
     int             snmp_strcat(u_char ** buf, size_t * buf_len,
                                 size_t * out_len, int allow_realloc,
                                 const u_char * s);
+    NETSNMP_STATIC_INLINE
+    int
+    snmp_cstrcat(u_char **buf, size_t *buf_len, size_t *out_len,
+                 int allow_realloc, const char *s)
+    {
+        return snmp_strcat(buf, buf_len, out_len, allow_realloc,
+                           (const u_char *)s);
+    }
     NETSNMP_IMPORT
     char           *netsnmp_strdup_and_null(const u_char * from,
                                             size_t from_len);
@@ -286,6 +267,7 @@ extern          "C" {
     void            netsnmp_set_monotonic_marker(marker_t *pm);
     NETSNMP_IMPORT
     long            atime_diff(const_marker_t first, const_marker_t second);
+    NETSNMP_IMPORT
     u_long          uatime_diff(const_marker_t first, const_marker_t second);       /* 1/1000th sec */
     NETSNMP_IMPORT
     u_long          uatime_hdiff(const_marker_t first, const_marker_t second);      /* 1/100th sec */
@@ -308,8 +290,11 @@ extern          "C" {
     NETSNMP_IMPORT
     int             netsnmp_string_time_to_secs(const char *time_string);
 
+    NETSNMP_IMPORT
+    const char      *netsnmp_gethomedir(void);
+
 #ifdef __cplusplus
 }
 #endif
 #endif                          /* _TOOLS_H */
-/* @} */
+/** @} */

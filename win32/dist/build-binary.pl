@@ -5,26 +5,53 @@
 # May 10th, 2009
 #
 use strict;
+use warnings;
+use File::Basename;
 use File::Copy;
+use File::Spec;
 use Cwd 'abs_path';
+
+sub which {
+    my ($cmd) = @_;
+    for my $p (split(';', $ENV{'PATH'})) {
+	my $q = File::Spec->catfile($p, $cmd . '.exe');
+	return $q if -e $q;
+    }
+}
 
 print "------------------------------------------------------\n";
 
-my $tar_command = 'C:\msys\1.0\bin\tar.exe';
-my $gzip_command = 'C:\msys\1.0\bin\gzip.exe';
+my $tar_command = which 'tar';
+my $gzip_command = which 'gzip';
 
 if (! (-f $tar_command)) {
-  die ("Could not find tar command ($tar_command)");
+  die ("Could not find tar command");
 }
 else {
   print "tar command:  $tar_command\n";
 }
+if (! (-f $gzip_command)) { $gzip_command = "c:/msys64/usr/bin/gzip.exe"; }
 if (! (-f $gzip_command)) {
-  die ("Could not find gzip command ($gzip_command)");
+  die ("Could not find gzip command");
 }
 else {
   print "gzip command: $gzip_command\n";
 }
+
+my $makensis;
+for my $nsisdir (("C:\\Program Files\\NSIS", "C:\\Program Files (x86)\\NSIS")) {
+    $makensis = File::Spec->catfile($nsisdir, "makensis.exe");
+    last if (-f $makensis);
+}
+die("makensis.exe not found") if (!(-f $makensis));
+
+my $target_arch = $ENV{TARGET_CPU} ? $ENV{TARGET_CPU} : $ENV{Platform} ?
+                  $ENV{Platform} : "x86";
+my $openssldir = $ENV{OPENSSLDIR} ? $ENV{OPENSSLDIR} :
+                 $target_arch eq "x64" ? "C:\\OpenSSL-Win64" :
+                 "C:\\OpenSSL-Win32";
+my $opensslincdir = $openssldir . "\\include";
+my $openssllibdir = $openssldir . "\\lib\\VC\\x64";
 
 my $version = "unknown";
 my $version_for_perl = "unknown";
@@ -32,53 +59,18 @@ my $version_maj;
 my $version_min;
 my $version_rev;
 my $installer_exe_version = 1;
-my $openssl = "disabled";
-my $b_ipv6 = "disabled";
-my $b_winextdll = "disabled";
-my $sdk = "disabled";
 my $default_install_base = "c:/usr";
 my $install_base = $default_install_base;
-my $install = "enabled";
-my $install_devel = "disabled";
-my $perl = "disabled";
-my $perl_install = "disabled";
-my $logging = "enabled";
-my $debug = "disabled";
-my $configOpts = "";
-my $cTmp = "";
-my $linktype = "static";
 my $option;
 
-# Prepend win32\ if running from main directory
-my $current_pwd = `%COMSPEC% /c cd`;
-chomp $current_pwd;
-my $top_dir;
-my $win32_dir;
-my $perl_dir;
-
-if ($current_pwd =~ /\\win32\\dist$/) {
-  $win32_dir = "$current_pwd/../";
-  $top_dir = "$current_pwd/../../";
-  $perl_dir = "$current_pwd/../../perl/";
-}
-elsif ($current_pwd =~ /\\win32$/) {
-  $win32_dir = $current_pwd;
-  $top_dir = "$current_pwd/../";
-  $perl_dir = "$current_pwd/../perl/";
-}
-else {  # Assume top level folder
-  $win32_dir = "$current_pwd/win32/";
-  $top_dir = $current_pwd;
-  $perl_dir = "$current_pwd/perl/";
-}
-
-$top_dir = abs_path($top_dir);
-$win32_dir = abs_path($win32_dir);
-$perl_dir = abs_path($perl_dir);
-
+my $scriptdir = dirname(abs_path($0));
+my $win32_dir = dirname($scriptdir);
+my $top_dir = dirname($win32_dir);
+my $perl_dir = File::Spec->catdir($top_dir, "perl");
 
 print "\ntop_dir:      $top_dir\n";
 print "win32_dir:    $win32_dir\n";
+print "openssldir:   $openssldir\n";
 print "perl_dir:     $perl_dir\n";
 print "install base: $install_base\n\n";
 
@@ -90,9 +82,9 @@ else {
   exit;
 }
 
-if ( -d $ENV{MSVCDir} || -d $ENV{VCINSTALLDIR}) {
-}
-else {
+if (!(defined($ENV{MSVCDir}) && -d $ENV{MSVCDir}) &&
+    !(defined($ENV{VCINSTALLDIR}) && -d $ENV{VCINSTALLDIR}) &&
+    !defined($ENV{TARGET_CPU})) {
   print "\nPlease run VCVARS32.BAT first to set up the Visual Studio build\n" .
         "environment.\n\n";
   exit;
@@ -132,8 +124,7 @@ open (UNIX_CONFIGURE_IN, "<$unix_configure_in") || die "Can't Open $unix_configu
 while (<UNIX_CONFIGURE_IN>)
 {
   chomp;
-  /PACKAGE_VERSION='(.*)'/;
-  if ($1 ne "") {
+  if (/PACKAGE_VERSION='(.*)'/) {
     $version = $1;
     last;
   }
@@ -167,52 +158,23 @@ print "Net-SNMP version MIN2: $version_rev\n\n";
 
 
 
-#***************************************************************
-# Common build options:
-$b_ipv6 = "enabled";
-$sdk = "enabled";
-$default_install_base = "c:/usr";
-$install_base = $default_install_base;
-$perl_install = "disabled";
-$debug = "disabled";
-$configOpts = "";
-$cTmp = "";
-$linktype = "dynamic";
-
-#***************************************************************
-# Build binary:
-# winExtDLL = disabled
-# SSL = enabled
-$openssl = "enabled";
-$b_winextdll = "disabled";
-$perl = "enabled";
-$install = "enabled";
-$install_devel = "enabled";
-
-print "\n\nBuilding with options:\n";
-print "======================\n\n";
-print "1.  OpenSSL support:                " . $openssl. "\n";
-print "2.  Platform SDK support:           " . $sdk . "\n";
-print "\n";
-print "3.  Install path:                   " . $install_base . "\n";
-print "4.  Install after build:            " . $install . "\n";
-print "\n";
-print "5.  Perl modules:                   " . $perl . "\n";
-print "6.  Install perl modules:           " . $perl_install . "\n";
-print "\n";
-print "7.  Quiet build (logged):           " . $logging . "\n";
-print "8.  Debug mode:                     " . $debug . "\n";
-print "\n";
-print "9.  IPv6 transports (requires SDK): " . $b_ipv6 . "\n";
-print "10. winExtDLL agent (requires SDK): " . $b_winextdll . "\n";
-print "\n";
-print "11. Link type:                      " . $linktype . "\n";
-print "\n";
-print "12. Install development files       " . $install_devel . "\n";
+my %build_options = (
+    b_ipv6		=> "enabled",
+    b_winextdll		=> "disabled",
+    debug		=> "disabled",
+    install		=> "enabled",
+    install_base	=> $install_base,
+    install_devel	=> "enabled",
+    linktype		=> "dynamic",
+    logging		=> "enabled",
+    openssl		=> "enabled",
+    perl		=> "disabled",
+    perl_install	=> "disabled",
+    sdk			=> "enabled"
+);
 
 chdir $win32_dir;
-&build();
-&create_perl_package();
+&build(\%build_options);
 
 print "\nCleaning up $install_base/snmp/persist/\n";
 unlink ("$install_base/snmp/persist/snmpd.conf");
@@ -222,35 +184,13 @@ unlink ("$install_base/snmp/persist/snmptrapd.conf");
 # Build binary:
 # winExtDLL = enabled
 # SSL = enabled
-$openssl = "enabled";
-$b_winextdll = "enabled";
-$perl = "disabled";
-$install = "disabled";
-$install_devel = "disabled";
-
-print "\n\nBuilding with options:\n";
-print "======================\n\n";
-print "1.  OpenSSL support:                " . $openssl. "\n";
-print "2.  Platform SDK support:           " . $sdk . "\n";
-print "\n";
-print "3.  Install path:                   " . $install_base . "\n";
-print "4.  Install after build:            " . $install . "\n";
-print "\n";
-print "5.  Perl modules:                   " . $perl . "\n";
-print "6.  Install perl modules:           " . $perl_install . "\n";
-print "\n";
-print "7.  Quiet build (logged):           " . $logging . "\n";
-print "8.  Debug mode:                     " . $debug . "\n";
-print "\n";
-print "9.  IPv6 transports (requires SDK): " . $b_ipv6 . "\n";
-print "10. winExtDLL agent (requires SDK): " . $b_winextdll . "\n";
-print "\n";
-print "11. Link type:                      " . $linktype . "\n";
-print "\n";
-print "12. Install development files       " . $install_devel . "\n";
+$build_options{openssl} = "enabled";
+$build_options{b_winextdll} = "enabled";
+$build_options{install} = "disabled";
+$build_options{install_devel} = "disabled";
 
 chdir $win32_dir;
-&build();
+&build(\%build_options);
 
 print "\nCopying snmpd.exe to snmpd-winExtDLL.exe\n";
 copy("bin/release/snmpd.exe","$install_base/bin/snmpd-winExtDLL.exe") || die ("Could not copy snmpd.exe to snmpd-winExtDLL.exe: $?");
@@ -264,8 +204,11 @@ print "Renaming $install_base/bin to $install_base/bin.ssl\n";
 rename ("$install_base/bin","$install_base/bin.ssl") || die ("Could not rename folder: $?");
 print "Renaming $install_base/lib to $install_base/lib.ssl\n";
 rename ("$install_base/lib","$install_base/lib.ssl") || die ("Could not rename folder: $?");
-print "Renaming $install_base/perl to $install_base/perl.ssl\n";
-rename ("$install_base/perl","$install_base/perl.ssl") || die ("Could not rename folder: $?");
+if ($build_options{perl} eq "enabled") {
+    print "Renaming $install_base/perl to $install_base/perl.ssl\n";
+    rename("$install_base/perl","$install_base/perl.ssl") ||
+	die("Could not rename folder: $?");
+}
 
 #***************************************************************
 
@@ -274,36 +217,14 @@ rename ("$install_base/perl","$install_base/perl.ssl") || die ("Could not rename
 # Build binary:
 # winExtDLL = disabled
 # SSL = disabled
-$openssl = "disabled";
-$b_winextdll = "disabled";
-$perl = "enabled";
-$install = "enabled";
-$install_devel = "enabled";
-
-print "\n\nBuilding with options:\n";
-print "======================\n\n";
-print "1.  OpenSSL support:                " . $openssl. "\n";
-print "2.  Platform SDK support:           " . $sdk . "\n";
-print "\n";
-print "3.  Install path:                   " . $install_base . "\n";
-print "4.  Install after build:            " . $install . "\n";
-print "\n";
-print "5.  Perl modules:                   " . $perl . "\n";
-print "6.  Install perl modules:           " . $perl_install . "\n";
-print "\n";
-print "7.  Quiet build (logged):           " . $logging . "\n";
-print "8.  Debug mode:                     " . $debug . "\n";
-print "\n";
-print "9.  IPv6 transports (requires SDK): " . $b_ipv6 . "\n";
-print "10. winExtDLL agent (requires SDK): " . $b_winextdll . "\n";
-print "\n";
-print "11. Link type:                      " . $linktype . "\n";
-print "\n";
-print "12. Install development files       " . $install_devel . "\n";
+$build_options{openssl} = "disabled";
+$build_options{b_winextdll} = "disabled";
+$build_options{perl} = "disabled";
+$build_options{install} = "enabled";
+$build_options{install_devel} = "enabled";
 
 chdir $win32_dir;
-&build();
-&create_perl_package();
+&build(\%build_options);
 
 print "\nCleaning up $install_base/snmp/persist/\n";
 unlink ("$install_base/snmp/persist/snmpd.conf");
@@ -313,35 +234,14 @@ unlink ("$install_base/snmp/persist/snmptrapd.conf");
 # Build binary:
 # winExtDLL = enabled
 # SSL = disabled
-$openssl = "disabled";
-$b_winextdll = "enabled";
-$perl = "disabled";
-$install = "disabled";
-$install_devel = "disabled";
-
-print "\n\nBuilding with options:\n";
-print "======================\n\n";
-print "1.  OpenSSL support:                " . $openssl. "\n";
-print "2.  Platform SDK support:           " . $sdk . "\n";
-print "\n";
-print "3.  Install path:                   " . $install_base . "\n";
-print "4.  Install after build:            " . $install . "\n";
-print "\n";
-print "5.  Perl modules:                   " . $perl . "\n";
-print "6.  Install perl modules:           " . $perl_install . "\n";
-print "\n";
-print "7.  Quiet build (logged):           " . $logging . "\n";
-print "8.  Debug mode:                     " . $debug . "\n";
-print "\n";
-print "9.  IPv6 transports (requires SDK): " . $b_ipv6 . "\n";
-print "10. winExtDLL agent (requires SDK): " . $b_winextdll . "\n";
-print "\n";
-print "11. Link type:                      " . $linktype . "\n";
-print "\n";
-print "12. Install development files       " . $install_devel . "\n";
+$build_options{openssl} = "disabled";
+$build_options{b_winextdll} = "enabled";
+$build_options{perl} = "disabled";
+$build_options{install} = "disabled";
+$build_options{install_devel} = "disabled";
 
 chdir $win32_dir;
-&build();
+&build(\%build_options);
 
 print "\nCopying snmpd.exe to snmpd-winExtDLL.exe\n";
 copy("bin/release/snmpd.exe","$install_base/bin/snmpd-winExtDLL.exe") || die ("Could not copy snmpd.exe to snmpd-winExtDLL.exe: $?");
@@ -376,7 +276,7 @@ print "=============================\n\n";
 
 chdir $top_dir;
 copy('win32\dist\installer\SetEnVar.nsi',"$install_base/") || die ("Could not copy file: $?");
-copy('win32\dist\installer\net-snmp.nsi',"$install_base/net-snmp.nsi.in") || die ("Could not copy file: $?");
+copy('win32\dist\installer\net-snmp.nsi',"$install_base/net-snmp.nsi") || die ("Could not copy file: $?");
 copy('win32\dist\installer\Add2Path.nsi',"$install_base/") || die ("Could not copy file: $?");
 copy('win32\dist\installer\net-snmp-header1.bmp',"$install_base/") || die ("Could not copy file: $?");
 
@@ -391,42 +291,21 @@ close TEMP;
 open (TEMP, ">$install_base/etc/snmp/snmp.conf") || die ("Could not create file: $?");
 close TEMP;
 
-#
-# Build net-snmp.nsi file
-#
-  {
-    my $file_out = "$install_base/net-snmp.nsi";
-    my $file_in = "$install_base/net-snmp.nsi.in";
-  
-    open (FILE_OUT, ">$file_out") || die "Can't Open $file_out\n";
-    open (FILE_IN, "<$file_in") || die "Can't Open $file_in\n";
-    
-    print "creating $file_out\n";
-	  
-    while (<FILE_IN>)
-    {
-      chomp;
-      s/!define PRODUCT_MAJ_VERSION.*/!define PRODUCT_MAJ_VERSION \"$version_maj\"/;
-      s/!define PRODUCT_MIN_VERSION.*/!define PRODUCT_MIN_VERSION \"$version_min\"/;
-      s/!define PRODUCT_REVISION.*/!define PRODUCT_REVISION \"$version_rev\"/;
-      s/!define PRODUCT_EXE_VERSION.*/!define PRODUCT_EXE_VERSION \"$installer_exe_version\"/;
-	  if ($ENV{LIB} =~ /\\x64/) {
-            s/!define INSTALLER_PLATFORM.*/!define INSTALLER_PLATFORM \"x64\"/;
-            s/!define PRODUCT_EXE_SUFFIX.*/!define PRODUCT_EXE_SUFFIX \".x64.exe\"/;
-            s/!define WIN32_PLATFORM.*/!define PRODUCT_EXE_SUFFIX \"x64\"/;
-	  }
-	  else {
-            s/!define INSTALLER_PLATFORM.*/!define INSTALLER_PLATFORM \"x86\"/;
-            s/!define PRODUCT_EXE_SUFFIX.*/!define PRODUCT_EXE_SUFFIX \".x86.exe"/;
-            s/!define PRODUCT_EXE_SUFFIX.*/!define PRODUCT_EXE_SUFFIX \".x86.exe"/;
-            s/!define WIN32_PLATFORM.*/!define PRODUCT_EXE_SUFFIX \"x86\"/;
-	  }
-  
-      print FILE_OUT $_ . "\n";
-    }
-    close FILE_IN;
-    close FILE_OUT;
-  }
+print "\n\nCopying documentation:\n";
+print "=============================\n\n";
+
+# To do: replace the two lines below with commands that build the .chm file.
+open(OUT, ">$install_base/docs/net-snmp.chm");
+close(OUT);
+
+print "\n\nBuilding installer:\n";
+print "=============================\n\n";
+
+my $suffix = $ENV{LIB} =~ /\\x64|\\amd64/ ? "x64" : "x86";
+if (system("\"$makensis\" /DPRODUCT_MAJ_VERSION=\"$version_maj\" /DPRODUCT_MIN_VERSION=\"$version_min\" /DPRODUCT_REVISION=\"$version_rev\" /DPRODUCT_EXE_VERSION=\"$installer_exe_version\" /DINSTALLER_PLATFORM=\"$suffix\" \"$install_base/net-snmp.nsi\" >makensis.out") != 0) {
+    system("type makensis.out");
+    die("Building installer failed");
+}
 
 print "\n=======\n";
 print "Done!!!\n";
@@ -457,28 +336,71 @@ exit;
 
 #***************************************************************
 sub build {
+  my %build_options = %{$_[0]};
+  my $b_ipv6        = $build_options{b_ipv6};
+  my $b_winextdll   = $build_options{b_winextdll};
+  my $debug         = $build_options{debug};
+  my $install       = $build_options{install};
+  my $install_base  = $build_options{install_base};
+  my $install_devel = $build_options{install_devel};
+  my $linktype      = $build_options{linktype};
+  my $logging       = $build_options{logging};
+  my $openssl       = $build_options{openssl};
+  my $perl          = $build_options{perl};
+  my $perl_install  = $build_options{perl_install};
+  my $sdk           = $build_options{sdk};
 
-  $cTmp = ($openssl eq "enabled" ? "--with-ssl" : "" );
-  $configOpts = "$cTmp";
-  $cTmp = ($sdk eq "enabled" ? "--with-sdk" : "" );
-  $configOpts = "$configOpts $cTmp";
-  $cTmp = ($b_ipv6 eq "enabled" ? "--with-ipv6" : "" );
-  $configOpts = "$configOpts $cTmp";
-  $cTmp = ($b_winextdll eq "enabled" ? "--with-winextdll" : "" );
-  $configOpts = "$configOpts $cTmp";
-  $cTmp = ($debug eq "enabled" ? "--config=debug" : "--config=release" );
-  $configOpts = "$configOpts $cTmp";
+  print "\n\nBuilding with options:\n";
+  print "======================\n\n";
+  print "1.  OpenSSL support:                $openssl\n";
+  print "2.  Platform SDK support:           $sdk\n";
+  print "\n";
+  print "3.  Install path:                   $install_base\n";
+  print "4.  Install after build:            $install\n";
+  print "\n";
+  print "5.  Perl modules:                   $perl\n";
+  print "6.  Install perl modules:           $perl_install\n";
+  print "\n";
+  print "7.  Quiet build (logged):           $logging\n";
+  print "8.  Debug mode:                     $debug\n";
+  print "\n";
+  print "9.  IPv6 transports (requires SDK): $b_ipv6\n";
+  print "10. winExtDLL agent (requires SDK): $b_winextdll\n";
+  print "\n";
+  print "11. Link type:                      $linktype\n";
+  print "\n";
+  print "12. Install development files       $install_devel\n";
+
+  my $opensslsubdir .= $linktype eq "dynamic" ? "\\MD" : "\\MT";
+  if ($debug eq "enabled") {
+      $opensslsubdir .= "d";
+  }
+
+  my $configOpts =
+      ($openssl eq "enabled" ? "--with-ssl" : "" )
+      . " " .
+      ($openssl eq "enabled" ? "--with-sslincdir=$opensslincdir" : "" )
+      . " " .
+      ($openssl eq "enabled" ? "--with-ssllibdir=$openssllibdir$opensslsubdir" : "" )
+      . " " .
+      ($sdk eq "enabled" ? "--with-sdk" : "" )
+      . " " .
+      ($b_ipv6 eq "enabled" ? "--with-ipv6" : "" )
+      . " " .
+      ($b_winextdll eq "enabled" ? "--with-winextdll" : "" )
+      . " " .
+      ($debug eq "enabled" ? "--config=debug" : "--config=release" );
   
   # Set environment variables
   
   # Set to not search for non-existent ".dep" files
   $ENV{NO_EXTERNAL_DEPS}="1";
-  
+
   # Set PATH environment variable so Perl make tests can locate the DLL
-  $ENV{PATH} = "$current_pwd\\bin\\" . ($debug eq "enabled" ? "debug" : "release" ) . ";$ENV{PATH}";
+  $ENV{PATH} = File::Spec->catdir($top_dir, "bin", $debug eq "enabled" ? "debug" : "release") . ";$ENV{PATH}";
   
   # Set MIBDIRS environment variable so Perl make tests can locate the mibs
-  my $temp_mibdir = "$current_pwd/../mibs";
+  my $temp_mibdir = File::Spec->catdir($top_dir, "mibs");
   $temp_mibdir =~ s/\\/\//g;
   $ENV{MIBDIRS}=$temp_mibdir;
   
@@ -486,7 +408,7 @@ sub build {
   # the configuration files.
   # See the note about environment variables in the Win32 section of 
   # perl/SNMP/README for details on why this is needed. 
-  $ENV{SNMPCONFPATH}="t";$ENV{SNMPCONFPATH};
+  $ENV{SNMPCONFPATH}="t";
   
   print "\nBuilding...\n";
   
@@ -558,6 +480,11 @@ sub build {
   }
 
   print "\nDone!\n";  
+
+  if ($perl eq "enabled") {
+      &create_perl_package();
+  }
+
 } # sub build
 
 

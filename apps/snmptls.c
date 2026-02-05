@@ -5,13 +5,16 @@
 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-features.h>
-#undef NETSNMP_USE_ASSERT
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
-netsnmp_feature_require(tls_fingerprint_build)
+netsnmp_feature_require(tls_fingerprint_build);
+netsnmp_feature_require(row_create);
 
 #include <ctype.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
 
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
@@ -405,8 +408,7 @@ _parse_storage_type(const char *arg)
     return;
 }
 
-void
-usage(void)
+ __attribute__((noreturn)) static void usage(void)
 {
     fprintf(stderr, "USAGE: snmptls [-Cm mapTypeOID] [-Cd data] [-Cs storageType] ");
     snmp_parse_args_usage(stderr);
@@ -432,7 +434,7 @@ main(int argc, char **argv)
 {
     netsnmp_session        session, *ss;
     netsnmp_variable_list *var_list = NULL;
-    int                    arg, rs_idx;
+    int                    arg, rs_idx = 0;
     u_int                  hash_type;
     char                  *fingerprint, *tmp;
 
@@ -468,7 +470,7 @@ main(int argc, char **argv)
 
         oid           map_type[MAX_OID_LEN];
         u_int         pri;
-        size_t        map_type_len;
+        size_t        map_type_len = 0;
 
         if (strcmp(argv[++arg], "add") != 0) {
             fprintf(stderr, "only add is supported at this time\n");
@@ -554,6 +556,7 @@ main(int argc, char **argv)
 
     netsnmp_row_create(ss, var_list, rs_idx);
 
+    netsnmp_cleanup_session(&session);
     SOCK_CLEANUP;
     return 0;
 }

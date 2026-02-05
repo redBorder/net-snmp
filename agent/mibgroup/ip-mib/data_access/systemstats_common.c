@@ -10,6 +10,8 @@
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/data_access/ipstats.h>
 #include <net-snmp/data_access/systemstats.h>
+#include "systemstats.h"
+#include "systemstats_private.h"
 
 /**---------------------------------------------------------------------*/
 /*
@@ -20,20 +22,7 @@ static int need_wrap_check = -1;
 /*
  * local static prototypes
  */
-static void _entry_release(netsnmp_systemstats_entry * entry, void *unused);
-
-/**---------------------------------------------------------------------*/
-/*
- * external per-architecture functions prototypes
- *
- * These shouldn't be called by the general public, so they aren't in
- * the header file.
- */
-extern int
-netsnmp_access_systemstats_container_arch_load(netsnmp_container* container,
-                                             u_int load_flags);
-extern void
-netsnmp_access_systemstats_arch_init(void);
+static void _entry_release(void *entry, void *unused);
 
 /**---------------------------------------------------------------------*/
 /*
@@ -130,9 +119,7 @@ netsnmp_access_systemstats_container_free(netsnmp_container *container, u_int fr
         /*
          * free all items.
          */
-        CONTAINER_CLEAR(container,
-                        (netsnmp_container_obj_func*)_entry_release,
-                        NULL);
+        CONTAINER_CLEAR(container, _entry_release, NULL);
     }
 
     CONTAINER_FREE(container);
@@ -216,7 +203,7 @@ netsnmp_access_systemstats_entry_free(netsnmp_systemstats_entry * entry)
  * \internal
  */
 static void
-_entry_release(netsnmp_systemstats_entry * entry, void *context)
+_entry_release(void *entry, void *context)
 {
     netsnmp_access_systemstats_entry_free(entry);
 }
@@ -264,7 +251,7 @@ _calculate_entries(netsnmp_systemstats_entry * entry)
            && entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTFRAGCREATES]
         && entry->stats.columnAvail[IPSYSTEMSTATSTABLE_HCOUTDISCARDS]) {
 
-        U64 tmp, tmp2, tmp3;
+        struct counter64 tmp, tmp2, tmp3;
         tmp = entry->stats.HCOutRequests;
         u64Incr(&tmp, &entry->stats.HCOutForwDatagrams);
         u64Incr(&tmp, &entry->stats.HCOutFragCreates);
@@ -339,7 +326,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInNoRoutes,
                                        &prev_vals->old_stats->HCInNoRoutes,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInNoRoutes to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -349,7 +336,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutNoRoutes,
                                        &prev_vals->old_stats->HCOutNoRoutes,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutNoRoutes to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -359,7 +346,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutDiscards,
                                        &prev_vals->old_stats->HCOutDiscards,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutDiscards to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -369,7 +356,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutFragReqds,
                                        &prev_vals->old_stats->HCOutFragReqds,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutFragReqds to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -379,7 +366,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutFragOKs,
                                        &prev_vals->old_stats->HCOutFragOKs,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutFragOKs to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -389,7 +376,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutFragFails,
                                        &prev_vals->old_stats->HCOutFragFails,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutFragFails to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -399,7 +386,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutFragCreates,
                                        &prev_vals->old_stats->HCOutFragCreates,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutFragCreates to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -409,7 +396,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInReceives,
                                        &prev_vals->old_stats->HCInReceives,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInReceives to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -419,7 +406,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInOctets,
                                        &prev_vals->old_stats->HCInOctets,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInOctets to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -429,7 +416,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInForwDatagrams,
                                        &prev_vals->old_stats->HCInForwDatagrams,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInForwDatagrams to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -439,7 +426,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInDelivers,
                                        &prev_vals->old_stats->HCInDelivers,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInDelivers to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -449,7 +436,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutRequests,
                                        &prev_vals->old_stats->HCOutRequests,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutRequests to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -459,7 +446,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutForwDatagrams,
                                        &prev_vals->old_stats->HCOutForwDatagrams,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutForwDatagrams to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -469,7 +456,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutTransmits,
                                        &prev_vals->old_stats->HCOutTransmits,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutTransmits to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -479,7 +466,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutOctets,
                                        &prev_vals->old_stats->HCOutOctets,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutOctets to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -489,7 +476,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInMcastPkts,
                                        &prev_vals->old_stats->HCInMcastPkts,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInMcastPkts to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -499,7 +486,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInMcastOctets,
                                        &prev_vals->old_stats->HCInMcastOctets,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInMcastOctets to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -509,7 +496,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutMcastPkts,
                                        &prev_vals->old_stats->HCOutMcastPkts,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutMcastPkts to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -519,7 +506,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutMcastOctets,
                                        &prev_vals->old_stats->HCOutMcastOctets,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutMcastOctets to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -529,7 +516,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCInBcastPkts,
                                        &prev_vals->old_stats->HCInBcastPkts,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCInBcastPkts to 64bits in %s\n",
                         prev_vals->tableName));
 
@@ -539,7 +526,7 @@ netsnmp_access_systemstats_entry_update_stats(netsnmp_systemstats_entry * prev_v
                                        &new_vals->stats.HCOutBcastPkts,
                                        &prev_vals->old_stats->HCOutBcastPkts,
                                        &need_wrap_check))
-                DEBUGMSGTL(("access:systemstats",
+                NETSNMP_LOGONCE((LOG_ERR,
                         "Error expanding HCOutBcastPkts to 64bits in %s\n",
                         prev_vals->tableName));
     }

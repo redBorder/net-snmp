@@ -14,6 +14,7 @@
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/snmp_debug.h>
 #include <net-snmp/data_access/swrun.h>
+#include "swrun_private.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -120,12 +121,11 @@ netsnmp_arch_swrun_container_load( netsnmp_container *container, u_int flags)
          * skip empty names.
          * p_stat = (SIDL|SRUN|SSLEEP|SSTOP|SZOMB)
          */
-        if ((NULL == processes[i].kp_proc.p_comm) ||
+        if (('\0' == processes[i].kp_proc.p_comm[0]) ||
             (0 == processes[i].kp_proc.p_pid)) {
             DEBUGMSGTL(("swrun:load:arch",
                         " skipping p_comm '%s', pid %5d, p_pstat %d\n",
-                        processes[i].kp_proc.p_comm ? 
-                        processes[i].kp_proc.p_comm : "NULL",
+                        processes[i].kp_proc.p_comm,
                         processes[i].kp_proc.p_pid,
                         processes[i].kp_proc.p_stat));
             continue;
@@ -172,9 +172,10 @@ netsnmp_arch_swrun_container_load( netsnmp_container *container, u_int flags)
          * check for system processes
          */
         if (P_SYSTEM & processes[i].kp_proc.p_flag) {
-            entry->hrSWRunType = 2; /* operatingSystem */
+            entry->hrSWRunType = HRSWRUNTYPE_OPERATINGSYSTEM;
             DEBUGMSGTL(("swrun:load:arch", SWRUNINDENT "SYSTEM\n"));
         }
+        else entry->hrSWRunType = HRSWRUNTYPE_APPLICATION;
 
         /*
          * get mem size, run time
@@ -192,7 +193,7 @@ netsnmp_arch_swrun_container_load( netsnmp_container *container, u_int flags)
             } at, ns;
             at.uq = taskinfo.ptinfo.pti_total_user +
                     taskinfo.ptinfo.pti_total_system;
-            ns.uw = AbsoluteToNanoseconds( at.uw );
+            ns = at;
             ns.uq = ns.uq / 10000000LL; /* nano to deci */
             if (task_mem > INT32_MAX) {
                 DEBUGMSGTL(("swrun:load:arch", SWRUNINDENT "mem overflow\n"));
@@ -209,14 +210,14 @@ netsnmp_arch_swrun_container_load( netsnmp_container *container, u_int flags)
     free(processes);
 
     DEBUGMSGTL(("swrun:load:arch"," loaded %d entries\n",
-                CONTAINER_SIZE(container)));
+                (int)CONTAINER_SIZE(container)));
 
     return 0;
 }
 
 /* ---------------------------------------------------------------------
  * The following code was snagged from Darwin code, and the original
- * file had the following licences:
+ * file had the following licenses:
  */
 
 /*
@@ -249,7 +250,7 @@ _set_command_name_jaguar(netsnmp_swrun_entry *entry)
     char       *arg_end, *exec_path;
     int        *ip;
     int         len;
-    char       *command_beg, *command, *command_end;
+    char       *command_beg, *command;
     char        arg_buf[MAX_KERN_ARGMAX]; /* max to avoid kernel bug */
 
     DEBUGMSGTL(("swrun:load:arch:_cn"," pid %d\n", entry->hrSWRunIndex));
@@ -313,7 +314,7 @@ _set_command_name_jaguar(netsnmp_swrun_entry *entry)
     DEBUGMSGTL(("swrun:load:arch:_cn"," command_beg '%s'\n", command_beg));
     
     /* Get the basename of command. */
-    command = command_end = command_beg + strlen(command_beg) + 1;
+    command = command_beg + strlen(command_beg) + 1;
     for (command--; command >= command_beg; command--) {
         if (*command == '/')
             break;
@@ -343,7 +344,7 @@ _set_command_name(netsnmp_swrun_entry *entry)
     size_t      procargssize, mib_size = sizeof(mib)/sizeof(mib[0]);
     char       *cp;
     int         len, nargs;
-    char       *command_beg, *command, *command_end, *exec_path, *argN;
+    char       *command_beg, *command, *exec_path, *argN;
     char        arg_buf[MAX_KERN_ARGMAX]; /* max to avoid kernel bug */
 
     /*
@@ -385,8 +386,8 @@ _set_command_name(netsnmp_swrun_entry *entry)
             break; /* End of exec_path reached. */
     }
     if (cp != exec_path + len) {
-        DEBUGMSGTL(("swrun:load:arch:_cn"," OFF BY %d\n",
-                    (exec_path + len) - cp));
+        DEBUGMSGTL(("swrun:load:arch:_cn", " OFF BY %d\n",
+                    (int)((exec_path + len) - cp)));
         netsnmp_assert( cp == exec_path + len );
     }
 #endif
@@ -419,7 +420,7 @@ _set_command_name(netsnmp_swrun_entry *entry)
         DEBUGMSGTL(("swrun:load:arch:_cn"," unexpected end of buffer\n"));
         return -1;
     }
-    command_end = command = cp;
+    command = cp;
     --nargs;
 
     /*
@@ -457,7 +458,7 @@ _set_command_name(netsnmp_swrun_entry *entry)
          */
         if(entry->hrSWRunParameters_len < sizeof(entry->hrSWRunParameters)-1) {
             strlcat(&entry->hrSWRunParameters[entry->hrSWRunParameters_len],
-                    argN, sizeof(entry->hrSWRunParameters));
+                    argN, sizeof(entry->hrSWRunParameters)-entry->hrSWRunParameters_len-1);
             entry->hrSWRunParameters_len = strlen(entry->hrSWRunParameters);
             if ((entry->hrSWRunParameters_len+2 < sizeof(entry->hrSWRunParameters)-1) && (0 != nargs)) {
                 /* add space between params */

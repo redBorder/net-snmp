@@ -131,9 +131,8 @@ ipDefaultRouterTable_indexes_set_tbl_idx(ipDefaultRouterTable_mib_index *
     /*
      * make sure there is enough space for ipDefaultRouterAddress data
      */
-    if ((NULL == tbl_idx->ipDefaultRouterAddress) ||
-        (tbl_idx->ipDefaultRouterAddress_len <
-         (ipDefaultRouterAddress_val_ptr_len))) {
+    if (tbl_idx->ipDefaultRouterAddress_len <
+        ipDefaultRouterAddress_val_ptr_len) {
         snmp_log(LOG_ERR, "not enough space for value\n");
         return MFD_ERROR;
     }
@@ -187,7 +186,7 @@ ipDefaultRouterTable_indexes_set(ipDefaultRouterTable_rowreq_ctx *
     /*
      * convert mib index to oid index
      */
-    rowreq_ctx->oid_idx.len = sizeof(rowreq_ctx->oid_tmp) / sizeof(oid);
+    rowreq_ctx->oid_idx.len = OID_LENGTH(rowreq_ctx->oid_tmp);
     if (0 != ipDefaultRouterTable_index_to_oid(&rowreq_ctx->oid_idx,
                                                &rowreq_ctx->tbl_idx)) {
         return MFD_ERROR;

@@ -33,8 +33,7 @@ OID_LENGTH(ipv6InterfaceTable_oid);
 ipv6InterfaceTable_registration ipv6InterfaceTable_user_context;
 static ipv6InterfaceTable_registration *ipv6InterfaceTable_user_context_p;
 
-void            initialize_table_ipv6InterfaceTable(void);
-void            shutdown_table_ipv6InterfaceTable(void);
+static void     shutdown_table_ipv6InterfaceTable(void);
 
 
 /**
@@ -977,7 +976,7 @@ ipv6InterfaceTable_commit(ipv6InterfaceTable_rowreq_ctx * rowreq_ctx)
     }
 
     /*
-     * if we successfully commited this row, set the dirty flag.
+     * if we successfully committed this row, set the dirty flag.
      */
     if (MFD_SUCCESS == rc) {
         rowreq_ctx->rowreq_flags |= MFD_ROW_DIRTY;
@@ -1027,7 +1026,7 @@ ipv6InterfaceTable_undo_commit(ipv6InterfaceTable_rowreq_ctx * rowreq_ctx)
 
 
     /*
-     * if we successfully un-commited this row, clear the dirty flag.
+     * if we successfully un-committed this row, clear the dirty flag.
      */
     if (MFD_SUCCESS == rc) {
         rowreq_ctx->rowreq_flags &= ~MFD_ROW_DIRTY;
@@ -1086,7 +1085,7 @@ The indication of whether IPv6 is enabled (up) or disabled
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transistion from one value to another
+ * new value is legal (ie, the transition from one value to another
  * is legal).
  *      
  *@note
@@ -1279,7 +1278,7 @@ The indication of whether this entity is acting as an IPv6
  * is detailed in the description for an object).
  *
  * You should check that the requested change between the undo value and the
- * new value is legal (ie, the transistion from one value to another
+ * new value is legal (ie, the transition from one value to another
  * is legal).
  *      
  *@note

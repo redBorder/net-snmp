@@ -54,14 +54,14 @@ for (i = 0; i < sizeof(test_input) / sizeof(test_input[0]); i++) {
     result = (p->pf) (p->readfrom, &str, &len);
     offset = result ? result - p->readfrom : -1;
     OKF(offset == p->expected_offset,
-        ("test %d: expected offset %zd, got offset %" NETSNMP_PRIz "d",
-         i, p->expected_offset, offset));
+        ("test %d: expected offset %" NETSNMP_PRIz "d, got offset %"
+         NETSNMP_PRIz "d", i, p->expected_offset, offset));
     if (offset == p->expected_offset) {
         OKF(len == p->expected_len,
             ("test %d: expected length %" NETSNMP_PRIz "d, got length %"
              NETSNMP_PRIz "d", i, p->expected_len, len));
         if (len == p->expected_len) {
-            ok = len < 0 || !p->expected_output
+            ok = !p->expected_output
                 || memcmp(str, p->expected_output, len) == 0
                 || p->expected_output[len] != 0;
             OKF(ok, ("test %d: output buffer mismatch", i));

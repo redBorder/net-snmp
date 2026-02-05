@@ -8,10 +8,10 @@
  * This should always be included first before anything else 
  */
 #include <net-snmp/net-snmp-config.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -101,14 +101,6 @@ struct variable2 mteTriggerExistenceTable_variables[] = {
 /*
  * (L = length of the oidsuffix) 
  */
-
-
-/*
- * global storage of our data, saved in and configured by header_complex() 
- */
-extern struct header_complex_index *mteTriggerTableStorage;
-
-
 
 
 /*
@@ -243,7 +235,7 @@ write_mteTriggerExistenceTest(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -273,7 +265,7 @@ write_mteTriggerExistenceTest(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -289,12 +281,12 @@ write_mteTriggerExistenceTest(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceTest;
         tmplen = StorageTmp->mteTriggerExistenceTestLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceTest, var_val,
-               var_val_len);
+        StorageTmp->mteTriggerExistenceTest =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceTestLen = var_val_len;
         break;
 
@@ -335,7 +327,7 @@ write_mteTriggerExistenceStartup(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -365,7 +357,7 @@ write_mteTriggerExistenceStartup(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -381,12 +373,12 @@ write_mteTriggerExistenceStartup(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceStartup;
         tmplen = StorageTmp->mteTriggerExistenceStartupLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceStartup,
-               var_val, var_val_len);
+        StorageTmp->mteTriggerExistenceStartup =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceStartupLen = var_val_len;
         break;
 
@@ -427,7 +419,7 @@ write_mteTriggerExistenceObjectsOwner(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -457,7 +449,7 @@ write_mteTriggerExistenceObjectsOwner(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -473,12 +465,12 @@ write_mteTriggerExistenceObjectsOwner(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceObjectsOwner;
         tmplen = StorageTmp->mteTriggerExistenceObjectsOwnerLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceObjectsOwner,
-               var_val, var_val_len);
+        StorageTmp->mteTriggerExistenceObjectsOwner =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceObjectsOwnerLen = var_val_len;
         break;
 
@@ -519,7 +511,7 @@ write_mteTriggerExistenceObjects(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -549,7 +541,7 @@ write_mteTriggerExistenceObjects(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -565,12 +557,12 @@ write_mteTriggerExistenceObjects(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceObjects;
         tmplen = StorageTmp->mteTriggerExistenceObjectsLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceObjects,
-               var_val, var_val_len);
+        StorageTmp->mteTriggerExistenceObjects =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceObjectsLen = var_val_len;
         break;
 
@@ -611,7 +603,7 @@ write_mteTriggerExistenceEventOwner(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -641,7 +633,7 @@ write_mteTriggerExistenceEventOwner(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -657,12 +649,12 @@ write_mteTriggerExistenceEventOwner(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceEventOwner;
         tmplen = StorageTmp->mteTriggerExistenceEventOwnerLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceEventOwner,
-               var_val, var_val_len);
+        StorageTmp->mteTriggerExistenceEventOwner =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceEventOwnerLen = var_val_len;
         break;
 
@@ -702,7 +694,7 @@ write_mteTriggerExistenceEvent(int action,
     static size_t   tmplen;
     size_t          newlen =
         name_len -
-        (sizeof(mteTriggerExistenceTable_variables_oid) / sizeof(oid) + 3 -
+        (OID_LENGTH(mteTriggerExistenceTable_variables_oid) + 3 -
          1);
 
 
@@ -732,7 +724,7 @@ write_mteTriggerExistenceEvent(int action,
 
     case RESERVE2:
         /*
-         * memory reseveration, final preparation... 
+         * memory reservation, final preparation... 
          */
         break;
 
@@ -748,12 +740,12 @@ write_mteTriggerExistenceEvent(int action,
         /*
          * The variable has been stored in string for
          * you to use, and you have just been asked to do something with
-         * it.  Note that anything done here must be reversable in the UNDO case 
+         * it.  Note that anything done here must be reversible in the UNDO case 
          */
         tmpvar = StorageTmp->mteTriggerExistenceEvent;
         tmplen = StorageTmp->mteTriggerExistenceEventLen;
-        memdup((u_char **) & StorageTmp->mteTriggerExistenceEvent, var_val,
-               var_val_len);
+        StorageTmp->mteTriggerExistenceEvent =
+            netsnmp_memdup(var_val, var_val_len);
         StorageTmp->mteTriggerExistenceEventLen = var_val_len;
         break;
 

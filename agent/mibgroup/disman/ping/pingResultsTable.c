@@ -16,10 +16,10 @@
  * This should always be included first before anything else 
  */
 
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #include <string.h>
 #else
 #include <strings.h>
@@ -72,29 +72,24 @@ struct variable2 pingResultsTable_variables[] = {
 };
 
 
-
-
-/*
- * global storage of our data, saved in and configured by header_complex() 
- */
-
-extern struct header_complex_index *pingCtlTableStorage;
-extern struct header_complex_index *pingResultsTableStorage;
 int
 pingResultsTable_inadd(struct pingResultsTable_data *thedata);
 
+#if 0
 void
 pingResultsTable_cleaner(struct header_complex_index *thestuff)
 {
-    struct header_complex_index *hciptr;
+    struct header_complex_index *hciptr, *nhciptr;
 
     DEBUGMSGTL(("pingResultsTable", "cleanerout  "));
-    for (hciptr = thestuff; hciptr != NULL; hciptr = hciptr->next) {
+    for (hciptr = thestuff; hciptr; hciptr = nhciptr) {
+        nhciptr = hciptr->next;
         header_complex_extract_entry(&pingResultsTableStorage, hciptr);
         DEBUGMSGTL(("pingResultsTable", "cleaner  "));
     }
-
 }
+#endif
+
 void
 init_pingResultsTable(void)
 {
@@ -150,6 +145,7 @@ parse_pingResultsTable(const char *token, char *line)
                               &StorageTmp->pingCtlOwnerIndexLen);
     if (StorageTmp->pingCtlOwnerIndex == NULL) {
         config_perror("invalid specification for pingCtlOwnerIndex");
+        free(StorageTmp);
         return;
     }
 
@@ -159,6 +155,7 @@ parse_pingResultsTable(const char *token, char *line)
                               &StorageTmp->pingCtlTestNameLen);
     if (StorageTmp->pingCtlTestName == NULL) {
         config_perror("invalid specification for pingCtlTestName");
+        free(StorageTmp);
         return;
     }
 
@@ -176,6 +173,7 @@ parse_pingResultsTable(const char *token, char *line)
     if (StorageTmp->pingResultsIpTargetAddress == NULL) {
         config_perror
             ("invalid specification for pingResultsIpTargetAddress");
+        free(StorageTmp);
         return;
     }
 
@@ -206,6 +204,7 @@ parse_pingResultsTable(const char *token, char *line)
     if (StorageTmp->pingResultsLastGoodProbe == NULL) {
         config_perror
             ("invalid specification for pingResultsLastGoodProbe!");
+        free(StorageTmp);
         return;
     }
 
@@ -231,7 +230,6 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr;
-    size_t          tmpint;
     struct pingResultsTable_data *StorageTmp;
     struct header_complex_index *hcindex;
 
@@ -261,12 +259,12 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->pingResultsOperStatus,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
                                        pingResultsIpTargetAddressType,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->
@@ -277,28 +275,28 @@ store_pingResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsMinRtt,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsMaxRtt,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsAverageRtt,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
-                                       pingResultsProbeResponses, &tmpint);
+                                       pingResultsProbeResponses, NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->pingResultsSendProbes,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->
                                        pingResultsRttSumOfSquares,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->

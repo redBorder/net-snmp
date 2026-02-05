@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/sysctl.h>
-#if HAVE_SYS_VMMETER_H
+#ifdef HAVE_SYS_VMMETER_H
 #include <sys/vmmeter.h>
 #endif
 #include <sys/swap.h>
@@ -48,8 +48,8 @@ int netsnmp_mem_arch_load( netsnmp_cache *cache, void *magic ) {
     int             uvmexp_mib[] = { CTL_VM, VM_UVMEXP };
     int             total_mib[] = { CTL_VM, VM_METER };
 #else
-    unsigned int    bufspace;
-    unsigned int    maxbufspace;
+    unsigned long   bufspace;
+    unsigned long   maxbufspace;
     size_t          buf_size  = sizeof(bufspace);
 #endif
 
@@ -63,27 +63,27 @@ int netsnmp_mem_arch_load( netsnmp_cache *cache, void *magic ) {
     sysctl(user_mem_mib, 2, &user_mem, &mem_size,      NULL, 0);
 #else
     if (sysctlbyname("vm.uvmexp", &uvmexp, &uvmexp_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl vm.uvmexp failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl vm.uvmexp");
         return -1;
     }
     if (sysctlbyname("vm.vmmeter", &total,  &total_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl vm.vmmeter failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl vm.vmmeter");
         return -1;
     }
     if (sysctlbyname("hw.physmem64", &phys_mem, &mem_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl hw.physmem64 failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl hw.physmem64");
         return -1;
     }
     if (sysctlbyname("hw.usermem64", &user_mem, &mem_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl hw.usermem64 failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl hw.usermem64");
         return -1;
     }
     if (sysctlbyname("vm.bufmem", &bufspace, &buf_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl vm.bufmem failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl vm.bufmem");
         return -1;
     }
     if (sysctlbyname("vm.bufmem_hiwater", &maxbufspace, &buf_size, NULL, 0) == -1) {
-        snmp_log(LOG_ERR, "sysctl vm.bufmem_hiwater failed (errno %d)\n", errno);
+        snmp_log_perror("sysctl vm.bufmem_hiwater");
         return -1;
     }
 
@@ -202,7 +202,7 @@ swapinfo(long pagesize)
     if ( n <= 1 )
         return;
 
-    s = (struct swapent*)calloc(n, sizeof(struct swapent));
+    s = calloc(n, sizeof(struct swapent));
     swapctl( SWAP_STATS, s, n );
 
     for (i = 0; i < n; ++i) {
@@ -211,7 +211,7 @@ swapinfo(long pagesize)
             continue;
         if (!mem->descr) {
          /* sprintf(buf, "swap #%d", s[i].se_dev); */
-            sprintf(buf, "swap %s",  s[i].se_path);
+            snprintf(buf, sizeof buf, "swap %s",  s[i].se_path);
             mem->descr = strdup( buf );
         }
         mem->units = pagesize;

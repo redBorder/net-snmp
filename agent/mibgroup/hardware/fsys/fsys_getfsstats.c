@@ -1,16 +1,17 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/agent/hardware/fsys.h>
+#include "hardware/fsys/fsys.h"
 #include "hardware/fsys/hw_fsys.h"
+#include "hardware/fsys/hw_fsys_private.h"
 
-#if HAVE_SYS_PARAM_H
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#if HAVE_SYS_MOUNT_H
+#ifdef HAVE_SYS_MOUNT_H
 #include <sys/mount.h>
 #endif
-#if HAVE_SYS_STATVFS_H
+#ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
 
@@ -33,29 +34,6 @@
 #define NSFS_STATFS     statfs
 #define NSFS_FLAGS      f_flags
 #endif
-
-/*
-#if defined(HAVE_STATVFS)
-#define NSFS_STATFS     statvfs
-#define NSFS_FLAGS      f_flag
-#else
-#define NSFS_STATFS     statfs
-#define NSFS_FLAGS      f_flags
-#endif
-*/
-
-/*
-#if defined(HAVE_STATVFS) && defined(__NetBSD__)
-#define NSFS_NAMELEN    _VFS_NAMELEN
-#define NSFS_GETFSSTAT  getvfsstat
-#define NSFS_STATFS     statvfs
-#else
-#define NSFS_FLAGS      f_flags
-#define NSFS_NAMELEN    _VFS_NAMELEN
-#define NSFS_GETFSSTAT  getvfsstat
-#define NSFS_STATFS     statvfs
-#endif
-*/
 
 int
 _fs_type( char *typename )
@@ -88,6 +66,12 @@ _fs_type( char *typename )
        return NETSNMP_FS_TYPE_EXT2;
     else if ( !strcmp(typename, MOUNT_NTFS) )
        return NETSNMP_FS_TYPE_NTFS;
+    else if ( !strcmp(typename, MOUNT_ZFS) )
+       return NETSNMP_FS_TYPE_OTHER;
+    else if ( !strcmp(typename, MOUNT_NVMFS) )
+       return NETSNMP_FS_TYPE_OTHER;
+    else if ( !strcmp(typename, MOUNT_ACFS) )
+       return NETSNMP_FS_TYPE_OTHER;
 
        /*
         * NetBSD also recognises the following filesystem types:
@@ -135,11 +119,11 @@ netsnmp_fsys_arch_load( void )
     /*
      * Retrieve information about the currently mounted filesystems...
      */
-    n = NSFS_GETFSSTAT( NULL, 0, 0 );
+    n = NSFS_GETFSSTAT( NULL, 0, MNT_WAIT );
     if ( n==0 )
         return;
     stats = (struct NSFS_STATFS *)malloc( n * sizeof( struct NSFS_STATFS ));
-    n = NSFS_GETFSSTAT( stats, n * sizeof( struct NSFS_STATFS ), MNT_NOWAIT );
+    n = NSFS_GETFSSTAT( stats, n * sizeof( struct NSFS_STATFS ), MNT_WAIT );
 
     /*
      * ... and insert this into the filesystem container.
@@ -151,9 +135,7 @@ netsnmp_fsys_arch_load( void )
             continue;
 
         strlcpy( entry->path,   stats[i].f_mntonname,   sizeof(entry->path));
-        entry->path[sizeof(entry->path)-1] = '\0';
         strlcpy( entry->device, stats[i].f_mntfromname, sizeof(entry->device));
-        entry->device[sizeof(entry->device)-1] = '\0';
         entry->units = stats[i].f_bsize;    /* or f_frsize */
         entry->size  = stats[i].f_blocks;
         entry->used  = (stats[i].f_blocks - stats[i].f_bfree);
@@ -161,7 +143,7 @@ netsnmp_fsys_arch_load( void )
          * values!
          * This should be changed to a signed field.
          */
-        if (stats[i].f_bavail < 0)
+        if (stats[i].f_bavail + 1 < 1)
             entry->avail = 0;
         else
             entry->avail = stats[i].f_bavail;

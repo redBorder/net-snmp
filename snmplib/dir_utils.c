@@ -14,44 +14,40 @@
 
 #include <stdio.h>
 #include <ctype.h>
-#if HAVE_STDLIB_H
+#ifdef HAVE_STDLIB_H
 #   include <stdlib.h>
 #endif
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #   include <unistd.h>
 #endif
-#if HAVE_STRING_H
+#ifdef HAVE_STRING_H
 #   include <string.h>
 #else
 #  include <strings.h>
 #endif
 
 #include <sys/types.h>
-#if HAVE_LIMITS_H
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#if HAVE_SYS_STAT_H
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
 #ifdef HAVE_DIRENT_H
-#include <dirent.h>
+# include <dirent.h>
 #endif
 
 #include <errno.h>
-
-#if HAVE_DMALLOC_H
-#  include <dmalloc.h>
-#endif
 
 #include <net-snmp/types.h>
 #include <net-snmp/library/container.h>
 #include <net-snmp/library/file_utils.h>
 #include <net-snmp/library/dir_utils.h>
 
-netsnmp_feature_child_of(container_directory, container_types)
+netsnmp_feature_child_of(container_directory, container_types);
 #ifdef NETSNMP_FEATURE_REQUIRE_CONTAINER_DIRECTORY
-netsnmp_feature_require(file_utils)
-netsnmp_feature_require(container_free_all)
+netsnmp_feature_require(file_utils);
+netsnmp_feature_require(container_free_all);
 #endif /* NETSNMP_FEATURE_REQUIRE_CONTAINER_DIRECTORY */
 
 #ifndef NETSNMP_FEATURE_REMOVE_CONTAINER_DIRECTORY
@@ -93,10 +89,8 @@ netsnmp_directory_container_read_some(netsnmp_container *user_container,
             container = netsnmp_container_find("nsfile_directory_container:"
                                                "binary_array");
             if (container) {
-                container->compare = (netsnmp_container_compare*)
-                    netsnmp_file_compare_name;
-                container->free_item = (netsnmp_container_obj_func *)
-                    netsnmp_file_container_free;
+                container->compare = netsnmp_file_compare_name;
+                container->free_item = netsnmp_file_container_free;
             }
         }
         else
@@ -107,6 +101,9 @@ netsnmp_directory_container_read_some(netsnmp_container *user_container,
         /** default to unsorted */
         if (! (flags & NETSNMP_DIR_SORTED))
             CONTAINER_SET_OPTIONS(container, CONTAINER_KEY_UNSORTED, rc);
+        /** default to duplicates not allowed */
+        if (! (flags & NETSNMP_DIR_ALLOW_DUPLICATES))
+           CONTAINER_SET_OPTIONS(container, CONTAINER_KEY_ALLOW_DUPLICATES, rc);
     }
 
     dir = opendir(dirname);
@@ -136,8 +133,7 @@ netsnmp_directory_container_read_some(netsnmp_container *user_container,
 
     /** iterate over dir */
     while ((file = readdir(dir))) {
-
-        if ((file->d_name == NULL) || (file->d_name[0] == 0))
+        if (file->d_name[0] == 0)
             continue;
 
         /** skip '.' and '..' */
@@ -229,7 +225,7 @@ _insert_nsfile( netsnmp_container *c, const char *name, struct stat *stats,
     }
 
     if (flags & NETSNMP_DIR_NSFILE_STATS) {
-        ns_file->stats = (struct stat*)calloc(1,sizeof(*(ns_file->stats)));
+        ns_file->stats = calloc(1,sizeof(*(ns_file->stats)));
         if (NULL == ns_file->stats) {
             snmp_log(LOG_ERR, "error creating stats for ns_file\n");
             netsnmp_file_release(ns_file);
@@ -237,10 +233,13 @@ _insert_nsfile( netsnmp_container *c, const char *name, struct stat *stats,
         }
     
         /** use stats from earlier if we have them */
-        if (stats)
+        if (stats) {
             memcpy(ns_file->stats, stats, sizeof(*stats));
-        else
-            stat(ns_file->name, ns_file->stats);
+        } else if (stat(ns_file->name, ns_file->stats) < 0) {
+            snmp_log(LOG_ERR, "stat() failed for ns_file\n");
+            netsnmp_file_release(ns_file);
+            return -1;
+        }
     }
 
     rc = CONTAINER_INSERT(c, ns_file);

@@ -4,16 +4,32 @@
 
 #include <stdio.h>
 
-void print_hash(const char *label, u_char *MAC, size_t MAC_LEN);
+#ifdef NETSNMP_USE_OPENSSL
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
+#include <openssl/des.h>
+#ifdef HAVE_AES
+#include <openssl/aes.h>
+#endif
+#endif /* NETSNMP_USE_OPENSSL */
 
+#ifdef EVP_MAX_MD_SIZE
+#define MAX_HASH_LEN   EVP_MAX_MD_SIZE
+#else
+#define MAX_HASH_LEN   BYTESIZE(SNMP_TRANS_AUTHLEN_HMAC384SHA512)
+#endif
+
+
+static void print_hash(const char *label, u_char *MAC, size_t MAC_LEN);
 
 int
 main(int argc, char **argv) {
     u_char buf[] = "wes hardaker";
-    u_char MAC[20];
-    size_t MAC_LEN = 20;
-    u_char sha1key[20] = "55555555555555555555";
-    u_char md5key[16] = "5555555555555555";
+    u_char MAC[MAX_HASH_LEN];
+    size_t MAC_LEN = sizeof(MAC);
+    u_char sha1key[20] __attribute__((nonstring)) = "55555555555555555555";
+    u_char md5key[16] __attribute__((nonstring)) = "5555555555555555";
 
     u_char sha1proper[20] = { 0x4a, 0x55, 0x2f, 0x65, 0x79, 0x3a, 0x49, 0x35,
                               0x37, 0x91, 0x51, 0x1d,
@@ -85,7 +101,7 @@ main(int argc, char **argv) {
         printf("not ok: 2 - md5 keyed compare was not equal\n");
     }
 
-    MAC_LEN = 20;
+    MAC_LEN = sizeof(MAC);
     memset(MAC, 0, MAC_LEN);
     generate_Ku(usmHMACSHA1AuthProtocol,
                 OID_LENGTH(usmHMACSHA1AuthProtocol),
@@ -93,7 +109,7 @@ main(int argc, char **argv) {
                 MAC, &MAC_LEN);
     print_hash("sha1 Ku", MAC, MAC_LEN);
 
-    MAC_LEN = 16;
+    MAC_LEN = sizeof(MAC);
     memset(MAC, 0, MAC_LEN);
     generate_Ku(usmHMACMD5AuthProtocol,
                 OID_LENGTH(usmHMACMD5AuthProtocol),
@@ -114,4 +130,4 @@ print_hash(const char *label, u_char *MAC, size_t MAC_LEN) {
         printf("# %02x ", MAC[i]);
     }
     printf("\n");
-}    
+}

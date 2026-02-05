@@ -49,9 +49,9 @@
 
 #include <ctype.h>
 
-netsnmp_feature_require(row_merge)
-netsnmp_feature_require(baby_steps)
-netsnmp_feature_require(check_all_requests_error)
+netsnmp_feature_require(row_merge);
+netsnmp_feature_require(baby_steps);
+netsnmp_feature_require(check_all_requests_error);
 
 /**********************************************************************
  **********************************************************************
@@ -272,10 +272,12 @@ _ipv6InterfaceTable_initialize_interface(ipv6InterfaceTable_registration *
         netsnmp_handler_registration_create("ipv6InterfaceTable", handler,
                                             ipv6InterfaceTable_oid,
                                             ipv6InterfaceTable_oid_size,
-                                            HANDLER_CAN_BABY_STEP
+                                            HANDLER_CAN_BABY_STEP |
 #ifndef NETSNMP_DISABLE_SET_SUPPORT
-                                          | HANDLER_CAN_RWRITE
-#endif
+                                            HANDLER_CAN_RWRITE
+#else
+                                            HANDLER_CAN_RONLY
+#endif /* NETSNMP_DISABLE_SET_SUPPORT */
                                           );
     if (NULL == reginfo) {
         snmp_log(LOG_ERR, "error registering table ipv6InterfaceTable\n");
@@ -659,7 +661,7 @@ _mfd_ipv6InterfaceTable_get_values(netsnmp_mib_handler *handler,
 
         /*
          * if the buffer wasn't used previously for the old data (i.e. it
-         * was allcoated memory)  and the get routine replaced the pointer,
+         * was allocated memory)  and the get routine replaced the pointer,
          * we need to free the previous pointer.
          */
         if (old_string && (old_string != requests->requestvb->buf) &&
@@ -1127,7 +1129,7 @@ _mfd_ipv6InterfaceTable_commit(netsnmp_mib_handler *handler,
 
     if (rowreq_ctx->rowreq_flags & MFD_ROW_DIRTY) {
         /*
-         * if we successfully commited this row, set the dirty flag. Use the
+         * if we successfully committed this row, set the dirty flag. Use the
          * current value + 1 (i.e. dirty = # rows changed).
          * this is checked in post_request...
          */
@@ -1390,7 +1392,7 @@ ipv6InterfaceTable_row_find_by_mib_index(ipv6InterfaceTable_mib_index *
      * set up storage for OID
      */
     oid_idx.oids = oid_tmp;
-    oid_idx.len = sizeof(oid_tmp) / sizeof(oid);
+    oid_idx.len = OID_LENGTH(oid_tmp);
 
     /*
      * convert

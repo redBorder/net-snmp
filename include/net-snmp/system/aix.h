@@ -1,6 +1,6 @@
 #include <net-snmp/system/generic.h>
 #include <sys/select.h>
-#undef TOTAL_MEMORY_SYMBOL
+
 #undef NPROC_SYMBOL
 #undef RTHASHSIZE_SYMBOL
 #undef RTHOST_SYMBOL
@@ -8,12 +8,6 @@
 
 #undef RTTABLES_SYMBOL
 #define RTTABLES_SYMBOL "rt_tables"
-
-#undef ARPTAB_SIZE_SYMBOL
-#define ARPTAB_SIZE_SYMBOL "arptabsize"
-
-#undef ARPTAB_SYMBOL
-#define ARPTAB_SYMBOL "arptabnb"
 
 #ifndef __GNUC__
 #  undef NETSNMP_ENABLE_INLINE
@@ -25,3 +19,15 @@
 
 /* the legacy symbol NOACCESS clashes with the system headers. Remove it. */
 #define NETSNMP_NO_LEGACY_DEFINITIONS
+
+#ifdef _AIX43
+#define aix4
+#endif
+
+#ifdef _AIX51
+#define aix5
+#endif
+
+#ifdef _AIX61
+#define aix6
+#endif

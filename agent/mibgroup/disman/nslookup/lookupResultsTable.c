@@ -34,12 +34,6 @@ struct variable2 lookupResultsTable_variables[] = {
      var_lookupResultsTable, 2, {1, 3}}
 };
 
-/*
- * global storage of our data, saved in and configured by header_complex() 
- */
-
-extern struct header_complex_index *lookupCtlTableStorage;
-extern struct header_complex_index *lookupResultsTableStorage;
 
 int
 lookupResultsTable_inadd(struct lookupResultsTable_data *thedata);
@@ -47,13 +41,14 @@ lookupResultsTable_inadd(struct lookupResultsTable_data *thedata);
 void
 lookupResultsTable_cleaner(struct header_complex_index *thestuff)
 {
-    struct header_complex_index *hciptr = NULL;
-    struct lookupResultsTable_data *StorageDel = NULL;
+    struct header_complex_index *hciptr, *nhciptr;
+    struct lookupResultsTable_data *StorageDel;
+
     DEBUGMSGTL(("lookupResultsTable", "cleanerout  "));
-    for (hciptr = thestuff; hciptr != NULL; hciptr = hciptr->next) {
-        StorageDel =
-            header_complex_extract_entry(&lookupResultsTableStorage,
-                                         hciptr);
+    for (hciptr = thestuff; hciptr; hciptr = nhciptr) {
+        nhciptr = hciptr->next;
+        StorageDel = header_complex_extract_entry(&lookupResultsTableStorage,
+                                                  hciptr);
         if (StorageDel != NULL) {
             SNMP_FREE(StorageDel->lookupCtlOwnerIndex);
             SNMP_FREE(StorageDel->lookupCtlOperationName);
@@ -62,8 +57,8 @@ lookupResultsTable_cleaner(struct header_complex_index *thestuff)
         }
         DEBUGMSGTL(("lookupResultsTable", "cleaner  "));
     }
-
 }
+
 void
 init_lookupResultsTable(void)
 {
@@ -119,6 +114,7 @@ parse_lookupResultsTable(const char *token, char *line)
                               &StorageTmp->lookupCtlOwnerIndexLen);
     if (StorageTmp->lookupCtlOwnerIndex == NULL) {
         config_perror("invalid specification for lookupCtlOwnerIndex");
+        free(StorageTmp);
         return;
     }
 
@@ -128,6 +124,7 @@ parse_lookupResultsTable(const char *token, char *line)
                               &StorageTmp->lookupCtlOperationNameLen);
     if (StorageTmp->lookupCtlOperationName == NULL) {
         config_perror("invalid specification for lookupCtlOperationName");
+        free(StorageTmp);
         return;
     }
 
@@ -144,6 +141,7 @@ parse_lookupResultsTable(const char *token, char *line)
                               &StorageTmp->lookupResultsAddressLen);
     if (StorageTmp->lookupResultsAddress == NULL) {
         config_perror("invalid specification for lookupResultsAddress");
+        free(StorageTmp);
         return;
     }
 
@@ -170,7 +168,6 @@ store_lookupResultsTable(int majorID, int minorID, void *serverarg,
 {
     char            line[SNMP_MAXBUF];
     char           *cptr = NULL;
-    size_t          tmpint;
     struct lookupResultsTable_data *StorageTmp = NULL;
     struct header_complex_index *hcindex = NULL;
 
@@ -201,11 +198,11 @@ store_lookupResultsTable(int majorID, int minorID, void *serverarg,
             cptr =
                 read_config_store_data(ASN_UNSIGNED, cptr,
                                        &StorageTmp->lookupResultsIndex,
-                                       &tmpint);
+                                       NULL);
             cptr =
                 read_config_store_data(ASN_INTEGER, cptr,
                                        &StorageTmp->
-                                       lookupResultsAddressType, &tmpint);
+                                       lookupResultsAddressType, NULL);
             cptr =
                 read_config_store_data(ASN_OCTET_STR, cptr,
                                        &StorageTmp->lookupResultsAddress,
