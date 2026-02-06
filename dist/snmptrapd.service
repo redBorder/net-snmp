@@ -10,7 +10,7 @@ After=network.target
 # Type=notify is also supported. It should be set when snmptrapd.socket is not
 # used.
 Type=simple
-ExecStart=/usr/sbin/snmptrapd -f
+ExecStart=/opt/rb-net-snmp/sbin/rb-snmptrapd -f -Lsd -Dkafka -o -d -c /opt/rb-net-snmp/etc/net-snmp/snmp/snmptrapd.conf
 
 [Install]
 WantedBy=multi-user.target
