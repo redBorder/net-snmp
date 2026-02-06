@@ -208,6 +208,10 @@ install -m 644 dist/snmpd.service %{buildroot}%{_unitdir}/rb-snmpd.service
 # Update binary path in service file
 sed -i 's|/usr/sbin/snmpd|%{_rb_netsnmp_prefix}/sbin/rb-snmpd|g' %{buildroot}%{_unitdir}/rb-snmpd.service
 
+install -m 644 dist/snmptrapd.service %{buildroot}%{_unitdir}/rb-snmptrapd.service
+# Update binary path in service file
+sed -i 's|/usr/sbin/snmptrapd|%{_rb_netsnmp_prefix}/sbin/rb-snmptrapd|g' %{buildroot}%{_unitdir}/rb-snmptrapd.service
+
 # Rename binaries
 mv %{buildroot}%{_rb_netsnmp_prefix}/sbin/snmpd %{buildroot}%{_rb_netsnmp_prefix}/sbin/rb-snmpd
 mv %{buildroot}%{_rb_netsnmp_prefix}/sbin/snmptrapd %{buildroot}%{_rb_netsnmp_prefix}/sbin/rb-snmptrapd
@@ -285,6 +289,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_rb_netsnmp_prefix}/lib*/*.so*
 %{_rb_netsnmp_prefix}/lib*/pkgconfig/*.pc
 %{_unitdir}/rb-snmpd.service
+%{_unitdir}/rb-snmptrapd.service
 
 %files devel
 %defattr(-,root,root)
