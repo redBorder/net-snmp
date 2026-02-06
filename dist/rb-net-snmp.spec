@@ -5,6 +5,17 @@
 %define netsnmp_perl_modules 1
 %define netsnmp_cflags ""
 
+%define _prefix /opt/rb-net-snmp
+%define _exec_prefix %{_prefix}
+%define _bindir %{_exec_prefix}/bin
+%define _sbindir %{_exec_prefix}/sbin
+%define _libdir %{_exec_prefix}/lib
+%define _includedir %{_prefix}/include
+%define _datadir %{_prefix}/share
+%define _mandir %{_prefix}/share/man
+%define _infodir %{_prefix}/share/info
+%define _sysconfdir %{_prefix}/etc
+
 # ugly RHEL detector
 # SuSE build service defines rhel_version, RHEL itself defines nothing
 %if 0%{?rhel_version}
@@ -17,9 +28,10 @@
 %endif
 
 # because perl(Tk) is optional, automatic dependencies will never succeed:
-%define _use_internal_dependency_generator 0
-%define __find_requires %{_builddir}/net-snmp-%{version}/dist/find-requires
+%define __find_requires %{_builddir}/rb-net-snmp-%{version}/dist/find-requires
 %define __find_provides /usr/lib/rpm/find-provides
+
+%define _rb_netsnmp_prefix /opt/rb-net-snmp
 
 #
 # Check for -without embedded_perl
@@ -36,16 +48,16 @@
 %define netsnmp_include_perl 1
 %endif
 Summary: Tools and services for the SNMP protocol
-Name: net-snmp
-Version: 5.9.5.2
+Name: rb-net-snmp
+Version: 5.9.5.2.1
 # update release for vendor release. (eg 1.fc6, 1.rh72, 1.ydl3, 1.ydl23)
 Release: 1
 URL: http://www.net-snmp.org/
 License: BSDish
 Group: System Environment/Daemons
 Vendor: Net-SNMP project
-Source: net-snmp-%{version}.tar.gz
-Obsoletes: cmu-snmp ucd-snmp ucd-snmp-utils
+Source: rb-net-snmp-%{version}.tar.gz
+Source1: snmptrapd_kafka.c
 BuildRoot: /tmp/%{name}-root
 Packager: The Net-SNMP Coders <http://sourceforge.net/projects/net-snmp/>
 Requires: openssl, popt, rpm, zlib, bzip2-libs, glibc
@@ -64,14 +76,10 @@ BuildRequires: perl(ExtUtils::Embed)
 
 %if 0%{?fedora}%{?rhel}
 # Fedora & RHEL specific requires/provides
-Provides: net-snmp-libs, net-snmp-utils
-Obsoletes: net-snmp-libs, net-snmp-utils
 Epoch: 2
 
 # RHEL or Fedora
 %if 0%{?fedora} >= 9
-Provides: net-snmp-gui
-Obsoletes: net-snmp-gui
 # newer fedoras need following macro to compile with new rpm
 %define netsnmp_cflags "-D_RPM_4_4_COMPAT"
 %else
@@ -96,8 +104,7 @@ This package includes embedded Perl support within the agent.
 Group: Development/Libraries
 Summary: The includes and static libraries from the Net-SNMP package.
 AutoReqProv: no
-Requires: net-snmp = %{?%{epoch}:%{epoch}\:}%{version}
-Obsoletes: cmu-snmp-devel ucd-snmp-devel
+Requires: rb-net-snmp = %{?epoch:%{epoch}:}%{version}-%{release}
 
 %description devel
 The net-snmp-devel package contains headers and libraries which are
@@ -108,17 +115,15 @@ useful for building SNMP applications, agents, and sub-agents.
 Group: System Environment/Libraries
 Summary: The Perl modules provided with Net-SNMP
 AutoReqProv: no
-Requires: net-snmp = %{?%{epoch}:%{epoch}\:}%{version}, perl
+Requires: rb-net-snmp = %{?epoch:%{epoch}:}%{version}-%{release}, perl
 
 %if 0%{?fedora}%{?rhel}
-Provides: net-snmp-perl
 Provides: perl(SNMP) perl(NetSNMP::OID)
 Provides: perl(NetSNMP::ASN)
 Provides: perl(NetSNMP::AnyData::Format::SNMP) perl(NetSNMP::AnyData::Storage::SNMP)
 Provides: perl(NetSNMP::agent)
 Provides: perl(NetSNMP::manager) perl(NetSNMP::TrapReceiver)
 Provides: perl(NetSNMP::default_store) perl(NetSNMP::agent::default_store)
-Obsoletes: net-snmp-perl
 %endif
 
 %description perlmods
@@ -133,20 +138,28 @@ exit 1
 %endif
 
 %setup -q
+cp %{SOURCE1} apps/
 
 %build
+unset PERL5LIB
+unset PERL_LOCAL_LIB_ROOT
+unset PERL_MB_INSTALL_BASE
+unset PERL_MM_OPT
 options=()
+options+=(--prefix=%{_rb_netsnmp_prefix})
 options+=(--enable-shared)
-options+=(--sysconfdir="/etc/net-snmp")
+options+=(--sysconfdir="%{_rb_netsnmp_prefix}/etc/net-snmp")
 options+=(--with-cflags="$RPM_OPT_FLAGS %{netsnmp_cflags}")
 options+=(--with-defaults)
 options+=(--with-mib-modules="smux")
 options+=(--with-sys-contact="Unknown")
+options+=(--with-rdkafka)
 %if 0%{?netsnmp_perl_modules}
-options+=(--with-perl-modules="INSTALLDIRS=vendor")
+options+=(--with-perl-modules)
 %else
 options+=(--without-perl-modules)
 %endif
+options+=(--with-perl-options="INSTALL_BASE=/opt/rb-net-snmp INSTALLDIRS=vendor INSTALLMAN3DIR=%{_rb_netsnmp_prefix}/share/man/man3")
 %if 0%{?netsnmp_embedded_perl}
 options+=(--enable-embedded-perl)
 %else
@@ -163,23 +176,54 @@ make
 # ----------------------------------------------------------------------
 rm -rf $RPM_BUILD_ROOT
 
-make DESTDIR=%{buildroot} install
+make DESTDIR=%{buildroot} install prefix=%{_rb_netsnmp_prefix}
+
+%if 0%{?netsnmp_include_perl}
+if [ -d %{buildroot}/usr/local/share/man/man3 ]; then
+  mkdir -p %{buildroot}%{_mandir}/man3
+  mv %{buildroot}/usr/local/share/man/man3/* %{buildroot}%{_mandir}/man3/
+fi
+%endif
+
+# Create config directory
+mkdir -p %{buildroot}%{_sysconfdir}/net-snmp/snmp
+# Create a dummy snmptrapd.conf to ensure the directory is installed
+tee %{buildroot}%{_sysconfdir}/net-snmp/snmp/snmptrapd.conf <<'EOF'
+disableAuthorization yes
+kafkaBrokers kafka.service:9092
+kafkaTopic rb_trap
+EOF
+
+# Create ld.so.conf.d entry
+mkdir -p %{buildroot}/etc/ld.so.conf.d
+echo "%{_rb_netsnmp_prefix}/lib" > %{buildroot}/etc/ld.so.conf.d/rb-net-snmp.conf
 
 # Remove 'snmpinform' from the temporary directory because it is a
 # symbolic link, which cannot be handled by the rpm installation process.
-%__rm -f $RPM_BUILD_ROOT%{_prefix}/bin/snmpinform
-# install the init script
-mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
-perl -i -p -e 's@/usr/local/share/snmp/@/etc/snmp/@g;s@usr/local@%{_prefix}@g' dist/snmpd-init.d
-install -m 755 dist/snmpd-init.d $RPM_BUILD_ROOT/etc/rc.d/init.d/snmpd
+%__rm -f %{buildroot}%{_rb_netsnmp_prefix}/bin/snmpinform
+
+# Install systemd service
+mkdir -p %{buildroot}%{_unitdir}
+install -m 644 dist/snmpd.service %{buildroot}%{_unitdir}/rb-snmpd.service
+# Update binary path in service file
+sed -i 's|/usr/sbin/snmpd|%{_rb_netsnmp_prefix}/sbin/rb-snmpd|g' %{buildroot}%{_unitdir}/rb-snmpd.service
+
+# Rename binaries
+mv %{buildroot}%{_rb_netsnmp_prefix}/sbin/snmpd %{buildroot}%{_rb_netsnmp_prefix}/sbin/rb-snmpd
+mv %{buildroot}%{_rb_netsnmp_prefix}/sbin/snmptrapd %{buildroot}%{_rb_netsnmp_prefix}/sbin/rb-snmptrapd
+for i in agentxtrap net-snmp-create-v3-user snmpconf encode_keychange snmpbulkget snmpbulkwalk snmpdelta snmpdf snmpget snmpgetnext snmpnetstat snmpping snmpset snmpstatus snmptable snmptest snmptranslate snmptrap snmpusm snmpvacm snmpwalk; do
+    mv %{buildroot}%{_rb_netsnmp_prefix}/bin/$i %{buildroot}%{_rb_netsnmp_prefix}/bin/rb-$i
+done
 
 %if 0%{?netsnmp_include_perl}
 # unneeded Perl stuff
-find $RPM_BUILD_ROOT/%{_libdir}/perl5/ -name Bundle -type d | xargs rm -rf
-find $RPM_BUILD_ROOT/%{_libdir}/perl5/ -name perllocal.pod | xargs rm -f
+find %{buildroot}%{_rb_netsnmp_prefix}/lib*/perl5/ -name Bundle -type d | xargs rm -rf
+find %{buildroot}%{_rb_netsnmp_prefix}/lib*/perl5/ -name perllocal.pod | xargs rm -f
 
 # store a copy of installed Perl stuff.  It's too complex to predict
-(xxdir=`pwd` && cd $RPM_BUILD_ROOT && find usr/lib*/perl5 -type f | sed 's/^/\//' > $xxdir/net-snmp-perl-files)
+(xxdir=`pwd` && cd %{buildroot} && ls -lR > $xxdir/buildroot-listing.txt && find . -path '*/perl*/*' -type f | sed -e 's,^\\./,,' -e 's,^,/,g' > $xxdir/net-snmp-perl-files)
+
+
 %endif
 
 %post
@@ -188,31 +232,34 @@ find $RPM_BUILD_ROOT/%{_libdir}/perl5/ -name perllocal.pod | xargs rm -f
 # ----------------------------------------------------------------------
 # Create the symbolic link 'snmpinform' after all other files have
 # been installed.
-%__rm -f $RPM_INSTALL_PREFIX/bin/snmpinform
-%__ln_s $RPM_INSTALL_PREFIX/bin/snmptrap $RPM_INSTALL_PREFIX/bin/snmpinform
+%__rm -f %{_rb_netsnmp_prefix}/bin/snmpinform
+%__ln_s %{_rb_netsnmp_prefix}/bin/rb-snmptrap %{_rb_netsnmp_prefix}/bin/snmpinform
 
 # run ldconfig
-PATH="$PATH:/sbin" ldconfig -n $RPM_INSTALL_PREFIX/lib
+/sbin/ldconfig
 
 %preun
 # ----------------------------------------------------------------------
 # The 'preun' script is executed just before the package is erased.
 # ----------------------------------------------------------------------
+# Remove ld.so.conf.d entry
+rm -f /etc/ld.so.conf.d/rb-net-snmp.conf
+
 # Remove the symbolic link 'snmpinform' before anything else, in case
 # it is in a directory that rpm wants to remove (at present, it isn't).
-%__rm -f $RPM_INSTALL_PREFIX/bin/snmpinform
+%__rm -f %{_rb_netsnmp_prefix}/bin/snmpinform
 
 %postun
 # ----------------------------------------------------------------------
 # The 'postun' script is executed just after the package is erased.
-# ----------------------------------------------------------------------
-PATH="$PATH:/sbin" ldconfig -n $RPM_INSTALL_PREFIX/lib
+/sbin/ldconfig
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
+%config /etc/ld.so.conf.d/rb-net-snmp.conf
 
 # Install the following documentation in _defaultdocdir/{name}-{version}/
 %doc AGENT.txt ChangeLog CodingStyle COPYING
@@ -225,31 +272,31 @@ rm -rf $RPM_BUILD_ROOT
 # % config(noreplace) /etc/net-snmp/snmpd.conf
 	 
 # % {_datadir}/snmp/snmpconf-data
-%{_datadir}/snmp
+%{_rb_netsnmp_prefix}/share/snmp
+%config(noreplace) %{_sysconfdir}/net-snmp/snmp/snmptrapd.conf
 
-%{_bindir}
-%{_sbindir}
-%{_mandir}/man1/*
+%{_rb_netsnmp_prefix}/bin/*
+%{_rb_netsnmp_prefix}/sbin/*
+%{_rb_netsnmp_prefix}/share/man/man1/*
 # don't include Perl man pages, which start with caps
-%{_mandir}/man3/[^A-Z]*
-%{_mandir}/man5/*
-%{_mandir}/man8/*
-%{_libdir}/*.so*
-%{_libdir}/pkgconfig/*.pc
-/etc/rc.d/init.d/snmpd
+%{_rb_netsnmp_prefix}/share/man/man3/[^A-Z]*
+%{_rb_netsnmp_prefix}/share/man/man5/*
+%{_rb_netsnmp_prefix}/share/man/man8/*
+%{_rb_netsnmp_prefix}/lib*/*.so*
+%{_rb_netsnmp_prefix}/lib*/pkgconfig/*.pc
+%{_unitdir}/rb-snmpd.service
 
 %files devel
 %defattr(-,root,root)
 
-%{_includedir}
-%{_libdir}/*.a
-%{_libdir}/*.la
+%{_rb_netsnmp_prefix}/include
+%{_rb_netsnmp_prefix}/lib*/*.a
+%{_rb_netsnmp_prefix}/lib*/*.la
 
 %if 0%{?netsnmp_include_perl}
 %files -f net-snmp-perl-files perlmods
 %defattr(-,root,root)
-%{_mandir}/man3/*::*
-%{_mandir}/man3/SNMP*
+%{_rb_netsnmp_prefix}/share/man/man3/*
 %endif
 
 %changelog

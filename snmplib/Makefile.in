@@ -3,7 +3,7 @@
 # that may apply:
 #
 # Portions of this file are copyrighted by:
-# Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+# Copyright ï¿½ 2003 Sun Microsystems, Inc. All rights reserved.
 # Use is subject to license terms specified in the COPYING file
 # distributed with the Net-SNMP package.
 #
@@ -133,8 +133,8 @@ INSTALLUCDHEADERS=\
 	transform_oids.h
 
 # libraries
-INSTALLLIBS=libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
-INSTALLUCDLIBS=libsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
+INSTALLLIBS=librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
+INSTALLUCDLIBS=librb-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
 
 #
 # Things to build
@@ -229,11 +229,11 @@ CPPFLAGS = $(TOP_INCLUDES) -I. 	$(SNMPLIB_INCLUDES) @CPPFLAGS@
 all: standardall
 
 # how to build the libraries.
-libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
+librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
 	$(LIB_LD_CMD) $@ $(TOBJS) $(LDFLAGS) @LNETSNMPLIBS@
 	$(RANLIB) $@
 
-libsnmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
+librb-snmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
 	$(LIB_LD_CMD) $@ $(TOBJS) $(LDFLAGS) @LNETSNMPLIBS@
 	$(RANLIB) $@
 

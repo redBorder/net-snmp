@@ -13,7 +13,7 @@
  */
 /*
  * Portions of this file are copyrighted by:
- * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Copyright ï¿½ 2003 Sun Microsystems, Inc. All rights reserved.
  * Use is subject to license terms specified in the COPYING file
  * distributed with the Net-SNMP package.
  *
@@ -465,6 +465,9 @@
 
 /* Define to 1 if you have the 'pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
+
+/* Define to 1 if you have the <librdkafka/rdkafka.h> header file. */
+#undef HAVE_LIBRDKAFKA_RDKAFKA_H
 
 /* Define to 1 if you have the `rpm' library (-lrpm). */
 #undef HAVE_LIBRPM
@@ -1767,6 +1770,10 @@
 
 /* Define if you are using the codeS11 library ... */
 #undef NETSNMP_USE_PKCS11
+
+/* define if you are using the rdkafka code for snmptrapd ... */
+#undef NETSNMP_USE_RDKAFKA
+
 
 /* Define this if you have lm_sensors v3 or later */
 #undef NETSNMP_USE_SENSORS_V3

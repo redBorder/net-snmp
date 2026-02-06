@@ -1,0 +1,12 @@
+
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: rb-net-snmp-agent (rb-net-snmp)
+Description: SNMP (Simple Network Management Protocol) sub-agent SDK.
+URL: http://www.net-snmp.org
+Version: 5.9.5.2.1
+Cflags: -I${includedir}
+Libs: -L${libdir} -lrb-net-snmpmibs -lrb-net-snmpagent -lrb-net-snmp
+Libs.private:  -lm -lrpm -lrpmio    -Wl,--enable-new-dtags -Wl,-z,relro -Wl,--as-needed -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1  -lm   -lssl -lssl -lcrypto 
