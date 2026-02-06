@@ -1,4 +1,4 @@
-
+prefix=/usr/local
 exec_prefix=${prefix}
 includedir=${prefix}/include
 libdir=${exec_prefix}/lib
@@ -9,4 +9,4 @@ URL: http://www.net-snmp.org
 Version: 5.9.5.2.2
 Cflags: -I${includedir}
 Libs: -L${libdir} -lrb-net-snmpmibs -lrb-net-snmpagent -lrb-net-snmp
-Libs.private:  -lm -lrpm -lrpmio    -Wl,--enable-new-dtags -Wl,-z,relro -Wl,--as-needed -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1  -lm   -lssl -lssl -lcrypto 
+Libs.private:  -lnl-route-3 -lnl-3 -lm -lrpm -lrpmio   -lpcre -lpcre  -Wl,--enable-new-dtags -Wl,-z,relro -Wl,--as-needed -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1  -lm   -lssl -lssl -lcrypto

@@ -603,6 +603,7 @@ main(int argc, char *argv[])
 #ifdef NETSNMP_USE_MYSQL
     snmptrapd_register_sql_configs( );
 #endif
+
 #ifdef NETSNMP_USE_RDKAFKA
     snmptrapd_register_kafka_configs( );
 #endif
