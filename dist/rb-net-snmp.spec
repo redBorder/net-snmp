@@ -49,7 +49,7 @@
 %endif
 Summary: Tools and services for the SNMP protocol
 Name: rb-net-snmp
-Version: 5.9.5.2.1
+Version: 5.9.5.2.2
 # update release for vendor release. (eg 1.fc6, 1.rh72, 1.ydl3, 1.ydl23)
 Release: 1
 URL: http://www.net-snmp.org/
