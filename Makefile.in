@@ -461,7 +461,8 @@ rpm: dist
 	for d in BUILD RPMS SOURCES SPECS SRPMS; do			\
 	  mkdir -p $${rpmtopdir}/$$d;					\
 	done &&								\
-	cp rb-net-snmp-$(VERSION).tar.gz $${rpmtopdir}/SOURCES &&		\
+	cp rb-net-snmp-$(VERSION).tar.gz $${rpmtopdir}/SOURCES &&
+	cp apps/snmptrapd_kafka.c $${rpmtopdir}/SOURCES &&		\
 	MAKE="$(MAKE)" rpmbuild --define="%_topdir $${rpmtopdir}"	\
 	    -ba dist/rb-net-snmp.spec &&					\
 	find $${rpmtopdir} -name '*rpm'
