@@ -5,7 +5,7 @@
 %define netsnmp_perl_modules 1
 %define netsnmp_cflags ""
 
-%define _prefix /opt/rb-net-snmp
+%define _prefix /usr/rb-net-snmp
 %define _exec_prefix %{_prefix}
 %define _bindir %{_exec_prefix}/bin
 %define _sbindir %{_exec_prefix}/sbin
@@ -31,7 +31,7 @@
 %define __find_requires %{_builddir}/rb-net-snmp-%{version}/dist/find-requires
 %define __find_provides /usr/lib/rpm/find-provides
 
-%define _rb_netsnmp_prefix /opt/rb-net-snmp
+%define _rb_netsnmp_prefix /usr/rb-net-snmp
 
 #
 # Check for -without embedded_perl
@@ -148,7 +148,7 @@ unset PERL_MM_OPT
 options=()
 options+=(--prefix=%{_rb_netsnmp_prefix})
 options+=(--enable-shared)
-options+=(--sysconfdir="%{_rb_netsnmp_prefix}/etc/net-snmp")
+options+=(--sysconfdir="%{_rb_netsnmp_prefix}/etc/rb-net-snmp")
 options+=(--with-cflags="$RPM_OPT_FLAGS %{netsnmp_cflags}")
 options+=(--with-defaults)
 options+=(--with-mib-modules="smux")
@@ -186,9 +186,9 @@ fi
 %endif
 
 # Create config directory
-mkdir -p %{buildroot}%{_sysconfdir}/net-snmp/snmp
+mkdir -p %{buildroot}%{_sysconfdir}/rb-net-snmp/snmp
 # Create a dummy snmptrapd.conf to ensure the directory is installed
-tee %{buildroot}%{_sysconfdir}/net-snmp/snmp/snmptrapd.conf <<'EOF'
+tee %{buildroot}%{_sysconfdir}/rb-net-snmp/snmp/snmptrapd.conf <<'EOF'
 disableAuthorization yes
 kafkaBrokers kafka.service:9092
 kafkaTopic rb_trap
@@ -239,6 +239,14 @@ find %{buildroot}%{_rb_netsnmp_prefix}/lib*/perl5/ -name perllocal.pod | xargs r
 %__rm -f %{_rb_netsnmp_prefix}/bin/snmpinform
 %__ln_s %{_rb_netsnmp_prefix}/bin/rb-snmptrap %{_rb_netsnmp_prefix}/bin/snmpinform
 
+# Create symlinks for standard names
+for i in snmpd snmptrapd; do
+    %__ln_s -f %{_rb_netsnmp_prefix}/sbin/rb-$i %{_rb_netsnmp_prefix}/sbin/$i
+done
+for i in agentxtrap net-snmp-create-v3-user snmpconf encode_keychange snmpbulkget snmpbulkwalk snmpdelta snmpdf snmpget snmpgetnext snmpnetstat snmpping snmpset snmpstatus snmptable snmptest snmptranslate snmptrap snmpusm snmpvacm snmpwalk; do
+    %__ln_s -f %{_rb_netsnmp_prefix}/bin/rb-$i %{_rb_netsnmp_prefix}/bin/$i
+done
+
 # run ldconfig
 /sbin/ldconfig
 
@@ -277,7 +285,7 @@ rm -rf $RPM_BUILD_ROOT
 	 
 # % {_datadir}/snmp/snmpconf-data
 %{_rb_netsnmp_prefix}/share/snmp
-%config(noreplace) %{_sysconfdir}/net-snmp/snmp/snmptrapd.conf
+%config(noreplace) %{_sysconfdir}/rb-net-snmp/snmp/snmptrapd.conf
 
 %{_rb_netsnmp_prefix}/bin/*
 %{_rb_netsnmp_prefix}/sbin/*
