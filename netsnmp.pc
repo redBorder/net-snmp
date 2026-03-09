@@ -3,10 +3,10 @@ exec_prefix=${prefix}
 includedir=${prefix}/include
 libdir=${exec_prefix}/lib
 
-Name: rb-net-snmp (rb-net-snmp)
+Name: net-snmp
 Description: SNMP (Simple Network Management Protocol) daemon and applications.
 URL: http://www.net-snmp.org
 Version: 5.9.5.2.2
 Cflags: -I${includedir}
-Libs: -L${libdir} -lrb-net-snmp
+Libs: -L${libdir} -lnetsnmp
 Libs.private:  -lm   -lssl -lssl -lcrypto   -Wl,--enable-new-dtags -Wl,-z,relro -Wl,--as-needed -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1 

@@ -1,5 +1,6 @@
 /*
- * Author     : José Jimenez josejimenez2002dc@gmail.com (based on Eugenio snmptrapd_kafka)
+ * File       : snmptrapd_kafka
+ * Author     : José Jimenez josejimenez2002dc@gmail.com (using Eugenio ( eupm90@gmail.com ) snmptrapd_kafka)
  *
  * Copyright © 2026 Eneo Tecnologia S.L. All rights reserved. 
  * Use is subject to license terms specified in the COPYING file

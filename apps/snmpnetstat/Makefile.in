@@ -28,8 +28,8 @@ FEATUREFILE=../../include/net-snmp/features-snmpnetstat.h
 CPPFLAGS= $(TOP_INCLUDES)  @CPPFLAGS@
 
 VAL_LIBS	= @VAL_LIBS@
-USELIBS= ../../snmplib/librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
-LIBS=	 ../../snmplib/librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION) $(VAL_LIBS) @LIBS@
+USELIBS= ../../snmplib/libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
+LIBS=	 ../../snmplib/libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION) $(VAL_LIBS) @LIBS@
 
 all: standardall
 

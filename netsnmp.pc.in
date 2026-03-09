@@ -3,10 +3,10 @@ exec_prefix=@exec_prefix@
 includedir=@includedir@
 libdir=@libdir@
 
-Name: rb-net-snmp (@PACKAGE_NAME@)
+Name: @PACKAGE_NAME@
 Description: SNMP (Simple Network Management Protocol) daemon and applications.
 URL: http://www.net-snmp.org
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -lrb-net-snmp
+Libs: -L${libdir} -lnetsnmp
 Libs.private: @LDFLAGS@ @LNETSNMPLIBS@ @LIBS@ @PERLLDOPTS_FOR_APPS@

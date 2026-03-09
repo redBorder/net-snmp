@@ -3,10 +3,10 @@ exec_prefix=@exec_prefix@
 includedir=@includedir@
 libdir=@libdir@
 
-Name: rb-net-snmp-agent (@PACKAGE_NAME@)
+Name: @PACKAGE_NAME@-agent
 Description: SNMP (Simple Network Management Protocol) sub-agent SDK.
 URL: http://www.net-snmp.org
 Version: @PACKAGE_VERSION@
 Cflags: -I${includedir}
-Libs: -L${libdir} -lrb-net-snmpmibs -lrb-net-snmpagent -lrb-net-snmp
+Libs: -L${libdir} -lnetsnmpmibs -lnetsnmpagent -lnetsnmp
 Libs.private: @LDFLAGS@ @LMIBLIBS@ @LAGENTLIBS@ @PERLLDOPTS_FOR_APPS@ @LNETSNMPLIBS@ @LIBS@

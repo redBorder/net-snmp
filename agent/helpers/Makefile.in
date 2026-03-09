@@ -14,13 +14,13 @@
 # What to install
 #
 
-INSTALLLIBS=librb-net-snmphelpers.$(LIB_EXTENSION)$(LIB_VERSION)
+INSTALLLIBS=libnetsnmphelpers.$(LIB_EXTENSION)$(LIB_VERSION)
 INCLUDESUBDIR=agent
 
 #
 # Build info
 #
-HELPERLIB       = librb-net-snmphelpers.$(LIB_EXTENSION)$(LIB_VERSION)
+HELPERLIB       = libnetsnmphelpers.$(LIB_EXTENSION)$(LIB_VERSION)
 # -I. -I.. -I../..
 CPPFLAGS= $(TOP_INCLUDES) -I. $(AGENT_INCLUDES) $(MIBGROUP_INCLUDES) \
 	$(SNMPLIB_INCLUDES) @CPPFLAGS@
@@ -31,6 +31,6 @@ LOBJS = dummy.lo
 
 all: standardall
 
-librb-net-snmphelpers.$(LIB_EXTENSION)$(LIB_VERSION):    $(LOBJS)
+libnetsnmphelpers.$(LIB_EXTENSION)$(LIB_VERSION):    $(LOBJS)
 	$(LIB_LD_CMD) $@ $(LOBJS) $(LDFLAGS)
 	$(RANLIB) $@

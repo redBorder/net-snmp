@@ -10,8 +10,8 @@
 # fallback to regular VPATH for non-gnu...
 @NON_GNU_VPATH@ $(srcdir)
 
-USELIBS		= ../snmplib/librb-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
-LIBS		= -L../snmplib $(CC_RUNTIME_ARG) -lrb-snmp @LIBS@
+USELIBS		= ../snmplib/libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
+LIBS		= -L../snmplib $(CC_RUNTIME_ARG) -lnetsnmp @LIBS@
 
 PARSEOBJS	=
 

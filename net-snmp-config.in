@@ -75,21 +75,21 @@ NSC_LMIBLIBS="@LMIBLIBS@"
 NSC_INCLUDEDIR=${includedir}
 NSC_LIBDIR=-L${libdir}
 
-NSC_SNMPLIBS="-lrb-net-snmp ${NSC_LNETSNMPLIBS}"
-NSC_SUBAGENTLIBS="-lrb-net-snmpagent ${NSC_LAGENTLIBS} ${NSC_SNMPLIBS}"
-NSC_AGENTLIBS="-lrb-net-snmpmibs ${NSC_LMIBLIBS} ${NSC_SUBAGENTLIBS}"
+NSC_SNMPLIBS="-lnetsnmp ${NSC_LNETSNMPLIBS}"
+NSC_SUBAGENTLIBS="-lnetsnmpagent ${NSC_LAGENTLIBS} ${NSC_SNMPLIBS}"
+NSC_AGENTLIBS="-lnetsnmpmibs ${NSC_LMIBLIBS} ${NSC_SUBAGENTLIBS}"
 
 NSC_PREFIX=$prefix
 NSC_EXEC_PREFIX=$exec_prefix
 NSC_SRCDIR=@srcdir@
 NSC_INCDIR=${NSC_PREFIX}/include
 
-SC_BASE_SNMP_LIBS="-lrb-net-snmp"
-NSC_BASE_SUBAGENT_LIBS="-lrb-net-snmpagent ${NSC_BASE_SNMP_LIBS}"
-NSC_BASE_AGENT_LIBS="-lrb-net-snmpmibs ${NSC_BASE_SUBAGENT_LIBS}"
+SC_BASE_SNMP_LIBS="-lnetsnmp"
+NSC_BASE_SUBAGENT_LIBS="-lnetsnmpagent ${NSC_BASE_SNMP_LIBS}"
+NSC_BASE_AGENT_LIBS="-lnetsnmpmibs ${NSC_BASE_SUBAGENT_LIBS}"
 
 NSC_SRC_LIBDIRS="agent/.libs snmplib/.libs"
-NSC_SRC_LIBDEPS="agent/.libs/librb-net-snmpmibs.a agent/.libs/librb-net-snmpagent.a snmplib/.libs/librb-net-snmp.a"
+NSC_SRC_LIBDEPS="agent/.libs/libnetsnmpmibs.a agent/.libs/libnetsnmpagent.a snmplib/.libs/libnetsnmp.a"
 
 if test "x$NSC_SRCDIR" = "x." ; then
    NSC_SRCDIR="NET-SNMP-SOURCE-DIR"

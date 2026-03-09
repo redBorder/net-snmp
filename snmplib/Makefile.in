@@ -133,8 +133,8 @@ INSTALLUCDHEADERS=\
 	transform_oids.h
 
 # libraries
-INSTALLLIBS=librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
-INSTALLUCDLIBS=librb-snmp.$(LIB_EXTENSION)$(LIB_VERSION)
+INSTALLLIBS=libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
+INSTALLUCDLIBS=libsnmp.$(LIB_EXTENSION)$(LIB_VERSION)
 
 #
 # Things to build
@@ -229,11 +229,11 @@ CPPFLAGS = $(TOP_INCLUDES) -I. 	$(SNMPLIB_INCLUDES) @CPPFLAGS@
 all: standardall
 
 # how to build the libraries.
-librb-net-snmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
+libnetsnmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
 	$(LIB_LD_CMD) $@ $(TOBJS) $(LDFLAGS) @LNETSNMPLIBS@
 	$(RANLIB) $@
 
-librb-snmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
+libsnmp.$(LIB_EXTENSION)$(LIB_VERSION):    $(TOBJS)
 	$(LIB_LD_CMD) $@ $(TOBJS) $(LDFLAGS) @LNETSNMPLIBS@
 	$(RANLIB) $@
 
