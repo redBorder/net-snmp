@@ -46,12 +46,10 @@ License: BSDish
 Group: System Environment/Daemons
 Vendor: Net-SNMP project
 Source: net-snmp-%{version}.tar.gz
-Obsoletes: cmu-snmp ucd-snmp ucd-snmp-utils
+Obsoletes: cmu-snmp ucd-snmp
 Obsoletes: net-snmp-libs < %{netsnmp_epoch}:%{version}-%{release}
-Obsoletes: net-snmp-utils < %{netsnmp_epoch}:%{version}-%{release}
 Provides: net-snmp = %{netsnmp_epoch}:%{version}-%{release}
 Provides: net-snmp-libs = %{netsnmp_epoch}:%{version}-%{release}
-Provides: net-snmp-utils = %{netsnmp_epoch}:%{version}-%{release}
 BuildRoot: /tmp/%{name}-root
 Packager: The Net-SNMP Coders <http://sourceforge.net/projects/net-snmp/>
 Requires: openssl, popt, rpm, zlib, bzip2-libs, glibc
@@ -115,6 +113,16 @@ Obsoletes: cmu-snmp-devel ucd-snmp-devel
 %description devel
 The net-snmp-devel package contains headers and libraries which are
 useful for building SNMP applications, agents, and sub-agents.
+
+%package utils
+Group: Applications/System
+Summary: Network management utilities from the Net-SNMP package.
+Requires: net-snmp = %{netsnmp_epoch}:%{version}-%{release}
+Obsoletes: cmu-snmp-utils ucd-snmp-utils
+
+%description utils
+The net-snmp-utils package contains various utilities for use with the
+Net-SNMP network management project.
 
 %if 0%{?netsnmp_include_perl}
 %package perlmods
@@ -242,9 +250,7 @@ rm -rf $RPM_BUILD_ROOT
 # % {_datadir}/snmp/snmpconf-data
 %{_datadir}/snmp
 
-%{_bindir}/*
 %{_sbindir}/*
-%{_mandir}/man1/*
 # don't include Perl man pages, which start with caps
 %{_mandir}/man3/[^A-Z]*
 %{_mandir}/man5/*
@@ -252,6 +258,26 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/*.so*
 %{_libdir}/pkgconfig/*.pc
 /etc/rc.d/init.d/snmpd
+
+%files devel
+%defattr(-,root,root)
+
+%{_includedir}/*
+%{_libdir}/*.a
+%{_libdir}/pkgconfig/*.pc
+%{_libdir}/*.la
+
+%files utils
+%defattr(-,root,root)
+%{_bindir}/*
+%{_mandir}/man1/*
+
+%if 0%{?netsnmp_include_perl}
+%files -f net-snmp-perl-files perlmods
+%defattr(-,root,root)
+%{_mandir}/man3/NetSNMP*
+%{_mandir}/man3/SNMP*
+%endif
 
 %files devel
 %defattr(-,root,root)
