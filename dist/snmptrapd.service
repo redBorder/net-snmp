@@ -10,7 +10,7 @@ After=network.target
 # Type=notify is also supported. It should be set when snmptrapd.socket is not
 # used.
 Type=simple
-ExecStart=/usr/sbin/snmptrapd -f -Lsd -Dkafka -Lf /dev/null -d -c %{_prefix}/etc/net-snmp/snmp/snmptrapd.conf
+ExecStart=/usr/sbin/snmptrapd -f -Lsd -Dkafka -Lf /dev/null -d -c %{_prefix}/etc/snmp/snmptrapd.conf
 
 [Install]
 WantedBy=multi-user.target

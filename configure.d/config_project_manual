@@ -117,10 +117,10 @@ will avoid this prompt.
 Location to write logfile],$defaultlog,quoted)
 
 if test -d /var; then
-  defaultstore="/var/net-snmp"
+  defaultstore="/var/snmp"
   ucddefaultstore="/var/ucd-snmp"
 else
-  defaultstore="/etc/net-snmp"
+  defaultstore="/etc/snmp"
   ucddefaultstore="/etc/ucd-snmp"
 fi
   

@@ -138,7 +138,7 @@ prefix=@prefix@
 datarootdir=@datarootdir@
 # To suppress shellcheck complaints about $prefix and $datarootdir.
 : "$prefix" "$datarootdir"
-outfile="@datadir@/snmp/snmpd.conf"
+outfile="@datadir@/snmpd.conf"
 line="$token $user"
 echo "adding the following line to $outfile:"
 echo "   $line"

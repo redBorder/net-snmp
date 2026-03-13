@@ -156,14 +156,13 @@ exit 1
 %setup -q
 
 %build
-# Clear Perl local configuration to avoid installation in home directories
 unset PERL_MM_OPT
 unset PERL_MB_OPT
 unset PERL5LIB
 
 options=()
 options+=(--enable-shared)
-options+=(--sysconfdir="/etc/net-snmp")
+options+=(--sysconfdir="/etc")
 options+=(--libdir=%{_libdir})
 options+=(--with-cflags="$RPM_OPT_FLAGS %{netsnmp_cflags}")
 options+=(--with-defaults)
@@ -186,7 +185,6 @@ options+=(--disable-embedded-perl)
 make
 
 %install
-# Clear Perl local configuration to avoid installation in home directories
 unset PERL_MM_OPT
 unset PERL_MB_OPT
 unset PERL5LIB
@@ -197,14 +195,17 @@ unset PERL5LIB
 rm -rf $RPM_BUILD_ROOT
 
 make DESTDIR=%{buildroot} install
-
-# Remove 'snmpinform' from the temporary directory because it is a
-# symbolic link, which cannot be handled by the rpm installation process.
 %__rm -f $RPM_BUILD_ROOT%{_prefix}/bin/snmpinform
-# install the init script
-mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
-perl -i -p -e 's@/usr/local/share/snmp/@/etc/snmp/@g;s@usr/local@%{_prefix}@g' dist/snmpd-init.d
-install -m 755 dist/snmpd-init.d $RPM_BUILD_ROOT/etc/rc.d/init.d/snmpd
+
+mkdir -p $RPM_BUILD_ROOT/usr/lib/systemd/system
+install -m 644 dist/snmpd.service $RPM_BUILD_ROOT/usr/lib/systemd/system/snmpd.service
+install -m 644 dist/snmptrapd.service $RPM_BUILD_ROOT/usr/lib/systemd/system/snmptrapd.service
+
+# Ensure config directory exists in BUILDROOT
+mkdir -p $RPM_BUILD_ROOT/etc/snmp
+
+[ -f $RPM_BUILD_ROOT/etc/snmp/snmpd.conf ] || touch $RPM_BUILD_ROOT/etc/snmp/snmpd.conf
+[ -f $RPM_BUILD_ROOT/etc/snmp/snmptrapd.conf ] || touch $RPM_BUILD_ROOT/etc/snmp/snmptrapd.conf
 
 %if 0%{?netsnmp_include_perl}
 # unneeded Perl stuff
@@ -257,7 +258,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man8/*
 %{_libdir}/*.so*
 %{_libdir}/pkgconfig/*.pc
-/etc/rc.d/init.d/snmpd
+/usr/lib/systemd/system/snmpd.service
+/usr/lib/systemd/system/snmptrapd.service
 
 %files devel
 %defattr(-,root,root)
