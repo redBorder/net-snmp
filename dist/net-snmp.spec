@@ -237,6 +237,9 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
+%dir /etc/snmp
+%config(noreplace) /etc/snmp/snmpd.conf
+%config(noreplace) /etc/snmp/snmptrapd.conf
 
 # Install the following documentation in _defaultdocdir/{name}-{version}/
 %doc AGENT.txt ChangeLog CodingStyle COPYING
@@ -273,21 +276,6 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %{_bindir}/*
 %{_mandir}/man1/*
-
-%if 0%{?netsnmp_include_perl}
-%files -f net-snmp-perl-files perlmods
-%defattr(-,root,root)
-%{_mandir}/man3/NetSNMP*
-%{_mandir}/man3/SNMP*
-%endif
-
-%files devel
-%defattr(-,root,root)
-
-%{_includedir}/*
-%{_libdir}/*.a
-%{_libdir}/pkgconfig/*.pc
-%{_libdir}/*.la
 
 %if 0%{?netsnmp_include_perl}
 %files -f net-snmp-perl-files perlmods
