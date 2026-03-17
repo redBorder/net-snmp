@@ -204,14 +204,6 @@ install -m 644 dist/snmptrapd.service $RPM_BUILD_ROOT/usr/lib/systemd/system/snm
 # Ensure config directory exists in BUILDROOT
 mkdir -p $RPM_BUILD_ROOT/etc/snmp
 
-cat <<EOF > $RPM_BUILD_ROOT/etc/snmp/snmptrapd.conf
-# SnmpTrap Kafka Configuration 
-kafkaBrokers kafka.service:9092
-kafkaTopic rb_trap
-
-authCommunity log,execute,net public
-EOF
-
 [ -f $RPM_BUILD_ROOT/etc/snmp/snmpd.conf ] || touch $RPM_BUILD_ROOT/etc/snmp/snmpd.conf
 [ -f $RPM_BUILD_ROOT/etc/snmp/snmptrapd.conf ] || touch $RPM_BUILD_ROOT/etc/snmp/snmptrapd.conf
 
