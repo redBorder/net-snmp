@@ -39,7 +39,7 @@
 Summary: Tools and services for the SNMP protocol
 Name: net-snmp
 Version: 5.9.5.2
-Release: 2
+Release: 1.rb
 Epoch: %{netsnmp_epoch}
 URL: http://www.net-snmp.org/
 License: BSDish
