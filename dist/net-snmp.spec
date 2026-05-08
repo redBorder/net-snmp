@@ -38,7 +38,7 @@
 %endif
 Summary: Tools and services for the SNMP protocol
 Name: net-snmp
-Version: 5.9.5.2.2
+Version: 5.9.5.2
 Release: 2
 Epoch: %{netsnmp_epoch}
 URL: http://www.net-snmp.org/
@@ -285,5 +285,5 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Fri Mar 06 2026 Jose Jimenez <jjimenez@redborder.com> - 5.9.5.2.2-7
+* Fri Mar 06 2026 Jose Jimenez <jjimenez@redborder.com> - 5.9.5.2-7
 - Fixed epoch macro and added versioned obsoletes
