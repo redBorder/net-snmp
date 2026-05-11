@@ -38,8 +38,8 @@
 %endif
 Summary: Tools and services for the SNMP protocol
 Name: net-snmp
-Version: 5.9.5.2.2
-Release: 2
+Version: 5.9.5.2
+Release: 1.rb
 Epoch: %{netsnmp_epoch}
 URL: http://www.net-snmp.org/
 License: BSDish
@@ -55,9 +55,7 @@ Packager: The Net-SNMP Coders <http://sourceforge.net/projects/net-snmp/>
 Requires: openssl, popt, rpm, zlib, bzip2-libs, glibc
 # Explicitly provide libraries so redborder-monitor finds them
 Provides: libnetsnmp.so.40()(64bit)
-Provides: libnetsnmpagent.so.40()(64bit)
 Provides: libnetsnmphelpers.so.40()(64bit)
-Provides: libnetsnmpmibs.so.40()(64bit)
 Provides: libnetsnmptrapd.so.40()(64bit)
 
 # Net-SNMP requires either openssl-devel or libressl-devel at build time, but
@@ -71,7 +69,11 @@ BuildRequires: rpm-devel
 BuildRequires: libnl3-devel
 BuildRequires: librdkafka-devel
 %if 0%{?netsnmp_embedded_perl}
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+Requires: perl-interpreter
+%else
 Requires: perl
+%endif
 BuildRequires: perl(ExtUtils::Embed)
 %endif
 
@@ -124,12 +126,28 @@ Obsoletes: cmu-snmp-utils ucd-snmp-utils
 The net-snmp-utils package contains various utilities for use with the
 Net-SNMP network management project.
 
+%package agent-libs
+Summary: Libraries for the net-snmp agent
+Group: Development/Libraries
+
+%description agent-libs
+This package contains the libraries for the Net-SNMP agent, 
+including support for your custom Kafka output.
+
+%files agent-libs
+/usr/lib64/libnetsnmpagent.so.*
+/usr/lib64/libnetsnmpmibs.so.*
+
 %if 0%{?netsnmp_include_perl}
 %package perlmods
 Group: System Environment/Libraries
 Summary: The Perl modules provided with Net-SNMP
 AutoReqProv: no
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+Requires: net-snmp = %{netsnmp_epoch}:%{version}-%{release}, perl-interpreter
+%else
 Requires: net-snmp = %{netsnmp_epoch}:%{version}-%{release}, perl
+%endif
 
 %if 0%{?fedora}%{?rhel}
 Provides: net-snmp-perl
@@ -285,5 +303,8 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
-* Fri Mar 06 2026 Jose Jimenez <jjimenez@redborder.com> - 5.9.5.2.2-7
+* Mon May 11 2026 David Vanhoucke <dvanhoucke@redborder.com> - 5.9.5.2-1.rb
+- Use perl-interpreter instead of perl to avoid build-time dependencies
+
+* Fri Mar 06 2026 Jose Jimenez <jjimenez@redborder.com> - 5.9.5.2-7
 - Fixed epoch macro and added versioned obsoletes
