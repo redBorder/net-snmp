@@ -69,7 +69,11 @@ BuildRequires: rpm-devel
 BuildRequires: libnl3-devel
 BuildRequires: librdkafka-devel
 %if 0%{?netsnmp_embedded_perl}
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+Requires: perl-interpreter
+%else
 Requires: perl
+%endif
 BuildRequires: perl(ExtUtils::Embed)
 %endif
 
@@ -139,7 +143,11 @@ including support for your custom Kafka output.
 Group: System Environment/Libraries
 Summary: The Perl modules provided with Net-SNMP
 AutoReqProv: no
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+Requires: net-snmp = %{netsnmp_epoch}:%{version}-%{release}, perl-interpreter
+%else
 Requires: net-snmp = %{netsnmp_epoch}:%{version}-%{release}, perl
+%endif
 
 %if 0%{?fedora}%{?rhel}
 Provides: net-snmp-perl
@@ -295,5 +303,8 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Mon May 11 2026 David Vanhoucke <dvanhoucke@redborder.com> - 5.9.5.2-1.rb
+- Use perl-interpreter instead of perl to avoid build-time dependencies
+
 * Fri Mar 06 2026 Jose Jimenez <jjimenez@redborder.com> - 5.9.5.2-7
 - Fixed epoch macro and added versioned obsoletes
