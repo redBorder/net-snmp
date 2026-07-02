@@ -184,7 +184,7 @@ options+=(--sysconfdir="/etc")
 options+=(--libdir=%{_libdir})
 options+=(--with-cflags="$RPM_OPT_FLAGS %{netsnmp_cflags}")
 options+=(--with-defaults)
-options+=(--with-mib-modules="smux")
+options+=(--with-mib-modules="smux ucd-snmp/diskio")
 options+=(--with-sys-contact="Unknown")
 options+=(--with-rdkafka)
 %if 0%{?netsnmp_perl_modules}
