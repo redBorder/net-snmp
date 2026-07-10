@@ -620,11 +620,12 @@ static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_p
     SNMP_FREE(str_transport);
 }
 
-/* Extract the trap source IP from the transport address. %b (CHR_PDU_IP)
- * renders it numerically, e.g. "UDP: [10.0.0.5]:41100->[10.0.0.1]:162"; the
- * first bracketed address is the sender. %B is NOT usable here: it resolves
- * to a hostname ("localhost") which never matches the IP-keyed sensor map.
- * Returns a freshly allocated bare IP (caller frees), or NULL on failure. */
+  /* Extract the sender IP (first bracketed address) from a %b transport
+   * string, e.g. "UDP: [10.0.0.5]:41100->[10.0.0.1]:162". %B is unusable:
+   * it resolves to a hostname, which never matches the IP-keyed sensor map.
+   * Returns a newly allocated string with the bare IP (the caller must
+   * free it), or NULL on failure. */
+
 static char *format_src_ip(netsnmp_pdu *pdu,netsnmp_transport *transport){
     char  *raw = NULL;
     size_t raw_len = 0;
