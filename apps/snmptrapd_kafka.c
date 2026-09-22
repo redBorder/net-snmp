@@ -208,6 +208,47 @@ _parse_kafka_brokers(const char *token,char *cptr){
     snmp_log(LOG_DEBUG,"kafka:brokers: the brokers will be requested to %s\n",_kafka.brokers);
 }
 
+struct sensor_map_s {
+    char *name;
+    char *ip;
+};
+static struct sensor_map_s *_sensors = NULL;
+static size_t _sensors_len = 0;
+
+static void
+_parse_sensor(const char *token,char *cptr){
+    char name[256], ip[128];
+    struct sensor_map_s *tmp;
+
+    if(sscanf(cptr,"%255s %127s",name,ip) != 2){
+        snmp_log(LOG_ERR,"kafka:sensor: bad directive, expected 'sensor <name> <ip>': %s\n",cptr);
+        return;
+    }
+
+    tmp = realloc(_sensors,(_sensors_len+1)*sizeof(*_sensors));
+    if(NULL==tmp){
+        snmp_log(LOG_ERR,"kafka:sensor: out of memory\n");
+        return;
+    }
+    _sensors = tmp;
+    _sensors[_sensors_len].name = strdup(name);
+    _sensors[_sensors_len].ip   = strdup(ip);
+    _sensors_len++;
+    snmp_log(LOG_DEBUG,"kafka:sensor: mapped %s -> %s\n",ip,name);
+}
+
+static const char *
+_sensor_name_for_ip(const char *ip){
+    size_t i;
+    if(NULL==ip)
+        return NULL;
+    for(i=0;i<_sensors_len;i++){
+        if(strcmp(_sensors[i].ip,ip)==0)
+            return _sensors[i].name;
+    }
+    return NULL;
+}
+
 /*
  * register kafka related configuration tokens
  */
@@ -218,6 +259,8 @@ snmptrapd_register_kafka_configs( void )
                             _parse_kafka_topic, NULL, "string");
     register_config_handler("snmptrapd", "kafkaBrokers",
                             _parse_kafka_brokers, NULL, "string");
+    register_config_handler("snmptrapd", "sensor",
+                            _parse_sensor, NULL, "name ip");
 }
 
 /**
@@ -269,6 +312,17 @@ netsnmp_kafka_cleanup(void)
 
     free(_kafka.brokers);
     free(_kafka.topic);
+
+    {
+        size_t i;
+        for(i=0;i<_sensors_len;i++){
+            free(_sensors[i].name);
+            free(_sensors[i].ip);
+        }
+        free(_sensors);
+        _sensors = NULL;
+        _sensors_len = 0;
+    }
 
     /* Wait for messages to be delivered */
     rd_kafka_poll(_kafka.rk, 100);
@@ -437,7 +491,18 @@ static int strbuffer_format_trap(strbuffer_t *buffer,const char *attribute_name,
     return rc;
 }
 
+static char *format_src_ip(netsnmp_pdu *pdu,netsnmp_transport *transport);
+
 static int host2strbuffer(strbuffer_t *buffer,const char *attribute_name,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    char *ip = format_src_ip(pdu,transport);
+
+    if(ip){
+        print_attr_name(buffer,attribute_name);
+        print_string(buffer,ip);
+        free(ip);
+        return 1;
+    }
+
     return strbuffer_format_trap(buffer,attribute_name,"%B", pdu,transport);
 }
 
@@ -555,6 +620,56 @@ static void transport2buffer(strbuffer_t *buffer,const char *attr_name,netsnmp_p
     SNMP_FREE(str_transport);
 }
 
+  /* Extract the sender IP (first bracketed address) from a %b transport
+   * string, e.g. "UDP: [10.0.0.5]:41100->[10.0.0.1]:162". %B is unusable:
+   * it resolves to a hostname, which never matches the IP-keyed sensor map.
+   * Returns a newly allocated string with the bare IP (the caller must
+   * free it), or NULL on failure. */
+
+static char *format_src_ip(netsnmp_pdu *pdu,netsnmp_transport *transport){
+    char  *raw = NULL;
+    size_t raw_len = 0;
+    size_t raw_out = 0;
+    char  *lb, *rb, *ip = NULL;
+
+    if(realloc_format_trap((u_char **)&raw,&raw_len,&raw_out,1,"%b",pdu,transport) != 1){
+        SNMP_FREE(raw);
+        return NULL;
+    }
+
+    lb = strchr(raw,'[');
+    rb = lb ? strchr(lb,']') : NULL;
+    if(lb && rb && rb > lb+1){
+        const size_t n = rb - lb - 1;
+        ip = malloc(n+1);
+        if(ip){
+            memcpy(ip,lb+1,n);
+            ip[n] = '\0';
+        }
+    }else{
+        ip = strdup(raw);
+    }
+
+    SNMP_FREE(raw);
+    return ip;
+}
+static void sensor2strbuffer(strbuffer_t *buffer,netsnmp_pdu *pdu,netsnmp_transport *transport){
+    char       *ip   = format_src_ip(pdu,transport);
+    const char *name = _sensor_name_for_ip(ip);
+
+    if(name){
+        strbuffer_append(buffer,",");
+        print_attr_name(buffer,"sensor_name");
+        print_string(buffer,name);
+        strbuffer_append(buffer,",");
+        print_attr_name(buffer,"sensor_ip");
+        print_string(buffer,ip);
+    }
+
+    if(ip)
+        free(ip);
+}
+
 static int trapinfo2strbuffer(strbuffer_t *buffer,
                               netsnmp_pdu       *pdu,
                               netsnmp_transport *transport)
@@ -584,6 +699,8 @@ static int trapinfo2strbuffer(strbuffer_t *buffer,
 
     strbuffer_append(buffer,",");
     security_model2buffer(buffer,"security_model",pdu);
+
+    sensor2strbuffer(buffer,pdu,transport);
 
     return 0;
 }
