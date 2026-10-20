@@ -8,6 +8,7 @@
  *
  * This file implements a handler for snmptrapd which will cache incoming
  * traps and then write them to a Apache kafka queue, using Magnus Edenhill librdkafka.
+ * If httpEndpoint is configured, traps are POSTed to that URL (http2k) instead.
  *
  */
 #include <net-snmp/net-snmp-config.h>
@@ -44,6 +45,7 @@
 #include "snmptrapd_log.h"
 
 #include "librdkafka/rdkafka.h"
+#include <curl/curl.h>
 
 #define STRBUFFER_MIN_SIZE 2048
 
@@ -181,6 +183,9 @@ typedef struct netsnmp_kafka_globals_t {
 
     rd_kafka_t *rk;
     rd_kafka_topic_t *rkt;
+
+    char        *http_endpoint; /* if set, POST traps here instead of kafka */
+    CURL        *curl;
 } netsnmp_kafka_globals;
 
 static netsnmp_kafka_globals _kafka = {
@@ -190,6 +195,9 @@ static netsnmp_kafka_globals _kafka = {
 
     .rk  = NULL,
     .rkt = NULL,
+
+    .http_endpoint = NULL,
+    .curl = NULL,
 };
 
 /* FW */
@@ -206,6 +214,12 @@ _parse_kafka_brokers(const char *token,char *cptr){
     _kafka.brokers = strdup(cptr);
     DEBUGMSGTL(("kafka:brokers:parse", "brokers set to %s\n", _kafka.brokers));
     snmp_log(LOG_DEBUG,"kafka:brokers: the brokers will be requested to %s\n",_kafka.brokers);
+}
+
+static void
+_parse_http_endpoint(const char *token,char *cptr){
+    _kafka.http_endpoint = strdup(cptr);
+    snmp_log(LOG_DEBUG,"kafka:http: traps will be sent to %s\n",_kafka.http_endpoint);
 }
 
 struct sensor_map_s {
@@ -259,6 +273,8 @@ snmptrapd_register_kafka_configs( void )
                             _parse_kafka_topic, NULL, "string");
     register_config_handler("snmptrapd", "kafkaBrokers",
                             _parse_kafka_brokers, NULL, "string");
+    register_config_handler("snmptrapd", "httpEndpoint",
+                            _parse_http_endpoint, NULL, "url");
     register_config_handler("snmptrapd", "sensor",
                             _parse_sensor, NULL, "name ip");
 }
@@ -303,6 +319,26 @@ static void produce (void *buf, size_t len, int msgflags) {
 }
 
 /*
+ * POST a single trap to the http endpoint.
+ * alert_http: on failure the trap is logged and dropped.
+ */
+static void http_send(const char *buf){
+    CURLcode res;
+    long http_code = 0;
+
+    curl_easy_setopt(_kafka.curl, CURLOPT_POSTFIELDS, buf);
+    res = curl_easy_perform(_kafka.curl);
+    if(res != CURLE_OK){
+        snmp_log(LOG_ERR,"kafka:http: POST to %s failed: %s\n",_kafka.http_endpoint,curl_easy_strerror(res));
+        return;
+    }
+
+    curl_easy_getinfo(_kafka.curl, CURLINFO_RESPONSE_CODE, &http_code);
+    if(http_code < 200 || http_code >= 300)
+        snmp_log(LOG_ERR,"kafka:http: POST to %s returned HTTP %ld\n",_kafka.http_endpoint,http_code);
+}
+
+/*
  *kafka cleanup function, called at exit
  */
 static void
@@ -312,6 +348,7 @@ netsnmp_kafka_cleanup(void)
 
     free(_kafka.brokers);
     free(_kafka.topic);
+    free(_kafka.http_endpoint);
 
     {
         size_t i;
@@ -324,10 +361,16 @@ netsnmp_kafka_cleanup(void)
         _sensors_len = 0;
     }
 
-    /* Wait for messages to be delivered */
-    rd_kafka_poll(_kafka.rk, 100);
+    if(_kafka.curl){
+        curl_easy_cleanup(_kafka.curl);
+        curl_global_cleanup();
+    }
 
-    rd_kafka_destroy(_kafka.rk);
+    if(_kafka.rk){
+        rd_kafka_poll(_kafka.rk, 100);
+
+        rd_kafka_destroy(_kafka.rk);
+    }
 }
 
 /**
@@ -368,6 +411,34 @@ static int set_infty_hex_output_length(void){
     return rc;
 }
 
+/** one-time initialization for the http output (no kafka connection) */
+static int
+netsnmp_http_init(void)
+{
+    static struct curl_slist *headers = NULL;
+
+    if(curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK){
+        snmp_log(LOG_ERR,"kafka:http: curl_global_init() failed\n");
+        return -1;
+    }
+
+    _kafka.curl = curl_easy_init();
+    if(NULL==_kafka.curl){
+        snmp_log(LOG_ERR,"kafka:http: curl_easy_init() failed\n");
+        return -1;
+    }
+
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    curl_easy_setopt(_kafka.curl, CURLOPT_URL, _kafka.http_endpoint);
+    curl_easy_setopt(_kafka.curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(_kafka.curl, CURLOPT_TIMEOUT, 5L);
+
+    curl_easy_setopt(_kafka.curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(_kafka.curl, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    return 0;
+}
+
 /** one-time initialization for rdkafka */
 int
 netsnmp_kafka_init(void)
@@ -379,6 +450,12 @@ netsnmp_kafka_init(void)
 
     DEBUGMSGTL(("kafka:init","called\n"));
     DEBUGMSGTL(("kafka:init","_kafka.brokers at init: %s\n", _kafka.brokers ? _kafka.brokers : "(null)"));
+
+    if(_kafka.http_endpoint){
+        if(netsnmp_http_init())
+            return -1;
+        goto add_handler;
+    }
 
     if(_kafka.brokers == NULL){
         snmp_log(LOG_ERR, "kafka:No brokers defined\n");
@@ -427,6 +504,7 @@ netsnmp_kafka_init(void)
         return -1;
     }
 
+add_handler:
     /** add handler */
     // @TODO search about PRE_HANDLER and alternatives
     traph = netsnmp_add_global_traphandler(NETSNMPTRAPD_PRE_HANDLER,kafka_handler);
@@ -846,6 +924,12 @@ kafka_handler(
     if(NULL==buffer){
         snmp_log(LOG_ERR, "Could not allocate trap kafka buffer\n");
         return syslog_handler( pdu, transport, handler );
+    }
+
+    if(_kafka.http_endpoint){
+        http_send(buffer);
+        free(buffer);
+        return 0;
     }
 
     // snmp_log(LOG_DEBUG, "kafka:Produced %s\n",buffer);
