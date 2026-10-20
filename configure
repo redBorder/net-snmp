@@ -31899,7 +31899,7 @@ fi
    if test "x$rdkafka_h" = "xno"; then
       as_fn_error $? "Could not find rdkafka.h and was specifically asked to use rdkafka support" "$LINENO" 5
    fi
-   RDKAFKA_LIBS="-lrdkafka"
+   RDKAFKA_LIBS="-lrdkafka -lcurl"
    RDKAFKA_INCLUDES=""
 
   cat >> configure-summary << EOF

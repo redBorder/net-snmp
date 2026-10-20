@@ -68,6 +68,7 @@ BuildRequires: perl
 BuildRequires: rpm-devel
 BuildRequires: libnl3-devel
 BuildRequires: librdkafka-devel
+BuildRequires: libcurl-devel
 %if 0%{?netsnmp_embedded_perl}
 %if 0%{?rhel} >= 8 || 0%{?fedora}
 Requires: perl-interpreter
