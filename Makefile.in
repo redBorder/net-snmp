@@ -463,6 +463,7 @@ rpm: dist
 	done &&								\
 	cp net-snmp-$(VERSION).tar.gz $${rpmtopdir}/SOURCES &&	  \
 	MAKE="$(MAKE)" rpmbuild --define="%_topdir $${rpmtopdir}"	\
+	    $${RELEASE:+--define="rpm_release $${RELEASE}"}		\
 	    -ba dist/net-snmp.spec &&					\
 	find $${rpmtopdir} -name '*rpm'
 
